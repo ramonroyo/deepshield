@@ -1,0 +1,149 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="res">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>
+      </Extensions>
+    </Filter>
+    <Filter Include="src\x86">
+      <UniqueIdentifier>{19d2f652-f9c8-4dcb-a007-3b296fad45a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vmx">
+      <UniqueIdentifier>{917f6960-5ed7-41f6-93eb-ff4f5096d971}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vmm">
+      <UniqueIdentifier>{afa8526e-7be5-4700-9882-194d2e618b6d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\rtl">
+      <UniqueIdentifier>{51dc9ca0-05dc-4592-b4f8-1db9be943ccd}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\driver.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hv.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\context.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\exits.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\x86.c">
+      <Filter>src\x86</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vmx.c">
+      <Filter>src\vmx</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hvm_config.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hvm_create.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hvm_root.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mem.c">
+      <Filter>src\rtl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mmu.c">
+      <Filter>src\rtl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\smp.c">
+      <Filter>src\rtl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\sync.c">
+      <Filter>src\rtl</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hvm_exits.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\hvm_launch.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\instr.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vmcs.c">
+      <Filter>src\vmm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\deepshield.c">
+      <Filter>src</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\hv.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\context.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\exits.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\x86.h">
+      <Filter>src\x86</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vmx.h">
+      <Filter>src\vmx</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\hvm.h">
+      <Filter>src\vmm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\mem.h">
+      <Filter>src\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\mmu.h">
+      <Filter>src\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\smp.h">
+      <Filter>src\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\sync.h">
+      <Filter>src\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\instr.h">
+      <Filter>src\vmm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vmcs.h">
+      <Filter>src\vmm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\deepshield.h">
+      <Filter>src</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="..\src\x86_32.asm">
+      <Filter>src\x86</Filter>
+    </MASM>
+    <MASM Include="..\src\x86_64.asm">
+      <Filter>src\x86</Filter>
+    </MASM>
+    <MASM Include="..\src\vmx32.asm">
+      <Filter>src\vmx</Filter>
+    </MASM>
+    <MASM Include="..\src\vmx64.asm">
+      <Filter>src\vmx</Filter>
+    </MASM>
+    <MASM Include="..\src\hvm32.asm">
+      <Filter>src\vmm</Filter>
+    </MASM>
+    <MASM Include="..\src\hvm64.asm">
+      <Filter>src\vmm</Filter>
+    </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\res\antimelt.rc">
+      <Filter>res</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+</Project>
