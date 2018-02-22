@@ -31,155 +31,155 @@ typedef struct _REGISTERS
 
 typedef struct _DESCRIPTOR_TABLE_REGISTER
 {
-	UINT_PTR base;
-	UINT16   limit;
+    UINT_PTR base;
+    UINT16   limit;
 } DESCRIPTOR_TABLE_REGISTER, *PDESCRIPTOR_TABLE_REGISTER;
 
 typedef struct _HOST_SAVED_STATE
 {
-	CR0_REGISTER              cr0;
-	CR4_REGISTER              cr4;
-	SEGMENT_SELECTOR          cs;
-	SEGMENT_SELECTOR          ss;
-	SEGMENT_SELECTOR          ds;
-	SEGMENT_SELECTOR          es;
-	SEGMENT_SELECTOR          fs;
-	UINT_PTR                  fsBase;
-	SEGMENT_SELECTOR          gs;
-	UINT_PTR                  gsBase;
-	SEGMENT_SELECTOR          tr;
-	UINT_PTR                  trBase;
-	DESCRIPTOR_TABLE_REGISTER gdt;
-	DESCRIPTOR_TABLE_REGISTER idt;
-	UINT32                    sysenterCs;
-	UINT_PTR                  sysenterEsp;
-	UINT_PTR                  sysenterEip;
-	UINT64                    perfGlobalCtrl;
-	UINT64                    pat;
-	UINT64                    efer;
+    CR0_REGISTER              cr0;
+    CR4_REGISTER              cr4;
+    SEGMENT_SELECTOR          cs;
+    SEGMENT_SELECTOR          ss;
+    SEGMENT_SELECTOR          ds;
+    SEGMENT_SELECTOR          es;
+    SEGMENT_SELECTOR          fs;
+    UINT_PTR                  fsBase;
+    SEGMENT_SELECTOR          gs;
+    UINT_PTR                  gsBase;
+    SEGMENT_SELECTOR          tr;
+    UINT_PTR                  trBase;
+    DESCRIPTOR_TABLE_REGISTER gdt;
+    DESCRIPTOR_TABLE_REGISTER idt;
+    UINT32                    sysenterCs;
+    UINT_PTR                  sysenterEsp;
+    UINT_PTR                  sysenterEip;
+    UINT64                    perfGlobalCtrl;
+    UINT64                    pat;
+    UINT64                    efer;
 } HOST_SAVED_STATE, *PHOST_SAVED_STATE;
 
 typedef struct _EXIT_INFO
 {
-	UINT32   exitReason;
-	UINT_PTR exitQualification;
-	UINT_PTR guestLinearAddress;
-	UINT64   guestPhyscalAddress;
-	UINT32   exitInterruptionInformation;
-	UINT32   exitInterruptionErrorCode;
-	UINT32   idtVectoringInformation;
-	UINT32   idtVectoringErrorCode;
-	UINT32   exitInstructionLength;
-	UINT32   exitInstructionInformation;
-	UINT_PTR ioRcx;
-	UINT_PTR ioRsi;
-	UINT_PTR ioRdi;
-	UINT_PTR ioRip;
-	UINT_PTR vmInstructionError;
+    UINT32   exitReason;
+    UINT_PTR exitQualification;
+    UINT_PTR guestLinearAddress;
+    UINT64   guestPhyscalAddress;
+    UINT32   exitInterruptionInformation;
+    UINT32   exitInterruptionErrorCode;
+    UINT32   idtVectoringInformation;
+    UINT32   idtVectoringErrorCode;
+    UINT32   exitInstructionLength;
+    UINT32   exitInstructionInformation;
+    UINT_PTR ioRcx;
+    UINT_PTR ioRsi;
+    UINT_PTR ioRdi;
+    UINT_PTR ioRip;
+    UINT_PTR vmInstructionError;
 } EXIT_INFO, *PEXIT_INFO;
 
 typedef struct _HVM_EVENT
 {
-	EXIT_INFO info;
-	REGISTERS regs;
+    EXIT_INFO info;
+    REGISTERS regs;
 } HVM_EVENT, *PHVM_EVENT;
 
 #define MAX_NUMBER_OF_LOGGED_EXIT_EVENTS 4
 
 typedef struct _HVM_LOGGED_EVENTS
 {
-	UINT_PTR  numberOfEvents;
-	HVM_EVENT queue[MAX_NUMBER_OF_LOGGED_EXIT_EVENTS];
+    UINT_PTR  numberOfEvents;
+    HVM_EVENT queue[MAX_NUMBER_OF_LOGGED_EXIT_EVENTS];
 } HVM_LOGGED_EVENTS, *PHVM_LOGGED_EVENTS;
 
 typedef struct _HVM_CORE HVM_CORE, *PHVM_CORE;
 
 typedef VOID(*HVM_EXIT_HANDLER)(
-	_In_ UINT32     exitReason,
-	_In_ PHVM_CORE  core,
-	_In_ PREGISTERS regs
-	);
+    _In_ UINT32     exitReason,
+    _In_ PHVM_CORE  core,
+    _In_ PREGISTERS regs
+    );
 
 typedef VOID(*HVM_CONFIGURE)(
-	_In_ PHVM_CORE core
-	);
+    _In_ PHVM_CORE core
+    );
 
 typedef struct _HVM HVM, *PHVM;
 
 typedef struct _HVM_CORE
 {
-	UINT32   index;
-	PHVM     hvm;
+    UINT32   index;
+    PHVM     hvm;
 
-	HOST_SAVED_STATE savedState;
-	PVOID            vmxOn;
-	PVOID            vmcs;
-	PVOID            stack;
-	UINT_PTR         rsp;
-	HVM_EXIT_HANDLER handler;
-	HVM_CONFIGURE    configure;
-	PVOID            localContext;
+    HOST_SAVED_STATE savedState;
+    PVOID            vmxOn;
+    PVOID            vmcs;
+    PVOID            stack;
+    UINT_PTR         rsp;
+    HVM_EXIT_HANDLER handler;
+    HVM_CONFIGURE    configure;
+    PVOID            localContext;
 
-	ATOMIC            launched;
-	HVM_LOGGED_EVENTS loggedEvents;
+    ATOMIC            launched;
+    HVM_LOGGED_EVENTS loggedEvents;
 } HVM_CORE, *PHVM_CORE;
 
 typedef struct _HVM
 {
-	PHVM_CORE cores;
-	PVOID     globalContext;
+    PHVM_CORE cores;
+    PVOID     globalContext;
 
-	ATOMIC    launched;
+    ATOMIC    launched;
 } HVM, *PHVM;
 
 
 BOOLEAN
 HvmInitialized(
-	VOID
+    VOID
 );
 
 BOOLEAN
 HvmLaunched(
-	VOID
+    VOID
 );
 
 
 NTSTATUS
 HvmInit(
-	_In_  UINT32           stackPages,
+    _In_  UINT32           stackPages,
     _In_  HVM_EXIT_HANDLER handler,
     _In_  HVM_CONFIGURE    configure
 );
 
 VOID
 HvmGlobalContextSet(
-	_In_ PVOID context
+    _In_ PVOID context
 );
 
 PVOID
 HvmGlobalContextGet(
-	VOID
+    VOID
 );
 
 VOID
 HvmLocalContextSet(
-	_In_ UINT32 core,
-	_In_ PVOID  context
+    _In_ UINT32 core,
+    _In_ PVOID  context
 );
 
 PVOID
 HvmLocalContextGet(
-	_In_ UINT32 core
+    _In_ UINT32 core
 );
 
 NTSTATUS
 HvmStart(
-	VOID
+    VOID
 );
 
 NTSTATUS
 HvmStop(
-	VOID
+    VOID
 );
 
 NTSTATUS
@@ -218,7 +218,7 @@ HvmCoreGlobalContext(
 
 UINT32 ROOT_MODE_API
 HvmCoreIndex(
-	_In_ PHVM_CORE core
+    _In_ PHVM_CORE core
 );
 
 PHVM ROOT_MODE_API
@@ -228,7 +228,7 @@ HvmCoreHvm(
 
 PHOST_SAVED_STATE ROOT_MODE_API
 HvmCoreSavedState(
-	_In_ PHVM_CORE core
+    _In_ PHVM_CORE core
 );
 
 

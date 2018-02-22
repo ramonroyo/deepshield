@@ -1,6 +1,6 @@
 /**
-*  @file	mmu.h
-*  @brief	Memory Management Unit functions
+*  @file    mmu.h
+*  @brief    Memory Management Unit functions
 */
 #ifndef __MMU_H__
 #define __MMU_H__
@@ -13,28 +13,28 @@
 
 typedef struct _MMU_MAPPING
 {
-	BOOLEAN  used;     //!< State oif the mapping
-	PVOID    page;     //!< Virtual Address of the mapping where we can map memory
-	PVOID    pte;      //!< Address of the pte to be able to map what we desire
+    BOOLEAN  used;     //!< State oif the mapping
+    PVOID    page;     //!< Virtual Address of the mapping where we can map memory
+    PVOID    pte;      //!< Address of the pte to be able to map what we desire
 } MMU_MAPPING, *PMMU_MAPPING;
 
 typedef struct _MMU_CORE
 {
-	MMU_MAPPING mappings[MAX_MAPPING_SLOTS];
+    MMU_MAPPING mappings[MAX_MAPPING_SLOTS];
 } MMU_CORE, *PMMU_CORE;
 
 typedef struct _MMU
 {
 #ifdef _WIN64
-	UINT64 autoEntryIndex;
-	UINT64 lowerBound;
-	UINT64 upperBound;
+    UINT64 autoEntryIndex;
+    UINT64 lowerBound;
+    UINT64 upperBound;
 #else
-	BOOLEAN paeEnabled;
-	UINT32  pxeShift;
+    BOOLEAN paeEnabled;
+    UINT32  pxeShift;
 #endif
-	UINT_PTR  pxeBase;
-	PMMU_CORE cores;
+    UINT_PTR  pxeBase;
+    PMMU_CORE cores;
 } MMU, *PMMU;
 
 /**

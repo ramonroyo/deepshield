@@ -68,13 +68,13 @@ HvmCoreGlobalContext(
 
 UINT32 ROOT_MODE_API
 HvmCoreIndex(
-	_In_ PHVM_CORE core
+    _In_ PHVM_CORE core
 )
 {
-	if (!core)
-		return (UINT32)-1;
+    if (!core)
+        return (UINT32)-1;
 
-	return core->index;
+    return core->index;
 }
 
 PHVM ROOT_MODE_API
@@ -90,13 +90,13 @@ HvmCoreHvm(
 
 PHOST_SAVED_STATE ROOT_MODE_API
 HvmCoreSavedState(
-	_In_ PHVM_CORE core
+    _In_ PHVM_CORE core
 )
 {
-	if (!core)
-		return 0;
+    if (!core)
+        return 0;
 
-	return &core->savedState;
+    return &core->savedState;
 }
 
 BOOLEAN ROOT_MODE_API

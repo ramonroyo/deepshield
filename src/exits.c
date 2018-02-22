@@ -34,45 +34,45 @@ CrAccessEmulate(
 
 VOID
 CpuidEmulate(
-	_In_ PREGISTERS regs
+    _In_ PREGISTERS regs
 )
 {
-	UINT_PTR function;
-	UINT_PTR subleaf;
+    UINT_PTR function;
+    UINT_PTR subleaf;
 
-	function = regs->rax;
-	subleaf  = regs->rcx;
+    function = regs->rax;
+    subleaf  = regs->rcx;
 
     InstrCpuidEmulate(regs);
 
-	//
-	// Disable RTM if available
-	//
-	if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
-	{
-		regs->rbx &= ~(1 << 11);
-	}
+    //
+    // Disable RTM if available
+    //
+    if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
+    {
+        regs->rbx &= ~(1 << 11);
+    }
 
     InstrRipAdvance(regs);
 }
 
 VOID
 PageFaultEmulate(
-	_In_ PREGISTERS regs
+    _In_ PREGISTERS regs
 )
 {
-	UINT_PTR exitQualification;
+    UINT_PTR exitQualification;
 
-	exitQualification = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
+    exitQualification = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
 
-	VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
-	VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
-	__writecr2(exitQualification);
+    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
+    VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
+    __writecr2(exitQualification);
 
-	if (MmuIsUserModeAddress((PVOID)regs->rip) && MmuIsKernelModeAddress((PVOID)exitQualification))
-	{
-		__wbinvd();
-	}
+    if (MmuIsUserModeAddress((PVOID)regs->rip) && MmuIsKernelModeAddress((PVOID)exitQualification))
+    {
+        __wbinvd();
+    }
 }
 
 VOID 
@@ -113,13 +113,13 @@ DeepShieldExitHandler(
         //
         // Custom VM exits
         //
-		/*
+        /*
         case EXIT_REASON_CR_ACCESS:
         {
             CrAccessEmulate(regs);
             break;
         }
-		*/
+        */
         case EXIT_REASON_CPUID:
         {
             CpuidEmulate(regs);
@@ -127,14 +127,14 @@ DeepShieldExitHandler(
         }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-			PageFaultEmulate(regs);
+            PageFaultEmulate(regs);
             break;
         }
 
 
         default:
         {
-			KeBugCheckEx(HYPERVISOR_ERROR, exitReason, 0, 0, 0);
+            KeBugCheckEx(HYPERVISOR_ERROR, exitReason, 0, 0, 0);
             break;
         }
     }

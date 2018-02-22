@@ -76,7 +76,7 @@
     <ClCompile Include="..\src\vmcs.c">
       <Filter>src\vmm</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\deepshield.c">
+    <ClCompile Include="..\src\shield.c">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -117,7 +117,7 @@
     <ClInclude Include="..\src\vmcs.h">
       <Filter>src\vmm</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\deepshield.h">
+    <ClInclude Include="..\src\shield.h">
       <Filter>src</Filter>
     </ClInclude>
   </ItemGroup>
@@ -142,7 +142,7 @@
     </MASM>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\res\antimelt.rc">
+    <ResourceCompile Include="..\res\deepshield.rc">
       <Filter>res</Filter>
     </ResourceCompile>
   </ItemGroup>

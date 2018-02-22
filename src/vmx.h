@@ -1,6 +1,6 @@
 /**
-*  @file	VMX.h
-*  @brief	Virtual Machine for Intel interface.
+*  @file    VMX.h
+*  @brief    Virtual Machine for Intel interface.
 *
 *  Functionality for virtualization technology on Intel based systems.
 */
@@ -12,41 +12,41 @@
 //
 // VMX NTSTATUS Errors
 //
-#define VMX_STATUS_MASK	0xEB1E0000
-#define VMX_STATUS(X)	((NTSTATUS)(VMX_STATUS_MASK | ((X) & 0x0000FFFF)))
+#define VMX_STATUS_MASK    0xEB1E0000
+#define VMX_STATUS(X)    ((NTSTATUS)(VMX_STATUS_MASK | ((X) & 0x0000FFFF)))
 
     //VMCS VM_INSTRUCTION_ERROR field. See Intel manual.
-#define STATUS_VM_ENTRY_WITH_INVALID_CONTROL_FIELDS								VMX_STATUS(7)
-#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS							VMX_STATUS(8)
-#define STATUS_VM_ENTRY_WITH_INVALID_EXECUTIVE_VMCS_POINTER						VMX_STATUS(16)
-#define STATUS_VM_ENTRY_WITH_NON_LAUNCHED_EXECUTIVE_VMCS						VMX_STATUS(17)
-#define STATUS_VM_ENTRY_WITH_EXECUTIVE_VMCS_POINTER_NOT_VMXON					VMX_STATUS(18)
-#define STATUS_VM_ENTRY_WITH_INVALID_VM_EXEC_CONTROL_FIELDS_IN_EXECUTIVE_VMCS	VMX_STATUS(25)
-#define STATUS_VM_ENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS							VMX_STATUS(26)
-#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION							VMX_STATUS(1)
-#define STATUS_VMCALL_WITH_NON_CLEAR_VMCS										VMX_STATUS(19)
-#define STATUS_VMCALL_WITH_INVALID_VM_EXIT_CONTROL_FIELDS						VMX_STATUS(20)
-#define STATUS_VMCALL_WITH_INCORRECT_MSEG_REVISION_ID							VMX_STATUS(22)
-#define STATUS_VMCALL_WITH_INVALID_SMM_MONITOR_FEATURES							VMX_STATUS(24)
-#define STATUS_VMPTRLD_WITH_INVALID_PHYSICAL_ADDRESS							VMX_STATUS(9)
-#define STATUS_VMPTRLD_WITH_VMXON_POINTER										VMX_STATUS(10)
-#define STATUS_VMPTRLD_WITH_INCORRECT_VMCS_REVISION_IDENTIFIER					VMX_STATUS(11)
-#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS							VMX_STATUS(2)
-#define STATUS_VMCLEAR_WITH_VMXON_POINTER										VMX_STATUS(3)
-#define STATUS_VMLAUNCH_WITH_NON_CLEAR_VMCS										VMX_STATUS(4)
-#define STATUS_VMRESUME_WITH_NON_LAUNCHED_VMCS									VMX_STATUS(5)
-#define STATUS_VMRESUME_AFTER_VMXOFF											VMX_STATUS(6)
-#define STATUS_VMREAD_VMWRITE_FROM_TO_UNSSUPORTED_VMCS_COMPONENT				VMX_STATUS(12)
-#define STATUS_VMWRITE_TO_READONLY_VMCS_COMPONENT								VMX_STATUS(13)
-#define STATUS_VMXON_EXECUTED_IN_VMX_ROOT_OPERATION								VMX_STATUS(15)
-#define STATUS_VMXOFF_UNDER_DUAL_MONITOR										VMX_STATUS(23)
-#define STATUS_INVALID_OPERAND_TO_INVEPT_INVVPID								VMX_STATUS(28)
+#define STATUS_VM_ENTRY_WITH_INVALID_CONTROL_FIELDS                                VMX_STATUS(7)
+#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS                            VMX_STATUS(8)
+#define STATUS_VM_ENTRY_WITH_INVALID_EXECUTIVE_VMCS_POINTER                        VMX_STATUS(16)
+#define STATUS_VM_ENTRY_WITH_NON_LAUNCHED_EXECUTIVE_VMCS                        VMX_STATUS(17)
+#define STATUS_VM_ENTRY_WITH_EXECUTIVE_VMCS_POINTER_NOT_VMXON                    VMX_STATUS(18)
+#define STATUS_VM_ENTRY_WITH_INVALID_VM_EXEC_CONTROL_FIELDS_IN_EXECUTIVE_VMCS    VMX_STATUS(25)
+#define STATUS_VM_ENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS                            VMX_STATUS(26)
+#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION                            VMX_STATUS(1)
+#define STATUS_VMCALL_WITH_NON_CLEAR_VMCS                                        VMX_STATUS(19)
+#define STATUS_VMCALL_WITH_INVALID_VM_EXIT_CONTROL_FIELDS                        VMX_STATUS(20)
+#define STATUS_VMCALL_WITH_INCORRECT_MSEG_REVISION_ID                            VMX_STATUS(22)
+#define STATUS_VMCALL_WITH_INVALID_SMM_MONITOR_FEATURES                            VMX_STATUS(24)
+#define STATUS_VMPTRLD_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(9)
+#define STATUS_VMPTRLD_WITH_VMXON_POINTER                                        VMX_STATUS(10)
+#define STATUS_VMPTRLD_WITH_INCORRECT_VMCS_REVISION_IDENTIFIER                    VMX_STATUS(11)
+#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(2)
+#define STATUS_VMCLEAR_WITH_VMXON_POINTER                                        VMX_STATUS(3)
+#define STATUS_VMLAUNCH_WITH_NON_CLEAR_VMCS                                        VMX_STATUS(4)
+#define STATUS_VMRESUME_WITH_NON_LAUNCHED_VMCS                                    VMX_STATUS(5)
+#define STATUS_VMRESUME_AFTER_VMXOFF                                            VMX_STATUS(6)
+#define STATUS_VMREAD_VMWRITE_FROM_TO_UNSSUPORTED_VMCS_COMPONENT                VMX_STATUS(12)
+#define STATUS_VMWRITE_TO_READONLY_VMCS_COMPONENT                                VMX_STATUS(13)
+#define STATUS_VMXON_EXECUTED_IN_VMX_ROOT_OPERATION                                VMX_STATUS(15)
+#define STATUS_VMXOFF_UNDER_DUAL_MONITOR                                        VMX_STATUS(23)
+#define STATUS_INVALID_OPERAND_TO_INVEPT_INVVPID                                VMX_STATUS(28)
 
     //Configuration errors
-#define STATUS_VMX_NOT_SUPPORTED												VMX_STATUS(30)  //!< No virtualization technology present for Intel
-#define STATUS_VMX_BIOS_DISABLED												VMX_STATUS(31)  //!< Virtualization technology disabled in BIOS
-#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_CORES								VMX_STATUS(32)  //!< Mixed environment with different kind of cores with different capabilities
-#define STATUS_VMX_EPT_NOT_SUPPORTED											VMX_STATUS(33)  //!< Mixed environment with different kind of cores with different capabilities
+#define STATUS_VMX_NOT_SUPPORTED                                                VMX_STATUS(30)  //!< No virtualization technology present for Intel
+#define STATUS_VMX_BIOS_DISABLED                                                VMX_STATUS(31)  //!< Virtualization technology disabled in BIOS
+#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_CORES                                VMX_STATUS(32)  //!< Mixed environment with different kind of cores with different capabilities
+#define STATUS_VMX_EPT_NOT_SUPPORTED                                            VMX_STATUS(33)  //!< Mixed environment with different kind of cores with different capabilities
 
 
 //
@@ -121,15 +121,15 @@
 
 //VMCS Fields
 //Type
-#define TYPE_CONTROL			0
-#define TYPE_EXIT_INFORMATION	1 
-#define TYPE_GUEST				2
-#define TYPE_HOST				3
+#define TYPE_CONTROL            0
+#define TYPE_EXIT_INFORMATION    1 
+#define TYPE_GUEST                2
+#define TYPE_HOST                3
 //Width
-#define WIDTH_16			0
-#define WIDTH_32			2
-#define WIDTH_64			1
-#define WIDTH_PLATFORM		3
+#define WIDTH_16            0
+#define WIDTH_32            2
+#define WIDTH_64            1
+#define WIDTH_PLATFORM        3
 //Constructor
 #define VMCS_FIELD(TYPE, WIDTH, INDEX) (((WIDTH) << 13) | ((TYPE) << 10) | ((INDEX) << 1))
 #define VMCS_FIELD_HIGH(FIELD) ((FIELD) + 1)
@@ -138,172 +138,172 @@
 #define VMCS_FIELD_WIDTH(FIELD) (((FIELD) & (3 << 13)) >> 13)
 
 //VMCS GUEST related Fields
-#define GUEST_CR0											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 0)
-#define GUEST_CR3											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 1)
-#define GUEST_CR4											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 2)
-#define GUEST_DR7											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 13)
-#define GUEST_RSP											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 14)
-#define GUEST_RIP											VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 15)
-#define GUEST_RFLAGS										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 16)
-#define GUEST_CS_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		1)
-#define GUEST_CS_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 4)
-#define GUEST_CS_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		1)
-#define GUEST_CS_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		11)
-#define GUEST_SS_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		2)
-#define GUEST_SS_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 5)
-#define GUEST_SS_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		2)
-#define GUEST_SS_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		12)
-#define GUEST_DS_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		3)
-#define GUEST_DS_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 6)
-#define GUEST_DS_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		3)
-#define GUEST_DS_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		13)
-#define GUEST_ES_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		0)
-#define GUEST_ES_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 3)
-#define GUEST_ES_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		0)
-#define GUEST_ES_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		10)
-#define GUEST_FS_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		4)
-#define GUEST_FS_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 7)
-#define GUEST_FS_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		4)
-#define GUEST_FS_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		14)
-#define GUEST_GS_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		5)
-#define GUEST_GS_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 8)
-#define GUEST_GS_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		5)
-#define GUEST_GS_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		15)
-#define GUEST_LDTR_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		6)
-#define GUEST_LDTR_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 9)
-#define GUEST_LDTR_LIMIT									VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		6)
-#define GUEST_LDTR_ACCESS_RIGHTS							VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		16)
-#define GUEST_TR_SELECTOR									VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		7)
-#define GUEST_TR_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 10)
-#define GUEST_TR_LIMIT										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		7)
-#define GUEST_TR_ACCESS_RIGHTS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		17)
-#define GUEST_GDTR_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 11)
-#define GUEST_GDTR_LIMIT									VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		8)
-#define GUEST_IDTR_BASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 12)
-#define GUEST_IDTR_LIMIT									VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		9)
-#define GUEST_IA32_DEBUGCTL									VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		1)
-#define GUEST_IA32_SYSENTER_CS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		21)
-#define GUEST_IA32_SYSENTER_ESP								VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 18)
-#define GUEST_IA32_SYSENTER_EIP								VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 19)
-#define GUEST_IA32_PERF_GLOBAL_CTRL 						VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		4)
-#define GUEST_IA32_PAT 										VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		2)
-#define GUEST_IA32_EFER 									VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		3)
-#define GUEST_IA32_BNDCFGS 									VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		9)
-#define GUEST_SMBASE										VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		20)
-#define GUEST_ACTIVITY_STATE								VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		19)
-#define GUEST_INTERRUPTIBILITY_STATE						VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		18)
-#define GUEST_PENDING_DEBUG_EXCEPTIONS						VMCS_FIELD(TYPE_GUEST, 				WIDTH_PLATFORM, 17)
-#define VMCS_LINK_POINTER									VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		0)
-#define VMX_PREEMPTION_TIMER_VALUE							VMCS_FIELD(TYPE_GUEST, 				WIDTH_32, 		23)
-#define GUEST_PDPTE_0 										VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		5)
-#define GUEST_PDPTE_1 										VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		6)
-#define GUEST_PDPTE_2 										VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		7)
-#define GUEST_PDPTE_3 										VMCS_FIELD(TYPE_GUEST, 				WIDTH_64, 		8)
-#define GUEST_INTERRUPT_STATUS								VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		8)
-#define GUEST_PML_INDEX										VMCS_FIELD(TYPE_GUEST, 				WIDTH_16, 		9)
+#define GUEST_CR0                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 0)
+#define GUEST_CR3                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 1)
+#define GUEST_CR4                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 2)
+#define GUEST_DR7                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 13)
+#define GUEST_RSP                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 14)
+#define GUEST_RIP                                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 15)
+#define GUEST_RFLAGS                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 16)
+#define GUEST_CS_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         1)
+#define GUEST_CS_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 4)
+#define GUEST_CS_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         1)
+#define GUEST_CS_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         11)
+#define GUEST_SS_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         2)
+#define GUEST_SS_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 5)
+#define GUEST_SS_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         2)
+#define GUEST_SS_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         12)
+#define GUEST_DS_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         3)
+#define GUEST_DS_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 6)
+#define GUEST_DS_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         3)
+#define GUEST_DS_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         13)
+#define GUEST_ES_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         0)
+#define GUEST_ES_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 3)
+#define GUEST_ES_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         0)
+#define GUEST_ES_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         10)
+#define GUEST_FS_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         4)
+#define GUEST_FS_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 7)
+#define GUEST_FS_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         4)
+#define GUEST_FS_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         14)
+#define GUEST_GS_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         5)
+#define GUEST_GS_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 8)
+#define GUEST_GS_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         5)
+#define GUEST_GS_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         15)
+#define GUEST_LDTR_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         6)
+#define GUEST_LDTR_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 9)
+#define GUEST_LDTR_LIMIT                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         6)
+#define GUEST_LDTR_ACCESS_RIGHTS                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         16)
+#define GUEST_TR_SELECTOR                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         7)
+#define GUEST_TR_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 10)
+#define GUEST_TR_LIMIT                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         7)
+#define GUEST_TR_ACCESS_RIGHTS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         17)
+#define GUEST_GDTR_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 11)
+#define GUEST_GDTR_LIMIT                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         8)
+#define GUEST_IDTR_BASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 12)
+#define GUEST_IDTR_LIMIT                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         9)
+#define GUEST_IA32_DEBUGCTL                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         1)
+#define GUEST_IA32_SYSENTER_CS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         21)
+#define GUEST_IA32_SYSENTER_ESP                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 18)
+#define GUEST_IA32_SYSENTER_EIP                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 19)
+#define GUEST_IA32_PERF_GLOBAL_CTRL                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         4)
+#define GUEST_IA32_PAT                                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         2)
+#define GUEST_IA32_EFER                                     VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         3)
+#define GUEST_IA32_BNDCFGS                                     VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         9)
+#define GUEST_SMBASE                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         20)
+#define GUEST_ACTIVITY_STATE                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         19)
+#define GUEST_INTERRUPTIBILITY_STATE                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         18)
+#define GUEST_PENDING_DEBUG_EXCEPTIONS                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_PLATFORM, 17)
+#define VMCS_LINK_POINTER                                    VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         0)
+#define VMX_PREEMPTION_TIMER_VALUE                            VMCS_FIELD(TYPE_GUEST,                 WIDTH_32,         23)
+#define GUEST_PDPTE_0                                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         5)
+#define GUEST_PDPTE_1                                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         6)
+#define GUEST_PDPTE_2                                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         7)
+#define GUEST_PDPTE_3                                         VMCS_FIELD(TYPE_GUEST,                 WIDTH_64,         8)
+#define GUEST_INTERRUPT_STATUS                                VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         8)
+#define GUEST_PML_INDEX                                        VMCS_FIELD(TYPE_GUEST,                 WIDTH_16,         9)
 
 //VMCS HOST related fields
-#define HOST_CR0											VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 0)
-#define HOST_CR3											VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 1)
-#define HOST_CR4											VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 2)
-#define HOST_RSP											VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 10)
-#define HOST_RIP											VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 11)
-#define HOST_CS_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		1)
-#define HOST_SS_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		2)
-#define HOST_DS_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		3)
-#define HOST_ES_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		0)
-#define HOST_FS_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		4)
-#define HOST_FS_BASE										VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 3)
-#define HOST_GS_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		5)
-#define HOST_GS_BASE										VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 4)
-#define HOST_TR_SELECTOR 									VMCS_FIELD(TYPE_HOST, 				WIDTH_16, 		6)
-#define HOST_TR_BASE										VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 5)
-#define HOST_GDTR_BASE										VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 6)
-#define HOST_IDTR_BASE										VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 7)
-#define HOST_IA32_SYSENTER_CS 								VMCS_FIELD(TYPE_HOST, 				WIDTH_32, 		0)
-#define HOST_IA32_SYSENTER_ESP								VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 8)
-#define HOST_IA32_SYSENTER_EIP								VMCS_FIELD(TYPE_HOST, 				WIDTH_PLATFORM, 9)
-#define HOST_IA32_PERF_GLOBAL_CTRL 							VMCS_FIELD(TYPE_HOST, 				WIDTH_64, 		2)
-#define HOST_IA32_PAT 										VMCS_FIELD(TYPE_HOST, 				WIDTH_64, 		0)
-#define HOST_IA32_EFER 										VMCS_FIELD(TYPE_HOST, 				WIDTH_64, 		1)
+#define HOST_CR0                                            VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 0)
+#define HOST_CR3                                            VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 1)
+#define HOST_CR4                                            VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 2)
+#define HOST_RSP                                            VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 10)
+#define HOST_RIP                                            VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 11)
+#define HOST_CS_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         1)
+#define HOST_SS_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         2)
+#define HOST_DS_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         3)
+#define HOST_ES_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         0)
+#define HOST_FS_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         4)
+#define HOST_FS_BASE                                        VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 3)
+#define HOST_GS_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         5)
+#define HOST_GS_BASE                                        VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 4)
+#define HOST_TR_SELECTOR                                     VMCS_FIELD(TYPE_HOST,                 WIDTH_16,         6)
+#define HOST_TR_BASE                                        VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 5)
+#define HOST_GDTR_BASE                                        VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 6)
+#define HOST_IDTR_BASE                                        VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 7)
+#define HOST_IA32_SYSENTER_CS                                 VMCS_FIELD(TYPE_HOST,                 WIDTH_32,         0)
+#define HOST_IA32_SYSENTER_ESP                                VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 8)
+#define HOST_IA32_SYSENTER_EIP                                VMCS_FIELD(TYPE_HOST,                 WIDTH_PLATFORM, 9)
+#define HOST_IA32_PERF_GLOBAL_CTRL                             VMCS_FIELD(TYPE_HOST,                 WIDTH_64,         2)
+#define HOST_IA32_PAT                                         VMCS_FIELD(TYPE_HOST,                 WIDTH_64,         0)
+#define HOST_IA32_EFER                                         VMCS_FIELD(TYPE_HOST,                 WIDTH_64,         1)
 
 //VMCS CONTROL related fields
 //VM Execution
-#define VM_EXEC_CONTROLS_PIN_BASED						 	VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		0)
-#define VM_EXEC_CONTROLS_PROC_PRIMARY						VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		1)
-#define VM_EXEC_CONTROLS_PROC_SECONDARY						VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		15)
-#define EXCEPTION_BITMAP									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		2)
-#define PAGE_FAULT_ERRORCODE_MASK							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		3)
-#define PAGE_FAULT_ERRORCODE_MATCH							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		4)
-#define IO_A_BITMAP_ADDRESS									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		0)
-#define IO_B_BITMAP_ADDRESS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		1)
-#define TSC_OFFSET 											VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		8)
-#define TSC_MULTIPLIER										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		25)
-#define CR0_GUEST_HOST_MASK									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 0)
-#define CR0_READ_SHADOW										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 2)
-#define CR4_GUEST_HOST_MASK									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 1)
-#define CR4_READ_SHADOW										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 3)
-#define CR3_TARGET_COUNT									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		5)
-#define CR3_TARGET_0										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 4)
-#define CR3_TARGET_1										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 5)
-#define CR3_TARGET_2										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 6)
-#define CR3_TARGET_3										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_PLATFORM, 7)
-#define APIC_ACCESS_ADDRESS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		10)
-#define VIRTUAL_APIC_ADDRESS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		9)
-#define TPR_THRESHOLD										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		14)
-#define EOI_EXIT_BITMAP_0 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		14)
-#define EOI_EXIT_BITMAP_1 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		15)
-#define EOI_EXIT_BITMAP_2 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		16)
-#define EOI_EXIT_BITMAP_3 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		17)
-#define POSTED_INTERRUPT_NOTIFICATION_VECTOR				VMCS_FIELD(TYPE_CONTROL, 			WIDTH_16, 		1)
-#define POSTED_INTERRUPT_DESCRIPTOR_ADDRESS 				VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		11)
-#define MSR_BITMAP_ADDRESS 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		2)
-#define EXECUTIVE_VMCS_POINTER 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		6)
-#define EPT_POINTER 										VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		13)
-#define VM_VPID												VMCS_FIELD(TYPE_CONTROL, 			WIDTH_16, 		0)
-#define PLE_GAP												VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		16)
-#define PLE_WINDOW											VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		17)
-#define VM_FUNCTION_CONTROLS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		12)
-#define EPTP_LIST_ADDRESS 									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		18)
-#define VMREAD_BITMAP_ADDRESS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		19)
-#define VMWRITE_BITMAP_ADDRESS 								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		20)
-#define ENCLS_EXITING_BITMAP_ADDRESS 						VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		23)
-#define PML_ADDRESS											VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		7)
-#define VIRTUALIZATION_EXCEPTION_INFORMATION_ADDRESS 		VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		21)
-#define EPTP_INDEX											VMCS_FIELD(TYPE_CONTROL, 			WIDTH_16, 		2)
-#define XSS_EXITING_BITMAP									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		22)
+#define VM_EXEC_CONTROLS_PIN_BASED                             VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         0)
+#define VM_EXEC_CONTROLS_PROC_PRIMARY                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         1)
+#define VM_EXEC_CONTROLS_PROC_SECONDARY                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         15)
+#define EXCEPTION_BITMAP                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         2)
+#define PAGE_FAULT_ERRORCODE_MASK                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         3)
+#define PAGE_FAULT_ERRORCODE_MATCH                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         4)
+#define IO_A_BITMAP_ADDRESS                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         0)
+#define IO_B_BITMAP_ADDRESS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         1)
+#define TSC_OFFSET                                             VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         8)
+#define TSC_MULTIPLIER                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         25)
+#define CR0_GUEST_HOST_MASK                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 0)
+#define CR0_READ_SHADOW                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 2)
+#define CR4_GUEST_HOST_MASK                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 1)
+#define CR4_READ_SHADOW                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 3)
+#define CR3_TARGET_COUNT                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         5)
+#define CR3_TARGET_0                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 4)
+#define CR3_TARGET_1                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 5)
+#define CR3_TARGET_2                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 6)
+#define CR3_TARGET_3                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_PLATFORM, 7)
+#define APIC_ACCESS_ADDRESS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         10)
+#define VIRTUAL_APIC_ADDRESS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         9)
+#define TPR_THRESHOLD                                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         14)
+#define EOI_EXIT_BITMAP_0                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         14)
+#define EOI_EXIT_BITMAP_1                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         15)
+#define EOI_EXIT_BITMAP_2                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         16)
+#define EOI_EXIT_BITMAP_3                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         17)
+#define POSTED_INTERRUPT_NOTIFICATION_VECTOR                VMCS_FIELD(TYPE_CONTROL,             WIDTH_16,         1)
+#define POSTED_INTERRUPT_DESCRIPTOR_ADDRESS                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         11)
+#define MSR_BITMAP_ADDRESS                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         2)
+#define EXECUTIVE_VMCS_POINTER                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         6)
+#define EPT_POINTER                                         VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         13)
+#define VM_VPID                                                VMCS_FIELD(TYPE_CONTROL,             WIDTH_16,         0)
+#define PLE_GAP                                                VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         16)
+#define PLE_WINDOW                                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         17)
+#define VM_FUNCTION_CONTROLS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         12)
+#define EPTP_LIST_ADDRESS                                     VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         18)
+#define VMREAD_BITMAP_ADDRESS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         19)
+#define VMWRITE_BITMAP_ADDRESS                                 VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         20)
+#define ENCLS_EXITING_BITMAP_ADDRESS                         VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         23)
+#define PML_ADDRESS                                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         7)
+#define VIRTUALIZATION_EXCEPTION_INFORMATION_ADDRESS         VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         21)
+#define EPTP_INDEX                                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_16,         2)
+#define XSS_EXITING_BITMAP                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         22)
 
 //VM Exits
-#define VM_EXIT_CONTROLS									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		6)
-#define VM_EXIT_MSR_STORE_COUNT								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		7)
-#define VM_EXIT_MSR_STORE_ADDRESS 							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		3)
-#define VM_EXIT_MSR_LOAD_COUNT								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		8)
-#define VM_EXIT_MSR_LOAD_ADDRESS 							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		4)
+#define VM_EXIT_CONTROLS                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         6)
+#define VM_EXIT_MSR_STORE_COUNT                                VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         7)
+#define VM_EXIT_MSR_STORE_ADDRESS                             VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         3)
+#define VM_EXIT_MSR_LOAD_COUNT                                VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         8)
+#define VM_EXIT_MSR_LOAD_ADDRESS                             VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         4)
 
 //VM Entries
-#define VM_ENTRY_CONTROLS									VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		9)
-#define VM_ENTRY_MSR_LOAD_COUNT								VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		10)
-#define VM_ENTRY_MSR_LOAD_ADDRESS 							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_64, 		5)
-#define VM_ENTRY_INTERRUPTION_INFORMATION					VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		11)
-#define VM_ENTRY_EXCEPTION_ERRORCODE						VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32, 		12)
-#define VM_ENTRY_INSTRUCTION_LENGTH							VMCS_FIELD(TYPE_CONTROL, 			WIDTH_32,		13)
+#define VM_ENTRY_CONTROLS                                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         9)
+#define VM_ENTRY_MSR_LOAD_COUNT                                VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         10)
+#define VM_ENTRY_MSR_LOAD_ADDRESS                             VMCS_FIELD(TYPE_CONTROL,             WIDTH_64,         5)
+#define VM_ENTRY_INTERRUPTION_INFORMATION                    VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         11)
+#define VM_ENTRY_EXCEPTION_ERRORCODE                        VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,         12)
+#define VM_ENTRY_INSTRUCTION_LENGTH                            VMCS_FIELD(TYPE_CONTROL,             WIDTH_32,        13)
 
 //VMCS Exit Information
-#define EXIT_REASON											VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		1)
-#define EXIT_QUALIFICATION									VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 0)
-#define GUEST_LINEAR_ADDRESS								VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 5)
-#define GUEST_PHYSICAL_ADDRESS								VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_64, 		0)
-#define EXIT_INTERRUPTION_INFORMATION						VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		2)
-#define EXIT_INTERRUPTION_ERRORCODE							VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		3)
-#define IDT_VECTORING_INFORMATION							VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		4)
-#define IDT_VECTORING_ERRORCODE								VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		5)
-#define EXIT_INSTRUCTION_LENGTH								VMCS_FIELD(TYPE_EXIT_INFORMATION,	WIDTH_32, 		6)
-#define EXIT_INSTRUCTION_INFORMATION						VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		7)
-#define IO_RCX												VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 1)
-#define IO_RSI												VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 2)
-#define IO_RDI												VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 3)
-#define IO_RIP												VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_PLATFORM, 4)
-#define VM_INSTRUCTION_ERROR								VMCS_FIELD(TYPE_EXIT_INFORMATION, 	WIDTH_32, 		0)
+#define EXIT_REASON                                            VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         1)
+#define EXIT_QUALIFICATION                                    VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 0)
+#define GUEST_LINEAR_ADDRESS                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 5)
+#define GUEST_PHYSICAL_ADDRESS                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_64,         0)
+#define EXIT_INTERRUPTION_INFORMATION                        VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         2)
+#define EXIT_INTERRUPTION_ERRORCODE                            VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         3)
+#define IDT_VECTORING_INFORMATION                            VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         4)
+#define IDT_VECTORING_ERRORCODE                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         5)
+#define EXIT_INSTRUCTION_LENGTH                                VMCS_FIELD(TYPE_EXIT_INFORMATION,    WIDTH_32,         6)
+#define EXIT_INSTRUCTION_INFORMATION                        VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         7)
+#define IO_RCX                                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 1)
+#define IO_RSI                                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 2)
+#define IO_RDI                                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 3)
+#define IO_RIP                                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM, 4)
+#define VM_INSTRUCTION_ERROR                                VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         0)
 ////////////
 //END VMCS//
 ////////////
@@ -314,8 +314,8 @@
 //Basic VMX Support
 #define IA32_VMX_BASIC 0x480
 
-#define MEMORY_TYPE_UNCACHEABLE 0	//!< Uncacheable memory. See field BASIC_MEMORY_TYPE.
-#define MEMORY_TYPE_WRITEBACK   6	//!< Writeback memory.   See field BASIC_MEMORY_TYPE.
+#define MEMORY_TYPE_UNCACHEABLE 0    //!< Uncacheable memory. See field BASIC_MEMORY_TYPE.
+#define MEMORY_TYPE_WRITEBACK   6    //!< Writeback memory.   See field BASIC_MEMORY_TYPE.
 
 typedef struct _VMX_BASIC
 {
@@ -415,7 +415,7 @@ typedef struct _VMX_EPT_VPID_CAP
 //////////////////////////////////
 //Pinbased Controls
 #define IA32_VMX_PIN_CTLS           0x481
-#define IA32_VMX_TRUE_PINBASED_CTLS	0x48D
+#define IA32_VMX_TRUE_PINBASED_CTLS    0x48D
 
 typedef struct _VMX_PIN_CTLS
 {
@@ -523,7 +523,7 @@ typedef struct _VMX_PROC_SECONDARY_CTLS
 
 //Exit controls
 #define IA32_VMX_EXIT_CTLS          0x483
-#define IA32_VMX_TRUE_EXIT_CTLS	    0x48F
+#define IA32_VMX_TRUE_EXIT_CTLS        0x48F
 
 typedef struct _VMX_EXIT_CTLS
 {
@@ -690,10 +690,10 @@ typedef struct _EXIT_QUALIFICATION_CR
     } u;
 } EXIT_QUALIFICATION_CR, *PEXIT_QUALIFICATION_CR;
 
-#define CR_ACCESS_TYPE_MOV_TO_CR	0
-#define CR_ACCESS_TYPE_MOV_FROM_CR	1
-#define CR_ACCESS_TYPE_CLTS			2
-#define CR_ACCESS_TYPE_LMSW			3
+#define CR_ACCESS_TYPE_MOV_TO_CR    0
+#define CR_ACCESS_TYPE_MOV_FROM_CR    1
+#define CR_ACCESS_TYPE_CLTS            2
+#define CR_ACCESS_TYPE_LMSW            3
 
 #define CR_ACCESS_TYPE_LMSW_OPERAND_REGISTER    0
 #define CR_ACCESS_TYPE_LMSW_OPERAND_MEMORY      1
@@ -719,8 +719,8 @@ typedef struct _EXIT_QUALIFICATION_DR
     } u;
 } EXIT_QUALIFICATION_DR, *PEXIT_QUALIFICATION_DR;
 
-#define DR_ACCESS_TYPE_MOV_TO_DR	0
-#define DR_ACCESS_TYPE_MOV_FROM_DR	1
+#define DR_ACCESS_TYPE_MOV_TO_DR    0
+#define DR_ACCESS_TYPE_MOV_FROM_DR    1
 
 typedef struct _EXIT_QUALIFICATION_IO
 {

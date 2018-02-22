@@ -1,5 +1,5 @@
-#ifndef __DEEPSHIELD_H__
-#define __DEEPSHIELD_H__
+#ifndef __SHIELD_H__
+#define __SHIELD_H__
 
 #include <ntddk.h>
 

@@ -4,6 +4,7 @@
 
 MMU gMmu = { 0 };
 
+_Success_(return)
 BOOLEAN
 MmupLocateAutoEntryIndex(
     _Out_ PUINT64 autoEntryIndex
@@ -17,6 +18,7 @@ MmupLocateAutoEntryIndex(
     cr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
     cr3Pa.QuadPart = cr3;
     cr3Va = MmMapIoSpace(cr3Pa, PAGE_SIZE, MmNonCached);
+
     if (cr3Va)
     {
         PUINT64 pml4 = (PUINT64)cr3Va;

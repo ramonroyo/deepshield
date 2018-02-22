@@ -10,37 +10,37 @@
 #pragma pack(push, 1)
 typedef struct _HEAP
 {
-	SPINLOCK lock;     //Heap lock
-	PVOID    memory;   //Pointer to raw memory
-	UINT32   size;     //Size of raw memory
-	UINT32   freeList; //Head of free blocks list (offset into [memory, memory + size) )
-	UINT32   usedList; //Head of used blocks list (offset into [memory, memory + size) )
+    SPINLOCK lock;     //Heap lock
+    PVOID    memory;   //Pointer to raw memory
+    UINT32   size;     //Size of raw memory
+    UINT32   freeList; //Head of free blocks list (offset into [memory, memory + size) )
+    UINT32   usedList; //Head of used blocks list (offset into [memory, memory + size) )
 } HEAP, *PHEAP;
 #pragma pack(pop)
 
 #pragma pack(push, 1)
 typedef struct _HEAP_BLOCK
 {
-	UINT32 state;  //!< State of the block (eg: used or free)
-	UINT32 size;   //!< Number of bytes of the block (available to the end user)
-	UINT32 pprev;  //!< Offset of the previous physical block
-	UINT32 pnext;  //!< Offset of the next physical block
-	UINT32 vprev;  //!< Offset of the previous virtual block (in the same list as this: used or free)
-	UINT32 vnext;  //!< Offset of the next virtual block (in the same list as this: used or free)
+    UINT32 state;  //!< State of the block (eg: used or free)
+    UINT32 size;   //!< Number of bytes of the block (available to the end user)
+    UINT32 pprev;  //!< Offset of the previous physical block
+    UINT32 pnext;  //!< Offset of the next physical block
+    UINT32 vprev;  //!< Offset of the previous virtual block (in the same list as this: used or free)
+    UINT32 vnext;  //!< Offset of the next virtual block (in the same list as this: used or free)
 } HEAP_BLOCK, *PHEAP_BLOCK;
 #pragma pack(pop)
 
-#define BLOCK(X)	((PHEAP_BLOCK)(((PUINT8)heap->memory) + (X) - sizeof(HEAP_BLOCK)))
-#define STATE(X)	(BLOCK(X)->state)
-#define SIZE(X)		(BLOCK(X)->size) 
-#define PPREV(X)	(BLOCK(X)->pprev) 
-#define PNEXT(X)	(BLOCK(X)->pnext)
-#define VPREV(X)	(BLOCK(X)->vprev) 
-#define VNEXT(X)	(BLOCK(X)->vnext)
+#define BLOCK(X)    ((PHEAP_BLOCK)(((PUINT8)heap->memory) + (X) - sizeof(HEAP_BLOCK)))
+#define STATE(X)    (BLOCK(X)->state)
+#define SIZE(X)        (BLOCK(X)->size) 
+#define PPREV(X)    (BLOCK(X)->pprev) 
+#define PNEXT(X)    (BLOCK(X)->pnext)
+#define VPREV(X)    (BLOCK(X)->vprev) 
+#define VNEXT(X)    (BLOCK(X)->vnext)
 
-#define START		sizeof(HEAP_BLOCK)
+#define START        sizeof(HEAP_BLOCK)
 
-#define MINIMAL_FREE_BLOCK_SIZE	16
+#define MINIMAL_FREE_BLOCK_SIZE    16
 
 #define POINTER(X) ((PVOID)((PUINT8)heap->memory + (X)))          //!< Given an offset, converts it to a pointer in the heap
 #define OFFSET(X)  ((UINT32)((PUINT8)(X) - (PUINT8)heap->memory)) //!< Given a pointer, converts it to a offset in the heap
@@ -50,9 +50,9 @@ typedef struct _HEAP_BLOCK
 */
 typedef struct _MEMORY_ARENA
 {
-	PMDL   mdl;				//!< Physical pages description
-	PVOID  virtualAddress;	//!< Virtual address where pages are mapped
-	UINT32 numberOfPages;	//!< Allocated pages
+    PMDL   mdl;                //!< Physical pages description
+    PVOID  virtualAddress;    //!< Virtual address where pages are mapped
+    UINT32 numberOfPages;    //!< Allocated pages
 } MEMORY_ARENA, *PMEMORY_ARENA;
 
 VOID
@@ -723,7 +723,7 @@ ArenaVirtualToPhysical(
     _In_ PVOID         virtualAddress
 )
 {
-	PHYSICAL_ADDRESS result;
+    PHYSICAL_ADDRESS result;
     UINT_PTR         start;
     UINT_PTR         end;
 

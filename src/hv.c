@@ -3,7 +3,7 @@
 #include "mem.h"
 #include "hvm.h"
 #include "vmx.h"
-#include "deepshield.h"
+#include "shield.h"
 #include "smp.h"
 
 NTSTATUS
@@ -38,7 +38,7 @@ HvDone(
     VOID
 )
 {
-	DeepShieldDone();
+    DeepShieldDone();
     MmuDone();
     MemDone();
 }
@@ -54,7 +54,7 @@ HvStart(
     status = DeepShieldStart();
     if (!NT_SUCCESS(status))
     {
-		DeepShieldStop();
+        DeepShieldStop();
         return status;
     }
 
@@ -68,5 +68,5 @@ HvStop(
     VOID
 )
 {
-	DeepShieldStop();
+    DeepShieldStop();
 }

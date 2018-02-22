@@ -1,4 +1,4 @@
-#include "deepshield.h"
+#include "shield.h"
 #include "exits.h"
 #include "context.h"
 #include "hvm.h"
@@ -15,34 +15,34 @@ extern PLOCAL_CONTEXT  gLocalContexts;
 
 NTSTATUS __stdcall
 LocalContextResetOnCore(
-	_In_     UINT32 core,
-	_In_opt_ PVOID  context
-)
+    _In_     UINT32 core,
+    _In_opt_ PVOID  context
+    )
 {
-	UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(context);
 
-	LocalContextReset(&gLocalContexts[core]);
+    LocalContextReset(&gLocalContexts[core]);
 
-	return STATUS_SUCCESS;
+    return STATUS_SUCCESS;
 }
 
 NTSTATUS __stdcall
 LocalContextConfigureOnCore(
-	_In_     UINT32 core,
-	_In_opt_ PVOID  context
-)
+    _In_     UINT32 core,
+    _In_opt_ PVOID  context
+    )
 {
-	UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER(context);
 
-	return LocalContextConfigure(&gLocalContexts[core]) ?
-		STATUS_SUCCESS :
-		STATUS_UNSUCCESSFUL;
+    return LocalContextConfigure(&gLocalContexts[core]) ?
+        STATUS_SUCCESS :
+        STATUS_UNSUCCESSFUL;
 }
 
 VOID
 DeepShieldConfigure(
     _In_ PHVM_CORE core
-)
+    )
 {
     PGLOBAL_CONTEXT globalContext;
     PLOCAL_CONTEXT  localContext;
@@ -57,7 +57,7 @@ DeepShieldConfigure(
     VmcsConfigureCommonHost();
     VmcsConfigureCommonControl();
 
-	/*
+    /*
     //
     // Follow CR3
     //
@@ -68,7 +68,7 @@ DeepShieldConfigure(
         procPrimaryControls.u.f.cr3LoadExiting = 1;
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
     }
-	*/
+    */
 
     //
     // Minimize msr exits
@@ -85,30 +85,30 @@ DeepShieldConfigure(
         VmxVmcsWrite64(MSR_BITMAP_ADDRESS, msrBitmap.QuadPart);
     }
 
-	//
-	// Activate #PF on permissions check
-	//
-	{
-		VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 14));
-		VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK, 4);
-		VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 4);
-	}
+    //
+    // Activate #PF on permissions check
+    //
+    {
+        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 14));
+        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK, 4);
+        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 4);
+    }
 }
 
 VOID
 DeepShieldReset(
     VOID
-)
+    )
 {
-	if (HvmLaunched())
-	{
-		HvmStop();
-	}
+    if (HvmLaunched())
+    {
+        HvmStop();
+    }
 
-	if (HvmInitialized())
-	{
-		HvmDone();
-	}
+    if (HvmInitialized())
+    {
+        HvmDone();
+    }
 
     if (gLocalContexts)
     {
@@ -127,17 +127,10 @@ DeepShieldReset(
     }
 }
 
-
-
-
-
-
-
-
 NTSTATUS
 DeepShieldIsSupported(
     VOID
-)
+    )
 {
     return VmxIsSupported();
 }
@@ -146,12 +139,12 @@ DeepShieldIsSupported(
 NTSTATUS
 DeepShieldInit(
     VOID
-)
+    )
 {
-	NTSTATUS status;
+    NTSTATUS status;
     UINT32 i;
 
-	DeepShieldReset();
+    DeepShieldReset();
 
     gGlobalContext = MemAlloc(sizeof(GLOBAL_CONTEXT));
     if (!gGlobalContext)
@@ -161,9 +154,12 @@ DeepShieldInit(
     if (!gLocalContexts)
         goto failure;
 
-	status = HvmInit(DEEPSHIELD_STACK_PAGES, DeepShieldExitHandler, DeepShieldConfigure);
-	if (!NT_SUCCESS(status))
-		goto failure;
+    status = HvmInit( DEEPSHIELD_STACK_PAGES,
+                      DeepShieldExitHandler,
+                      DeepShieldConfigure );
+
+    if (!NT_SUCCESS( status ))
+        goto failure;
 
     //
     // Configure
@@ -186,7 +182,7 @@ DeepShieldInit(
     return STATUS_SUCCESS;
 
 failure:
-	DeepShieldReset();
+    DeepShieldReset();
     return STATUS_UNSUCCESSFUL;
 }
 
@@ -195,7 +191,7 @@ DeepShieldDone(
     VOID
 )
 {
-	DeepShieldReset();
+    DeepShieldReset();
     return STATUS_SUCCESS;
 }
 

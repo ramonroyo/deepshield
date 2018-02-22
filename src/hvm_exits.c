@@ -43,7 +43,7 @@ HvmpExitEventLog(
     //
     // Log exit data
     //
-	HvmpExitEventLogVmcsInfo(&core->loggedEvents.queue[index].info);
+    HvmpExitEventLogVmcsInfo(&core->loggedEvents.queue[index].info);
     core->loggedEvents.queue[index].regs = *regs;
 
     //
@@ -55,52 +55,52 @@ HvmpExitEventLog(
 
 extern VOID
 HvmpStop(
-	_In_ PHVM_CORE  core,
-	_In_ PREGISTERS regs
+    _In_ PHVM_CORE  core,
+    _In_ PREGISTERS regs
 );
 
 
 VOID
 HvmHandleService(
-	_In_ PHVM_CORE  core,
-	_In_ PREGISTERS regs
+    _In_ PHVM_CORE  core,
+    _In_ PREGISTERS regs
 )
 {
-	UINT_PTR service;
+    UINT_PTR service;
 
-	service = regs->rcx;
+    service = regs->rcx;
 
-	//
-	// Advance RIP for the call
-	//
-	InstrRipAdvance(regs);
+    //
+    // Advance RIP for the call
+    //
+    InstrRipAdvance(regs);
 
-	//
-	// Perform service
-	//
-	switch (service)
-	{
-		case HVM_INTERNAL_SERVICE_STOP:
-		{
-			regs->rax = (UINT_PTR)STATUS_SUCCESS;
+    //
+    // Perform service
+    //
+    switch (service)
+    {
+        case HVM_INTERNAL_SERVICE_STOP:
+        {
+            regs->rax = (UINT_PTR)STATUS_SUCCESS;
 
-			HvmpStop(core, regs);
+            HvmpStop(core, regs);
 
-			//
-			// Never reached
-			//
-			break;
-		}
+            //
+            // Never reached
+            //
+            break;
+        }
 
-		default:
-		{
-			regs->rax = (UINT32)STATUS_UNSUCCESSFUL;
+        default:
+        {
+            regs->rax = (UINT32)STATUS_UNSUCCESSFUL;
 
-			regs->rflags.u.f.cf = 1;
+            regs->rflags.u.f.cf = 1;
 
-			break;
-		}
-	}
+            break;
+        }
+    }
 }
 
 VOID __stdcall

@@ -9,22 +9,22 @@ extern PHVM gHvm;
 
 typedef struct _IRET_FRAME
 {
-	UINT_PTR rip;
-	UINT_PTR cs;
-	UINT_PTR rflags;
+    UINT_PTR rip;
+    UINT_PTR cs;
+    UINT_PTR rflags;
 #ifdef _WIN64
-	UINT_PTR rsp;
-	UINT_PTR ss;
+    UINT_PTR rsp;
+    UINT_PTR ss;
 #endif
 } IRET_FRAME, *PIRET_FRAME;
 
 typedef struct _HVM_STOP_STACK_LAYOUT
 {
-	REGISTERS  regs;
+    REGISTERS  regs;
 #ifdef _WIN64
-	IRET_FRAME iret;
+    IRET_FRAME iret;
 #else
-	PIRET_FRAME iret;
+    PIRET_FRAME iret;
 #endif
 } HVM_STOP_STACK_LAYOUT, *PHVM_STOP_STACK_LAYOUT;
 
@@ -32,23 +32,23 @@ typedef struct _HVM_STOP_STACK_LAYOUT
 
 extern NTSTATUS __stdcall
 HvmInternalCallAsm(
-	_In_ UINT_PTR service,
-	_In_ UINT_PTR data
+    _In_ UINT_PTR service,
+    _In_ UINT_PTR data
 );
 
 extern NTSTATUS __stdcall
 HvmpStartAsm(
-	_In_ PHVM_CORE core
+    _In_ PHVM_CORE core
 );
 
 extern VOID __stdcall
 HvmpStopAsm(
-	_In_ UINT_PTR stack
+    _In_ UINT_PTR stack
 );
 
 extern VOID
 HvmpExitHandlerAsm(
-	VOID
+    VOID
 );
 
 
@@ -68,13 +68,13 @@ HvmpSaveHostState(
     state->fsBase      = DescriptorBase(__readfs());
 #else
     state->fsBase      = __readmsr(IA32_FS_BASE);
-#endif	
+#endif    
     state->gs.u.raw    = __readgs();
 #ifndef _WIN64
     state->gsBase      = DescriptorBase(__readgs());
 #else
     state->gsBase      = __readmsr(IA32_GS_BASE);
-#endif	
+#endif    
     state->tr.u.raw    = __str();
     state->trBase      = DescriptorBase(__str());
     state->gdt.base    = sgdt_base();
@@ -154,18 +154,18 @@ HvmpStartCore(
 {
     PHVM      hvm;
     PHVM_CORE hvmCore;
-	NTSTATUS  status;
+    NTSTATUS  status;
 
     hvm     = (PHVM)context;
     hvmCore = &hvm->cores[core];
 
-	__cli();
+    __cli();
 
     status = HvmpStartAsm(hvmCore);
 
-	__sti();
+    __sti();
 
-	return status;
+    return status;
 }
 
 NTSTATUS __stdcall
@@ -185,10 +185,10 @@ HvmpStart(
     if(!core)
         return STATUS_UNSUCCESSFUL;
 
-	//
-	// Save host state
-	//
-	HvmpSaveHostState(&core->savedState);
+    //
+    // Save host state
+    //
+    HvmpSaveHostState(&core->savedState);
 
     //
     // Enable VMX tech on this core
@@ -220,10 +220,10 @@ HvmpStart(
     rflags.u.f.cf = 0;
     rflags.u.f.zf = 0;
 
-	core->configure(core);
+    core->configure(core);
 
-	VmxVmcsWritePlatform(HOST_RSP, core->rsp);
-	VmxVmcsWritePlatform(HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm);
+    VmxVmcsWritePlatform(HOST_RSP, core->rsp);
+    VmxVmcsWritePlatform(HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm);
     VmcsConfigureCommonEntry(code, stack, rflags);
    
     AtomicWrite(&core->launched, TRUE);
@@ -233,41 +233,41 @@ HvmpStart(
 
 NTSTATUS __stdcall
 HvmpFailure(
-	_In_ PHVM_CORE core,
-	_In_ BOOLEAN   valid
+    _In_ PHVM_CORE core,
+    _In_ BOOLEAN   valid
 )
 {
-	NTSTATUS status;
+    NTSTATUS status;
 
-	UNREFERENCED_PARAMETER(core);
+    UNREFERENCED_PARAMETER(core);
 
-	if (valid)
-	{
-		status = VMX_STATUS(VmxVmcsRead32(VM_INSTRUCTION_ERROR));
-	}
-	else
-	{
-		status = STATUS_UNSUCCESSFUL;
-	}
+    if (valid)
+    {
+        status = VMX_STATUS(VmxVmcsRead32(VM_INSTRUCTION_ERROR));
+    }
+    else
+    {
+        status = STATUS_UNSUCCESSFUL;
+    }
 
-	return status;
+    return status;
 }
 
 NTSTATUS __stdcall
 HvmpStartFailure(
-	_In_ PHVM_CORE core,
-	_In_ BOOLEAN   valid
+    _In_ PHVM_CORE core,
+    _In_ BOOLEAN   valid
 )
 {
-	NTSTATUS status;
+    NTSTATUS status;
 
-	AtomicWrite(&core->launched, FALSE);
+    AtomicWrite(&core->launched, FALSE);
 
-	status = HvmpFailure(core, valid);
+    status = HvmpFailure(core, valid);
 
-	VmxpDisable();
+    VmxpDisable();
 
-	return status;
+    return status;
 }
 
 NTSTATUS __stdcall
@@ -322,24 +322,24 @@ HvmpStop(
 
     VmxpDisable();
     
-	HvmpStopAsm((UINT_PTR)&stack);
+    HvmpStopAsm((UINT_PTR)&stack);
 }
 
 
 NTSTATUS
 HvmStart(
-	VOID
+    VOID
 )
 {
     NTSTATUS status;
 
-	status = STATUS_UNSUCCESSFUL;
+    status = STATUS_UNSUCCESSFUL;
 
-	if(gHvm == 0)
-		return status;
+    if(gHvm == 0)
+        return status;
 
     if (AtomicRead(&gHvm->launched) == TRUE)
-		return status;
+        return status;
 
     //
     // Start virtualization
@@ -354,18 +354,18 @@ HvmStart(
 
 NTSTATUS
 HvmStop(
-	VOID
+    VOID
 )
 {
     NTSTATUS status;
 
-	status = STATUS_UNSUCCESSFUL;
+    status = STATUS_UNSUCCESSFUL;
 
-	if (gHvm == 0)
-		return status;
+    if (gHvm == 0)
+        return status;
 
-	if (AtomicRead(&gHvm->launched) == FALSE)
-		return status;
+    if (AtomicRead(&gHvm->launched) == FALSE)
+        return status;
 
     //
     // Stop virtualization

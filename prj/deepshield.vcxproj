@@ -74,61 +74,61 @@
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
+    <TargetName>dpshield</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
+    <TargetName>dpshield</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>dpshield</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
+    <TargetName>dpshield</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>
-      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\..\lib\inc;$(ProjectDir)..\..\..\libs\rtl\inc;$(ProjectDir)..\..\..\libs\x86\inc;$(ProjectDir)..\..\..\libs\vmx\inc;$(ProjectDir)..\..\..\libs\ept\inc;$(ProjectDir)..\..\..\libs\vmm\inc</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>
-      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\..\lib\inc;$(ProjectDir)..\..\..\libs\rtl\inc;$(ProjectDir)..\..\..\libs\x86\inc;$(ProjectDir)..\..\..\libs\vmx\inc;$(ProjectDir)..\..\..\libs\ept\inc;$(ProjectDir)..\..\..\libs\vmm\inc</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>
-      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\..\lib\inc;$(ProjectDir)..\..\..\libs\rtl\inc;$(ProjectDir)..\..\..\libs\x86\inc;$(ProjectDir)..\..\..\libs\vmx\inc;$(ProjectDir)..\..\..\libs\ept\inc;$(ProjectDir)..\..\..\libs\vmm\inc</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalDependencies>%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>wdmsec.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
-      <AdditionalIncludeDirectories>
-      </AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\..\lib\inc;$(ProjectDir)..\..\..\libs\rtl\inc;$(ProjectDir)..\..\..\libs\x86\inc;$(ProjectDir)..\..\..\libs\vmx\inc;$(ProjectDir)..\..\..\libs\ept\inc;$(ProjectDir)..\..\..\libs\vmm\inc</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -141,7 +141,7 @@
     <ClCompile Include="..\src\context.c" />
     <ClCompile Include="..\src\driver.c" />
     <ClCompile Include="..\src\hv.c" />
-    <ClCompile Include="..\src\deepshield.c" />
+    <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
     <ClCompile Include="..\src\hvm_config.c" />
     <ClCompile Include="..\src\hvm_create.c" />
@@ -160,7 +160,7 @@
   <ItemGroup>
     <ClInclude Include="..\src\context.h" />
     <ClInclude Include="..\src\hv.h" />
-    <ClInclude Include="..\src\deepshield.h" />
+    <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />
     <ClInclude Include="..\src\hvm.h" />
     <ClInclude Include="..\src\instr.h" />

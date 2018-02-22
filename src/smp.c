@@ -47,6 +47,7 @@ SmpExecuteOnAllCores(
         // Scatter
         //
         arg = ExAllocatePoolWithTag(NonPagedPool, sizeof(IPI_ARGUMENT) * nc, 'ppms');
+        
         if (!arg)
             return STATUS_INSUFFICIENT_RESOURCES;
 

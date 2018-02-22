@@ -70,10 +70,10 @@ GlobalCtx(
 
 PLOCAL_CONTEXT
 LocalCtx(
-	VOID
+    VOID
 )
 {
-	return &gLocalContexts[SmpCurrentCore()];
+    return &gLocalContexts[SmpCurrentCore()];
 }
 
 PLOCAL_CONTEXT

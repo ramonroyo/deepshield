@@ -1,6 +1,6 @@
 /**
-*  @file	smp.h
-*  @brief	SMP related functions
+*  @file    smp.h
+*  @brief    SMP related functions
 */
 #ifndef __SMP_H__
 #define __SMP_H__

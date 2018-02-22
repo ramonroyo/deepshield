@@ -1,6 +1,6 @@
 /**
-*  @file	x86.h
-*  @brief	x86 architecture related functions
+*  @file    x86.h
+*  @brief    x86 architecture related functions
 *
 *  Provides functions that are closely related with x86 architecture in form of intrinsics lookalike.
 */
@@ -12,12 +12,12 @@
 #endif
 
 
-#define IA32_SYSENTER_CS		0x174
-#define IA32_SYSENTER_ESP		0x175
-#define IA32_SYSENTER_EIP		0x176
-#define IA32_DEBUGCTL			0x1D9
-#define IA32_FS_BASE			0xC0000100
-#define IA32_GS_BASE			0xC0000101
+#define IA32_SYSENTER_CS        0x174
+#define IA32_SYSENTER_ESP        0x175
+#define IA32_SYSENTER_EIP        0x176
+#define IA32_DEBUGCTL            0x1D9
+#define IA32_FS_BASE            0xC0000100
+#define IA32_GS_BASE            0xC0000101
 #define IA32_GS_BASE_SWAP       0xC0000102
 #define IA32_APIC_BASE          0x1B
 
@@ -389,7 +389,7 @@ UINT32   DescriptorAccessRights(_In_ UINT16 selector);
 * Writing is done with a single function (entire register is modified).
 */
 UINT_PTR sgdt_base (VOID);
-UINT16	 sgdt_limit(VOID);
+UINT16     sgdt_limit(VOID);
 VOID     lgdt      (_In_ UINT_PTR base, _In_ UINT16 limit);
 
 /**

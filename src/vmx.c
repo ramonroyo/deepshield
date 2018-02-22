@@ -352,11 +352,11 @@ VmxpNormalizeControls(
 
     switch (field)
     {
-        case VM_EXEC_CONTROLS_PIN_BASED:		control = IA32_VMX_PIN_CTLS;            break;
-        case VM_EXEC_CONTROLS_PROC_PRIMARY:		control = IA32_VMX_PROC_PRIMARY_CTLS;   break;
-        case VM_EXEC_CONTROLS_PROC_SECONDARY:	control = IA32_VMX_PROC_SECONDARY_CTLS; break;
-        case VM_EXIT_CONTROLS:					control = IA32_VMX_EXIT_CTLS;           break;
-        case VM_ENTRY_CONTROLS:					control = IA32_VMX_ENTRY_CTLS;          break;
+        case VM_EXEC_CONTROLS_PIN_BASED:        control = IA32_VMX_PIN_CTLS;            break;
+        case VM_EXEC_CONTROLS_PROC_PRIMARY:        control = IA32_VMX_PROC_PRIMARY_CTLS;   break;
+        case VM_EXEC_CONTROLS_PROC_SECONDARY:    control = IA32_VMX_PROC_SECONDARY_CTLS; break;
+        case VM_EXIT_CONTROLS:                    control = IA32_VMX_EXIT_CTLS;           break;
+        case VM_ENTRY_CONTROLS:                    control = IA32_VMX_ENTRY_CTLS;          break;
         default:
             return;
     }
