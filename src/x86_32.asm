@@ -19,35 +19,35 @@ __readss@0 ENDP
 
 __readds@0 PROC
     xor eax, eax
-    mov    ax, ds
+    mov ax, ds
     ret
 __readds@0 ENDP
 
 
 __reades@0 PROC
     xor eax, eax
-    mov    ax, es
+    mov ax, es
     ret
 __reades@0 ENDP
 
 
 __readfs@0 PROC
     xor eax, eax
-    mov    ax, fs
+    mov ax, fs
     ret
 __readfs@0 ENDP
 
 
 __readgs@0 PROC
     xor eax, eax
-    mov    ax, gs
+    mov ax, gs
     ret
 __readgs@0 ENDP
 
 
 __str@0 PROC
     xor eax, eax
-    str    ax
+    str ax
     ret
 __str@0 ENDP
 
@@ -144,5 +144,18 @@ __pause@0 PROC
     pause
     ret
 __pause@0 ENDP
+
+
+__sgdt@4 PROC
+    mov eax, [esp + 4]
+    sgdt [eax]
+    ret 4
+__sgdt@4 ENDP
+
+__lgdt@4 PROC
+    mov eax, [esp + 4]
+    lgdt fword ptr [eax]
+    ret 4
+__lgdt@4 ENDP
 
 END

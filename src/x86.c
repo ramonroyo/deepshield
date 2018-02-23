@@ -99,7 +99,7 @@ IdtRestoreEntry(
 }
 
 
-UINT_PTR
+UINT_PTR __stdcall
 DescriptorBase(
     _In_ UINT16 selector
 )
@@ -139,7 +139,7 @@ DescriptorBase(
 }
 
 
-UINT32
+UINT32 __stdcall
 DescriptorAccessRights(
     _In_ UINT16 selector
 )
@@ -171,6 +171,8 @@ DescriptorAccessRights(
     return accessRights;
 }
 
+extern VOID __stdcall __sgdt(PVOID memory);
+extern VOID __stdcall __lgdt(PVOID memory);
 
 UINT_PTR
 sgdt_base(
@@ -179,7 +181,7 @@ sgdt_base(
 {
     UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
 
-    _sgdt(&gdt);
+    __sgdt(&gdt);
 
     return *(PUINT_PTR)((PUINT8)&gdt + 2);
 }
@@ -192,7 +194,7 @@ sgdt_limit(
 {
     UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
 
-    _sgdt(&gdt);
+    __sgdt(&gdt);
 
     return *(PUINT16)&gdt;
 }
@@ -209,7 +211,7 @@ lgdt(
     *(PUINT16)  ((PUINT8)&gdt + 0) = limit;
     *(PUINT_PTR)((PUINT8)&gdt + 2) = base;
     
-    _lgdt(&gdt);
+    __lgdt(&gdt);
 }
 
 

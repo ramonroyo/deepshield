@@ -1,21 +1,18 @@
 /**
 *  @file    x86.h
-*  @brief    x86 architecture related functions
+*  @brief   x86 architecture related functions
 *
 *  Provides functions that are closely related with x86 architecture in form of intrinsics lookalike.
 */
 #ifndef __X86_H__
 #define __X86_H__
 
-#ifndef LYNX_USER_MODE_DBG
 #include <ntddk.h>
-#endif
-
 
 #define IA32_SYSENTER_CS        0x174
-#define IA32_SYSENTER_ESP        0x175
-#define IA32_SYSENTER_EIP        0x176
-#define IA32_DEBUGCTL            0x1D9
+#define IA32_SYSENTER_ESP       0x175
+#define IA32_SYSENTER_EIP       0x176
+#define IA32_DEBUGCTL           0x1D9
 #define IA32_FS_BASE            0xC0000100
 #define IA32_GS_BASE            0xC0000101
 #define IA32_GS_BASE_SWAP       0xC0000102
@@ -366,12 +363,12 @@ UINT16 __sldt  (VOID);
 * Segment selector writing.
 * All receive a 16-bit-wide value containing the selector.
 */
-VOID __writess(_In_ UINT16 selector);
-VOID __writeds(_In_ UINT16 selector);
-VOID __writees(_In_ UINT16 selector);
-VOID __writefs(_In_ UINT16 selector);
-VOID __writegs(_In_ UINT16 selector);
-VOID __ltr    (_In_ UINT16 selector);
+VOID __stdcall __writess(_In_ UINT16 selector);
+VOID __stdcall __writeds(_In_ UINT16 selector);
+VOID __stdcall __writees(_In_ UINT16 selector);
+VOID __stdcall __writefs(_In_ UINT16 selector);
+VOID __stdcall __writegs(_In_ UINT16 selector);
+VOID __stdcall __ltr    (_In_ UINT16 selector);
 
 /**
 * Segment descriptor reading.
@@ -379,9 +376,9 @@ VOID __ltr    (_In_ UINT16 selector);
 * different attributes are read. 
 * Those attributes are base, limit, and access rights of the descriptor.
 */
-UINT_PTR DescriptorBase        (_In_ UINT16 selector);
-UINT32   DescriptorLimit       (_In_ UINT16 selector);
-UINT32   DescriptorAccessRights(_In_ UINT16 selector);
+UINT_PTR __stdcall DescriptorBase        (_In_ UINT16 selector);
+UINT32   __stdcall DescriptorLimit       (_In_ UINT16 selector);
+UINT32   __stdcall DescriptorAccessRights(_In_ UINT16 selector);
 
 /**
 * GDT register related functions.
@@ -389,7 +386,7 @@ UINT32   DescriptorAccessRights(_In_ UINT16 selector);
 * Writing is done with a single function (entire register is modified).
 */
 UINT_PTR sgdt_base (VOID);
-UINT16     sgdt_limit(VOID);
+UINT16   sgdt_limit(VOID);
 VOID     lgdt      (_In_ UINT_PTR base, _In_ UINT16 limit);
 
 /**
@@ -404,17 +401,17 @@ VOID     lidt      (_In_ UINT_PTR base, _In_ UINT16 limit);
 /**
 * Retrieve the value of the stack pointer (esp/rsp).
 */
-UINT_PTR __readsp(VOID);
+UINT_PTR __stdcall __readsp(VOID);
 
 /**
 * Retrieve the value of the flags register (eflags/rflags).
 */
-UINT_PTR __readflags(VOID);
+UINT_PTR __stdcall __readflags(VOID);
 
 /**
 * Write to cr2 (page-fault address recording register).
 */
-VOID __writecr2(_In_ UINT_PTR cr2);
+VOID __stdcall __writecr2(_In_ UINT_PTR cr2);
 
 
 /**

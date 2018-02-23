@@ -37,7 +37,7 @@ InstrXsetbvEmulate(
 )
 {
 #ifdef _WIN64
-    _xsetbv((UINT32)regs->rcx, regs->rdx << 32 | regs->rax);
+    __xsetbv((UINT32)regs->rcx, regs->rdx << 32 | regs->rax);
 #else
     UNREFERENCED_PARAMETER(regs);
 #endif

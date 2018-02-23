@@ -16,35 +16,35 @@ __readss ENDP
 
 __readds PROC
     xor rax, rax
-    mov    ax, ds
+    mov ax, ds
     ret
 __readds ENDP
 
 
 __reades PROC
     xor rax, rax
-    mov    ax, es
+    mov ax, es
     ret
 __reades ENDP
 
 
 __readfs PROC
     xor rax, rax
-    mov    ax, fs
+    mov ax, fs
     ret
 __readfs ENDP
 
 
 __readgs PROC
     xor rax, rax
-    mov    ax, gs
+    mov ax, gs
     ret
 __readgs ENDP
 
 
 __str PROC
     xor rax, rax
-    str    ax
+    str ax
     ret
 __str ENDP
 
@@ -133,5 +133,17 @@ __pause PROC
     pause
     ret
 __pause ENDP
+
+
+__sgdt PROC
+    sgdt [rcx]
+    ret
+__sgdt ENDP
+
+__lgdt PROC
+    lgdt fword ptr [rcx]
+    ret
+__lgdt ENDP
+
 
 END
