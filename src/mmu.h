@@ -1,6 +1,6 @@
 /**
 *  @file    mmu.h
-*  @brief    Memory Management Unit functions
+*  @brief   Memory Management Unit functions
 */
 #ifndef __MMU_H__
 #define __MMU_H__

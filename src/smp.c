@@ -1,94 +1,89 @@
-#include "smp.h"
-#include "mem.h"
+#include "smp.h" 
+#include "sync.h"
 
-typedef struct _IPI_ARGUMENT
+typedef struct _PROCESSOR_INFO
 {
-    UINT32             used;
+    volatile LONG      sync;
     PROCESSOR_CALLBACK callback;
     PVOID              context;
-    NTSTATUS           result;
-} IPI_ARGUMENT, *PIPI_ARGUMENT;
+    NTSTATUS           error;
+} PROCESSOR_INFO, *PPROCESSOR_INFO;
 
-ULONG_PTR 
-SmppIpiExecution(
-    _In_ ULONG_PTR argument
+VOID
+DpcRoutine(
+    PKDPC dpc,
+    PVOID context,
+    PVOID arg1,
+    PVOID arg2
 )
 {
-    PIPI_ARGUMENT arg;
-    PIPI_ARGUMENT slot;
+    PPROCESSOR_INFO info = (PPROCESSOR_INFO)context;
+    NTSTATUS status;
 
-    arg  = (PIPI_ARGUMENT)argument;
-    slot = arg + SmpCurrentCore();
+    UNREFERENCED_PARAMETER( dpc );
+    UNREFERENCED_PARAMETER( arg1 );
+    UNREFERENCED_PARAMETER( arg2 );
 
-    slot->used = 1;
-    slot->result = slot->callback(SmpCurrentCore(), slot->context);
+    status = info->callback(SmpCurrentCore(), info->context);
 
-    return 0;
+    if(status != STATUS_SUCCESS)
+    {
+        InterlockedCompareExchange(&info->error, status, STATUS_SUCCESS);
+    }
+
+    InterlockedIncrement(&info->sync);
 }
 
-NTSTATUS 
+NTSTATUS
 SmpExecuteOnAllCores(
     _In_     PROCESSOR_CALLBACK callback, 
     _In_opt_ PVOID              context
 )
 {
-    NTSTATUS      status = STATUS_SUCCESS;
-    PIPI_ARGUMENT arg;
-    UINT32        nc;
-    UINT32        i;
+    NTSTATUS status;
+    KIRQL    savedIrql;
+    UINT32   numberOfCores;
     
-    if (!callback)
-        return STATUS_INVALID_PARAMETER;
+    numberOfCores = SmpNumberOfCores();
 
-    nc = SmpNumberOfCores();
-    if (nc > 1)
+    if (numberOfCores > 1)
     {
-        //
-        // Scatter
-        //
-        arg = ExAllocatePoolWithTag(NonPagedPool, sizeof(IPI_ARGUMENT) * nc, 'ppms');
-        
-        if (!arg)
-            return STATUS_INSUFFICIENT_RESOURCES;
+        KDPC           dpcTraps[MAXIMUM_PROCESSORS] = { 0 };
+        PROCESSOR_INFO info                         = { 0 };
+        UINT32         i;
 
-        for (i = 0; i < nc; i++)
+        info.callback = callback;
+        info.context  = context;
+        info.error    = STATUS_SUCCESS;
+
+        KeRaiseIrql(DISPATCH_LEVEL, &savedIrql);
+
+        for (i = 0; i < numberOfCores; i++)
         {
-            arg[i].used     = 0;
-            arg[i].callback = callback;
-            arg[i].context  = context;
-            arg[i].result   = 0;
-        }
-
-        //
-        // Multicore Call
-        //
-        KeIpiGenericCall(SmppIpiExecution, (ULONG_PTR)arg);
-
-        //
-        // Gather
-        //
-        for (i = 0; i < nc; i++)
-        {
-            if (arg[i].used)
+            if (i != SmpCurrentCore())
             {
-                if (!NT_SUCCESS(arg[i].result))
-                {
-                    status = arg[i].result;
-                    break;
-                }
+                KeInitializeDpc(&dpcTraps[i], DpcRoutine, &info);
+                KeSetTargetProcessorDpc(&dpcTraps[i], (CCHAR)i);
+                KeInsertQueueDpc(&dpcTraps[i], &info, 0);
             }
         }
 
-        ExFreePool(arg);
+        DpcRoutine(0, &info, 0, 0);
+
+        KeLowerIrql(savedIrql);
+
+        while (InterlockedCompareExchange(&info.sync, 0, numberOfCores))
+            YieldProcessor();
+
+        status = info.error;
     }
     else
     {
-        KIRQL oldIrql = 0;
-        KeRaiseIrql(IPI_LEVEL, &oldIrql);
+        KeRaiseIrql(DISPATCH_LEVEL, &savedIrql);
 
         status = callback(SmpCurrentCore(), context);
 
-        KeLowerIrql(oldIrql);
+        KeLowerIrql(savedIrql);	
     }
 
     return status;

@@ -1,4 +1,5 @@
 #include "vmx.h"
+#include "smp.h"
 
 #define HIGH32(v64) ((UINT32)((v64) >> 32))
 #define LOW32(v64)  ((UINT32) (v64)       )
@@ -17,8 +18,6 @@ typedef struct _VMX_SUPPORT
     UINT32 supportedProcSecondaryCtls;
     UINT32 supportedExitCtls;
     UINT32 supportedEntryCtls;
-
-    volatile LONG supportingCores;
 } VMX_SUPPORT, *PVMX_SUPPORT;
 
 
@@ -88,23 +87,29 @@ VmxpCompareCapabilities(
     return STATUS_SUCCESS;
 }
 
-ULONG_PTR
+
+NTSTATUS __stdcall
 VmxpSupport(
-    _In_ ULONG_PTR argument
+    _In_     UINT32 core,
+    _In_opt_ PVOID  context
 )
 {
     PVMX_SUPPORT support;
+    NTSTATUS     status;
 
-    support = (PVMX_SUPPORT)argument;
+    UNREFERENCED_PARAMETER(core);
+    
+    support = (PVMX_SUPPORT)context;
 
-    if (!NT_SUCCESS(VmxpCheckSupport()))
-        return 0;
+    status = VmxpCheckSupport();
+    if (!NT_SUCCESS(status))
+        return status;
 
-    if (!NT_SUCCESS(VmxpCompareCapabilities(support)))
-        return 0;
+    status = VmxpCompareCapabilities(support);
+    if (!NT_SUCCESS(status))
+        return status;
 
-    InterlockedIncrement((volatile LONG*)&support->supportingCores);
-    return 0;
+    return status;
 }
 
 NTSTATUS
@@ -131,20 +136,10 @@ VmxIsSupported(
     support.supportedExitCtls          = VmxAllowed(IA32_VMX_EXIT_CTLS);
     support.supportedEntryCtls         = VmxAllowed(IA32_VMX_ENTRY_CTLS);
     
-    support.supportingCores = 0;
-
     //
     // Test on every processor
     //
-    KeIpiGenericCall(VmxpSupport, (ULONG_PTR)&support);
-
-    //
-    // Check if everyone is supporting
-    //
-    if ((UINT32)support.supportingCores != KeQueryMaximumProcessorCountEx(ALL_PROCESSOR_GROUPS))
-        return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_CORES;
-
-    return STATUS_SUCCESS;
+    return SmpExecuteOnAllCores(VmxpSupport, &support);
 }
 
 BOOLEAN
@@ -353,10 +348,10 @@ VmxpNormalizeControls(
     switch (field)
     {
         case VM_EXEC_CONTROLS_PIN_BASED:        control = IA32_VMX_PIN_CTLS;            break;
-        case VM_EXEC_CONTROLS_PROC_PRIMARY:        control = IA32_VMX_PROC_PRIMARY_CTLS;   break;
-        case VM_EXEC_CONTROLS_PROC_SECONDARY:    control = IA32_VMX_PROC_SECONDARY_CTLS; break;
-        case VM_EXIT_CONTROLS:                    control = IA32_VMX_EXIT_CTLS;           break;
-        case VM_ENTRY_CONTROLS:                    control = IA32_VMX_ENTRY_CTLS;          break;
+        case VM_EXEC_CONTROLS_PROC_PRIMARY:     control = IA32_VMX_PROC_PRIMARY_CTLS;   break;
+        case VM_EXEC_CONTROLS_PROC_SECONDARY:   control = IA32_VMX_PROC_SECONDARY_CTLS; break;
+        case VM_EXIT_CONTROLS:                  control = IA32_VMX_EXIT_CTLS;           break;
+        case VM_ENTRY_CONTROLS:                 control = IA32_VMX_ENTRY_CTLS;          break;
         default:
             return;
     }

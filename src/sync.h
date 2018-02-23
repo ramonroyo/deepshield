@@ -1,6 +1,6 @@
 /**
 *  @file    sync.h
-*  @brief    Synchronization and SMP variables related primitives.
+*  @brief   Synchronization and SMP variables related primitives.
 */
 #ifndef __SYNC_H__
 #define __SYNC_H__
