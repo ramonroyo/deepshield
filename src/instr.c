@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "hvm.h"
 #include "vmx.h"
 #include "x86.h"

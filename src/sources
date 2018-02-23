@@ -1,0 +1,34 @@
+TARGETNAME = dpshield
+
+TARGETPATH = ..\bin\WDK7
+
+TARGETTYPE = DRIVER
+
+TARGETLIBS = $(SDK_LIB_PATH)\wdmsec.lib
+
+C_DEFINES = $(C_DEFINES) -DWDK7
+
+SOURCES = context.c \
+		  driver.c \
+		  exits.c \
+		  hv.c \
+		  hvm_config.c \
+		  hvm_create.c \
+		  hvm_exits.c \
+		  hvm_launch.c \
+		  hvm_root.c \
+		  instr.c \
+		  mem.c \
+		  mmu.c \
+		  shield.c \
+		  smp.c \
+		  sync.c \
+		  vmcs.c \
+		  vmx.c \
+		  x86.c \
+		  hvm_a.asm \
+		  vmx_a.asm \
+		  x86_a.asm \
+		  deepshield.rc
+		  
+		  

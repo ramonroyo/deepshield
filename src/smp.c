@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "smp.h" 
 #include "sync.h"
 

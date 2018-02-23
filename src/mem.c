@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "mem.h"
 #include "sync.h"
 

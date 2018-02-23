@@ -202,3 +202,10 @@ FakesAssemblies/
 *.backup
 *.opendb
 *.db
+
+# WDK 7
+objchk*/
+objfre*/
+buildchk*
+buildfre*
+

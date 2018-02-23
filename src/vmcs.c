@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "vmcs.h"
 #include "vmx.h"
 #include "mmu.h"

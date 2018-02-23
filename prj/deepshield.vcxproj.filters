@@ -23,6 +23,24 @@
     <Filter Include="src\rtl">
       <UniqueIdentifier>{51dc9ca0-05dc-4592-b4f8-1db9be943ccd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\vmm\32">
+      <UniqueIdentifier>{5e033759-26a5-4f03-aaee-bba80e4521af}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vmm\64">
+      <UniqueIdentifier>{9f66bee0-67c8-454a-a604-fb099361f525}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vmx\32">
+      <UniqueIdentifier>{374f2599-772a-4e56-87d8-9c7b0e133557}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\vmx\64">
+      <UniqueIdentifier>{3dd50093-b2e6-4de1-a720-295f8f8dedf2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\x86\32">
+      <UniqueIdentifier>{92647b7c-9f89-4a76-8a77-769c2f42014a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\x86\64">
+      <UniqueIdentifier>{daffedfc-ea29-4f70-b85d-0aca850b758c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\driver.c">
@@ -120,30 +138,33 @@
     <ClInclude Include="..\src\shield.h">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\wdk7.h">
+      <Filter>src</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="..\src\x86_32.asm">
-      <Filter>src\x86</Filter>
-    </MASM>
-    <MASM Include="..\src\x86_64.asm">
-      <Filter>src\x86</Filter>
-    </MASM>
-    <MASM Include="..\src\vmx32.asm">
-      <Filter>src\vmx</Filter>
-    </MASM>
-    <MASM Include="..\src\vmx64.asm">
-      <Filter>src\vmx</Filter>
-    </MASM>
-    <MASM Include="..\src\hvm32.asm">
-      <Filter>src\vmm</Filter>
-    </MASM>
-    <MASM Include="..\src\hvm64.asm">
-      <Filter>src\vmm</Filter>
-    </MASM>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="..\res\deepshield.rc">
+    <ResourceCompile Include="..\src\deepshield.rc">
       <Filter>res</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="..\src\i386\hvm_a.asm">
+      <Filter>src\vmm\32</Filter>
+    </MASM>
+    <MASM Include="..\src\amd64\hvm_a.asm">
+      <Filter>src\vmm\64</Filter>
+    </MASM>
+    <MASM Include="..\src\i386\vmx_a.asm">
+      <Filter>src\vmx\32</Filter>
+    </MASM>
+    <MASM Include="..\src\amd64\vmx_a.asm">
+      <Filter>src\vmx\64</Filter>
+    </MASM>
+    <MASM Include="..\src\i386\x86_a.asm">
+      <Filter>src\x86\32</Filter>
+    </MASM>
+    <MASM Include="..\src\amd64\x86_a.asm">
+      <Filter>src\x86\64</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

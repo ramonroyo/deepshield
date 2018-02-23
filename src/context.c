@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "context.h"
 #include "mem.h"
 #include "mmu.h"

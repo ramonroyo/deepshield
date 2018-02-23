@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "shield.h"
 #include "exits.h"
 #include "context.h"

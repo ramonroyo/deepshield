@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "x86.h"
 
 VOID 

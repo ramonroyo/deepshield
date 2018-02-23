@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "vmx.h"
 #include "smp.h"
 

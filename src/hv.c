@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "hv.h"
 #include "mmu.h"
 #include "mem.h"

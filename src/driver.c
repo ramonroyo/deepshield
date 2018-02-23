@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include <ntddk.h>
 #include <wdmsec.h>
 #include "hv.h"
