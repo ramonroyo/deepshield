@@ -94,12 +94,25 @@ SmpNumberOfCores(
     VOID
 )
 {
-    static UINT32 numberOfCores = (UINT32)-1;
+    static UINT32 numberOfProcessors = 0;
 
-    if(numberOfCores == (UINT32)-1)
-        numberOfCores = KeQueryMaximumProcessorCountEx(ALL_PROCESSOR_GROUPS);
+    if (numberOfProcessors == 0)
+    {
+        KAFFINITY cores = KeQueryActiveProcessors();
+        UINT_PTR i;
 
-    return numberOfCores;
+        for (i = 0; i < sizeof(KAFFINITY) * 8; i++)
+        {
+            KAFFINITY affinity = 1;
+
+            affinity <<= i;
+
+            if (cores & affinity)
+                numberOfProcessors++;
+        }
+    }
+
+    return numberOfProcessors;
 }
 
 UINT32 
@@ -107,5 +120,5 @@ SmpCurrentCore(
     VOID
 )
 {
-    return KeGetCurrentProcessorNumberEx(0);
+    return (UINT32)KeGetCurrentProcessorNumber();
 }
