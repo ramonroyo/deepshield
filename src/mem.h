@@ -1,6 +1,6 @@
 /**
 *  @file    mem.h
-*  @brief    Memory and Heap management functions
+*  @brief   Memory and Heap management functions
 */
 #ifndef __MEM_H__
 #define __MEM_H__

@@ -50,9 +50,9 @@ typedef struct _HEAP_BLOCK
 */
 typedef struct _MEMORY_ARENA
 {
-    PMDL   mdl;                //!< Physical pages description
-    PVOID  virtualAddress;    //!< Virtual address where pages are mapped
-    UINT32 numberOfPages;    //!< Allocated pages
+    PMDL   mdl;				//!< Physical pages description
+    PVOID  virtualAddress;	//!< Virtual address where pages are mapped
+    UINT32 numberOfPages;	//!< Allocated pages
 } MEMORY_ARENA, *PMEMORY_ARENA;
 
 VOID
@@ -676,7 +676,7 @@ ArenaInit(
     //
     // Allocate physical pages
     //
-    arena->mdl = MmAllocatePagesForMdlEx(low, high, skip, arena->numberOfPages * PAGE_SIZE, MmNonCached, 0);
+    arena->mdl = MmAllocatePagesForMdl(low, high, skip, arena->numberOfPages * PAGE_SIZE);
     if (!arena->mdl)
         goto failure;
 
