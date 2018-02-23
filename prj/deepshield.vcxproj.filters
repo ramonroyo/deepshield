@@ -41,6 +41,9 @@
     <Filter Include="src\x86\64">
       <UniqueIdentifier>{daffedfc-ea29-4f70-b85d-0aca850b758c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="inc">
+      <UniqueIdentifier>{e8d5a729-84cc-4177-99f3-05b47f9d2a5e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\driver.c">
@@ -140,6 +143,9 @@
     </ClInclude>
     <ClInclude Include="..\src\wdk7.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ioctl.h">
+      <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

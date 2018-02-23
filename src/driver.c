@@ -1,14 +1,16 @@
 #include "wdk7.h"
 #include <ntddk.h>
 #include <wdmsec.h>
+#include <ntifs.h>
+#include <ioctl.h>
 #include "hv.h"
 
 static UNICODE_STRING gDeviceName;
 static UNICODE_STRING gDosDeviceName;
 static BOOLEAN        gIsShutdown;
-
-#define DS_WINNT_DEVICE_NAME L"\\Device\\DeepShield"
-#define DS_MSDOS_DEVICE_NAME L"\\DosDevices\\DeepShield"
+static FAST_MUTEX     gMutex;
+static BOOLEAN        gIsDeviceOpen = 0;
+static ULONG          gToken        = 0;
 
 VOID
 DriverUnload(
@@ -22,8 +24,20 @@ DriverShutdown(
 );
 
 NTSTATUS
+DriverDispatchOpenClose(
+    _In_    PDEVICE_OBJECT deviceObject,
+    _Inout_ PIRP           irp
+);
+
+NTSTATUS
+DriverDeviceControl(
+    _In_    PDEVICE_OBJECT deviceObject,
+    _Inout_ PIRP           irp
+);
+
+NTSTATUS
 DriverEntry(
-    _In_ PDRIVER_OBJECT driverObject,
+    _In_ PDRIVER_OBJECT  driverObject,
     _In_ PUNICODE_STRING registryPath
     )
 {
@@ -39,6 +53,8 @@ DriverEntry(
     RtlInitUnicodeString( &gDosDeviceName, DS_MSDOS_DEVICE_NAME );
 
     gIsShutdown = FALSE;
+
+    ExInitializeFastMutex(&gMutex);
 
     //
     //  Kernel code and user mode code running as *SYSTEM* is allowed to open
@@ -60,7 +76,10 @@ DriverEntry(
         return status;
     }
 
-    driverObject->MajorFunction[IRP_MJ_SHUTDOWN] = DriverShutdown;
+    driverObject->MajorFunction[IRP_MJ_CREATE]         = DriverDispatchOpenClose;
+    driverObject->MajorFunction[IRP_MJ_CLOSE]          = DriverDispatchOpenClose;
+    driverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
+    driverObject->MajorFunction[IRP_MJ_SHUTDOWN]       = DriverShutdown;
 
     status = IoRegisterShutdownNotification(driverObject->DeviceObject);
 
@@ -141,8 +160,8 @@ DriverUnload(
 
 NTSTATUS
 DriverShutdown(
-    _In_ PDEVICE_OBJECT deviceObject,
-    _Inout_ PIRP irp
+    _In_    PDEVICE_OBJECT deviceObject,
+    _Inout_ PIRP           irp
 )
 {
     UNREFERENCED_PARAMETER(deviceObject);
@@ -157,4 +176,154 @@ DriverShutdown(
     IoCompleteRequest( irp, IO_NO_INCREMENT );
 
     return STATUS_SUCCESS;
+}
+
+NTSTATUS
+DriverDispatchOpenClose(
+    _In_    PDEVICE_OBJECT deviceObject,
+    _Inout_ PIRP           irp
+)
+{
+    NTSTATUS           status = STATUS_INVALID_DEVICE_REQUEST;
+    PIO_STACK_LOCATION irpStack;
+
+    UNREFERENCED_PARAMETER(deviceObject);
+
+    irpStack = IoGetCurrentIrpStackLocation(irp);
+
+    ExAcquireFastMutex(&gMutex);
+
+    switch (irpStack->MajorFunction)
+    {
+        case IRP_MJ_CREATE:
+        {
+            if (!gIsDeviceOpen)
+            {
+                ULONG length;
+                PVOID buffer;
+
+                length = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+                buffer = irp->AssociatedIrp.SystemBuffer;
+
+                if (length >= sizeof(ULONG))
+                {
+                    LARGE_INTEGER performanceCounter = KeQueryPerformanceCounter(0);
+                    gToken = RtlRandomEx(&performanceCounter.LowPart);
+                    
+                    *(PULONG)buffer = gToken;
+
+                    gIsDeviceOpen = TRUE;
+                    status = STATUS_SUCCESS;
+                }
+                else
+                {
+                    status = STATUS_BUFFER_TOO_SMALL;
+                }
+            }
+            break;
+        }
+        case IRP_MJ_CLOSE:
+        {
+            if (gIsDeviceOpen)
+            {
+                ULONG length;
+                PVOID buffer;
+
+                length = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+                buffer = irp->AssociatedIrp.SystemBuffer;
+
+                if (length >= sizeof(ULONG))
+                {
+                    if (*(PULONG)buffer == gToken)
+                    {
+                        gToken = 0;
+                        gIsDeviceOpen = FALSE;
+                        status = STATUS_SUCCESS;
+                    }
+                }
+                else
+                {
+                    status = STATUS_BUFFER_TOO_SMALL;
+                }
+            }
+            break;
+        }
+    }
+
+    ExReleaseFastMutex(&gMutex);
+
+    irp->IoStatus.Status      = status;
+    irp->IoStatus.Information = 0;
+
+    IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS
+DriverDeviceControl(
+    _In_    PDEVICE_OBJECT deviceObject,
+    _Inout_ PIRP           irp
+)
+{
+    NTSTATUS           status = STATUS_SUCCESS;
+    PIO_STACK_LOCATION irpStack;
+    ULONG              controlCode;
+    ULONG              length;
+    PVOID              buffer;
+
+    irpStack = IoGetCurrentIrpStackLocation(irp);
+    controlCode = irpStack->Parameters.DeviceIoControl.IoControlCode;
+
+    irp->IoStatus.Status = STATUS_INVALID_DEVICE_REQUEST;
+    irp->IoStatus.Information = 0;
+
+    ExAcquireFastMutex(&gMutex);
+
+    if (!gIsDeviceOpen)
+    {
+        ExReleaseFastMutex(&gMutex);
+        goto end;
+    }
+
+    length = irpStack->Parameters.DeviceIoControl.InputBufferLength;
+    buffer = irp->AssociatedIrp.SystemBuffer;
+
+    if (length < sizeof(ULONG))
+    {
+        status = STATUS_BUFFER_TOO_SMALL;
+        ExReleaseFastMutex(&gMutex);
+        goto end;
+    }
+
+    if (*(PULONG)buffer != gToken)
+    {
+        ExReleaseFastMutex(&gMutex);
+        goto end;
+    }
+
+    switch (controlCode)
+    {
+        case IOCTL_SHIELD_START_PROTECTION:
+        {
+            //status = HvStartProtection();
+            break;
+        }
+        case IOCTL_SHIELD_STOP_PROTECTION:
+        {
+            //status = HvStopProtection();
+            break;
+        }
+    }
+
+    ExReleaseFastMutex(&gMutex);
+
+end:
+    if (STATUS_PENDING != status)
+    {
+        irp->IoStatus.Status = status;
+        IoCompleteRequest(irp, IO_NO_INCREMENT);
+    }
+
+    return status;
 }
