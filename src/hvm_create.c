@@ -94,6 +94,8 @@ HvmInit(
 
     for (i = 0; i < SmpNumberOfCores(); i++)
     {
+        PUINT_PTR hvmCoreStackPointer;
+
         gHvm->cores[i].index = i;
         gHvm->cores[i].hvm   = gHvm;
 
@@ -109,7 +111,7 @@ HvmInit(
         if (!gHvm->cores[i].stack)
             goto failure;
 
-        PUINT_PTR hvmCoreStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->cores[i].stack + stackPages * PAGE_SIZE - sizeof(UINT_PTR));
+        hvmCoreStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->cores[i].stack + stackPages * PAGE_SIZE - sizeof(UINT_PTR));
         *hvmCoreStackPointer = (UINT_PTR)&gHvm->cores[i];
 
         gHvm->cores[i].rsp = (UINT_PTR)hvmCoreStackPointer;
