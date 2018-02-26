@@ -1,7 +1,6 @@
 #include "wdk7.h"
 #include <ntddk.h>
 #include <wdmsec.h>
-#include <ntifs.h>
 #include <ioctl.h>
 #include "hv.h"
 
@@ -11,6 +10,24 @@ static BOOLEAN        gIsShutdown;
 static FAST_MUTEX     gMutex;
 static BOOLEAN        gIsDeviceOpen = 0;
 static ULONG          gToken        = 0;
+
+//
+// From <ntifs.h>
+//
+#ifndef WDK7
+_IRQL_requires_max_(APC_LEVEL)
+_Ret_range_(<= , MAXLONG)
+NTSYSAPI
+#endif
+ULONG
+NTAPI
+RtlRandomEx(
+    _Inout_ PULONG Seed
+);
+//
+// 
+//
+
 
 VOID
 DriverUnload(
@@ -106,6 +123,9 @@ DriverEntry(
 
     hvInitiated = TRUE;
 
+    //
+    // Activate protection as soon as driver starts
+    //
     status = HvStart();
 
     if (!NT_SUCCESS(status)) {
@@ -149,10 +169,13 @@ DriverUnload(
 {
     if (!gIsShutdown)
     {
-        HvStop();
+        if(HvLaunched())
+            HvStop();
+
         HvDone();
     }
 
+    ExReleaseFastMutex(&gMutex);
     IoDeleteSymbolicLink( &gDosDeviceName );
     IoUnregisterShutdownNotification( driverObject->DeviceObject );
     IoDeleteDevice( driverObject->DeviceObject );
@@ -166,9 +189,18 @@ DriverShutdown(
 {
     UNREFERENCED_PARAMETER(deviceObject);
 
+    ExAcquireFastMutex(&gMutex);
+
+    gIsDeviceOpen = FALSE;
+    gToken = 0;
+
+    ExReleaseFastMutex(&gMutex);
+    
     gIsShutdown = TRUE;
     
-    HvStop();
+    if (HvLaunched())
+        HvStop();
+
     HvDone();
 
     irp->IoStatus.Status = STATUS_SUCCESS;
@@ -272,6 +304,8 @@ DriverDeviceControl(
     ULONG              length;
     PVOID              buffer;
 
+    UNREFERENCED_PARAMETER(deviceObject);
+
     irpStack = IoGetCurrentIrpStackLocation(irp);
     controlCode = irpStack->Parameters.DeviceIoControl.IoControlCode;
 
@@ -306,12 +340,17 @@ DriverDeviceControl(
     {
         case IOCTL_SHIELD_START_PROTECTION:
         {
-            //status = HvStartProtection();
+            status = HvStart();
             break;
         }
         case IOCTL_SHIELD_STOP_PROTECTION:
         {
-            //status = HvStopProtection();
+            status = HvStop();
+            break;
+        }
+        case IOCTL_SHIELD_PROTECTION_STATUS:
+        {
+            status = HvLaunched();
             break;
         }
     }

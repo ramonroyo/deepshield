@@ -64,10 +64,18 @@ HvStart(
 }
 
 
-VOID
+NTSTATUS
 HvStop(
     VOID
 )
 {
-    DeepShieldStop();
+    return DeepShieldStop();
+}
+
+NTSTATUS
+HvLaunched(
+    VOID
+)
+{
+    return HvmLaunched() ? STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
 }

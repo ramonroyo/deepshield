@@ -6,6 +6,8 @@ TARGETTYPE = DRIVER
 
 TARGETLIBS = $(SDK_LIB_PATH)\wdmsec.lib
 
+INCLUDES = ..\inc
+
 C_DEFINES = $(C_DEFINES) -DWDK7
 
 SOURCES = context.c \

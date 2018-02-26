@@ -18,8 +18,13 @@ HvStart(
     VOID
 );
 
-VOID
+NTSTATUS
 HvStop(
+    VOID
+);
+
+NTSTATUS
+HvLaunched(
     VOID
 );
 

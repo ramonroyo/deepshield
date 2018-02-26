@@ -12,7 +12,7 @@
 //
 // VMX NTSTATUS Errors
 //
-#define VMX_STATUS_MASK    0xEB1E0000
+#define VMX_STATUS_MASK  0xEB1E0000
 #define VMX_STATUS(X)    ((NTSTATUS)(VMX_STATUS_MASK | ((X) & 0x0000FFFF)))
 
     //VMCS VM_INSTRUCTION_ERROR field. See Intel manual.
