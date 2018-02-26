@@ -112,11 +112,11 @@ MmuGetPhysicalAddress(
 * Obtains the virtual address of the PTE mapping a given VA.
 *
 * @param address [in] VA.
-* @return Virtual address of the corresponding PTE ampping that VA.
+* @return Virtual address of the corresponding PTE mapping that VA.
 */
 PVOID
 MmuGetPxeAddress(
-    _In_ PVOID address
+    _In_opt_ PVOID address
 );
 
 PVOID

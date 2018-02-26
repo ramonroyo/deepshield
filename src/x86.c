@@ -233,7 +233,7 @@ sidt_limit(
     VOID
 )
 {
-    UINT8 idt[sizeof(UINT16) + sizeof(UINT_PTR)];
+    UINT8 idt[sizeof(UINT16) + sizeof(UINT_PTR)] = { 0 };
 
     __sidt(&idt);
 
@@ -279,7 +279,7 @@ readcr(
     return value;
 }
 
-
+_IRQL_raises_(value)
 VOID
 writecr(
     _In_ UINT32   cr,

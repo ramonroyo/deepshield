@@ -8,6 +8,8 @@
 #define _Out_opt_
 #define _Inout_
 #define _Success_(X)
+#define _IRQL_raises_   __drv_raisesIRQL
+#define _Dispatch_type_ __drv_dispatchType
 #endif
 
 #endif

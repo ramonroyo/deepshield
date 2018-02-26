@@ -10,12 +10,14 @@ typedef struct _PROCESSOR_INFO
     NTSTATUS           error;
 } PROCESSOR_INFO, *PPROCESSOR_INFO;
 
+KDEFERRED_ROUTINE DpcRoutine;
+
 VOID
 DpcRoutine(
-    PKDPC dpc,
-    PVOID context,
-    PVOID arg1,
-    PVOID arg2
+    _In_     PKDPC dpc,
+    _In_opt_ PVOID context,
+    _In_opt_ PVOID arg1,
+    _In_opt_ PVOID arg2
 )
 {
     PPROCESSOR_INFO info = (PPROCESSOR_INFO)context;
@@ -24,6 +26,9 @@ DpcRoutine(
     UNREFERENCED_PARAMETER( dpc );
     UNREFERENCED_PARAMETER( arg1 );
     UNREFERENCED_PARAMETER( arg2 );
+
+    if (!ARGUMENT_PRESENT(context))
+        return;
 
     status = info->callback(SmpCurrentCore(), info->context);
 

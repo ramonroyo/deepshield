@@ -418,6 +418,8 @@ VOID __stdcall __writecr2(_In_ UINT_PTR cr2);
 * Read/Write from/to cr/dr registers
 */
 UINT_PTR readcr (_In_ UINT32 cr);
+
+_IRQL_raises_(value)
 VOID     writecr(_In_ UINT32 cr, _In_ UINT_PTR value);
 
 UINT_PTR readdr (_In_ UINT32 dr);

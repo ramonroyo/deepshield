@@ -27,7 +27,7 @@ VmxpCheckSupport(
     VOID
 )
 {
-    int regs[4];
+    int regs[4] = { 0 };
 
     //
     // Checking the CPUID on each logical processor to ensure VMX is supported and that the overall feature set of each logical processor is compatible.
@@ -148,7 +148,7 @@ VmxIsIntel(
     VOID
 )
 {
-    int regs[4];
+    int regs[4] = { 0 };
 
     __cpuid(regs, 0);
 

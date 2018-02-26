@@ -58,9 +58,9 @@ typedef struct _MEMORY_ARENA
 
 VOID
 HeappBlockUnlink(
-    _In_  PHEAP   heap,
-    _Out_ UINT32* head,
-    _In_  UINT32  address
+    _In_    PHEAP   heap,
+    _Inout_ UINT32* head,
+    _In_    UINT32  address
 )
 {
     if (VNEXT(address))
@@ -81,9 +81,9 @@ HeappBlockUnlink(
 
 VOID
 HeappBlockLink(
-    _In_  PHEAP   heap,
-    _Out_ UINT32* head,
-    _In_  UINT32  address
+    _In_    PHEAP   heap,
+    _Inout_ UINT32* head,
+    _In_    UINT32  address
 )
 {
     VNEXT(address) = *head;

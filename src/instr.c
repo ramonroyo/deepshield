@@ -49,7 +49,7 @@ InstrCpuidEmulate(
     _In_ PREGISTERS regs
 )
 {
-    int cpuRegs[4];
+    int cpuRegs[4] = { 0 };
 
     __cpuid(cpuRegs, (int)regs->rax);
 

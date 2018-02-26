@@ -292,7 +292,7 @@ MmuUnmap(
 
 PVOID
 MmuGetPxeAddress(
-    _In_ PVOID address
+    _In_opt_ PVOID address
 )
 {
 #ifdef _WIN64

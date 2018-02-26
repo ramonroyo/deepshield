@@ -8,28 +8,12 @@ static UNICODE_STRING gDeviceName;
 static UNICODE_STRING gDosDeviceName;
 static BOOLEAN        gIsShutdown;
 
-VOID
-DriverUnload(
-    _In_ PDRIVER_OBJECT driverObject
-);
-
-NTSTATUS
-DriverShutdown(
-    _In_    PDEVICE_OBJECT deviceObject,
-    _Inout_ PIRP           irp
-);
-
-NTSTATUS
-DriverDispatchOpenClose(
-    _In_    PDEVICE_OBJECT deviceObject,
-    _Inout_ PIRP           irp
-);
-
-NTSTATUS
-DriverDeviceControl(
-    _In_    PDEVICE_OBJECT deviceObject,
-    _Inout_ PIRP           irp
-);
+DRIVER_INITIALIZE DriverEntry;
+DRIVER_UNLOAD     DriverUnload;
+_Dispatch_type_(IRP_MJ_DEVICE_CONTROL)
+DRIVER_DISPATCH   DriverDeviceControl;
+_Dispatch_type_(IRP_MJ_SHUTDOWN)
+DRIVER_DISPATCH   DriverShutdown;
 
 NTSTATUS
 DriverEntry(
