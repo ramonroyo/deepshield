@@ -242,13 +242,17 @@ VmcsConfigureCommonEntry(
     _In_ FLAGS_REGISTER rflags
 )
 {
+#ifndef _WIN64
+    ULONG_PTR cr4 = 0;
+#endif	
     VmxVmcsWritePlatform(GUEST_RSP,    rsp);
     VmxVmcsWritePlatform(GUEST_RIP,    rip);
     VmxVmcsWritePlatform(GUEST_RFLAGS, rflags.u.raw);
 
     VmxVmcsWritePlatform(GUEST_CR3,    __readcr3());
 #ifndef _WIN64
-    if (__readcr4() & CR4_PAE_ENABLED)
+    cr4 = __readcr4();
+    if (cr4 & CR4_PAE_ENABLED)
     {
         VMX_PROC_SECONDARY_CTLS ctls;
 

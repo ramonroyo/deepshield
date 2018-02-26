@@ -148,7 +148,10 @@ MmuInit(
     gMmu.lowerBound =  (((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39);
     gMmu.upperBound = ((((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39) + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
 #else
-    if (__readcr4() & CR4_PAE_ENABLED)
+    ULONG_PTR cr4 = 0;
+
+    cr4 = __readcr4();
+    if (cr4 & CR4_PAE_ENABLED)
     {
         gMmu.paeEnabled = TRUE;
         gMmu.pxeShift = 3;
