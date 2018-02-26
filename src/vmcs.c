@@ -171,6 +171,7 @@ VmcsConfigureCommonControl(
     
     procSecondaryControls.u.f.enableRdtscp = 1;
     procSecondaryControls.u.f.enableXsavesXrstors = 1;
+    procSecondaryControls.u.f.enableInvpcid = 1;
 
 #ifdef _WIN64
     exitControls.u.f.hostAddressSpaceSize = 1;
