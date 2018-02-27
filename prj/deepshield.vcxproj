@@ -75,24 +75,28 @@
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
+    <Inf2CatWindowsVersionList>XP_X86;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
+    <Inf2CatWindowsVersionList>XP_X86;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
+    <Inf2CatWindowsVersionList>XP_X64;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
+    <Inf2CatWindowsVersionList>XP_X64;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
@@ -203,6 +207,9 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </MASM>
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="..\src\dpshield.inf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

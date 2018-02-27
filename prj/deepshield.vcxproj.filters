@@ -173,4 +173,9 @@
       <Filter>src\x86\64</Filter>
     </MASM>
   </ItemGroup>
+  <ItemGroup>
+    <Inf Include="..\src\dpshield.inf">
+      <Filter>res</Filter>
+    </Inf>
+  </ItemGroup>
 </Project>
