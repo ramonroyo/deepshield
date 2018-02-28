@@ -91,8 +91,8 @@ DeepShieldConfigure(
     //
     {
         VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 14));
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK, 4);
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 4);
+        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK,  5);
+        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 5);
     }
 }
 
