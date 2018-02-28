@@ -38,7 +38,7 @@ InstrXsetbvEmulate(
 )
 {
 #ifdef _WIN64
-    __xsetbv((UINT32)regs->rcx, regs->rdx << 32 | regs->rax);
+    __xsetbv((UINT32)regs->rcx, regs->rdx << 32 | (UINT32)regs->rax);
 #else
     UNREFERENCED_PARAMETER(regs);
 #endif
@@ -53,17 +53,10 @@ InstrCpuidEmulate(
 
     __cpuid(cpuRegs, (int)regs->rax);
 
-#ifndef _WIN64
-    regs->rax = cpuRegs[0];
-    regs->rbx = cpuRegs[1];
-    regs->rcx = cpuRegs[2];
-    regs->rdx = cpuRegs[3];
-#else
-    regs->rax = (regs->rax & 0xFFFFFFFF00000000) | cpuRegs[0];
-    regs->rbx = (regs->rbx & 0xFFFFFFFF00000000) | cpuRegs[1];
-    regs->rcx = (regs->rcx & 0xFFFFFFFF00000000) | cpuRegs[2];
-    regs->rdx = (regs->rdx & 0xFFFFFFFF00000000) | cpuRegs[3];
-#endif
+    regs->rax = (UINT_PTR) cpuRegs[0];
+    regs->rbx = (UINT_PTR) cpuRegs[1];
+    regs->rcx = (UINT_PTR) cpuRegs[2];
+    regs->rdx = (UINT_PTR) cpuRegs[3];
 }
 
 VOID
@@ -75,13 +68,8 @@ InstrMsrReadEmulate(
 
     value = __readmsr(LOW32(regs->rcx));
 
-#ifndef _WIN64
-    regs->rax = LOW32(value);
-    regs->rdx = HIGH32(value);
-#else
-    regs->rax = (regs->rax & 0xFFFFFFFF00000000) | LOW32(value);
-    regs->rdx = (regs->rdx & 0xFFFFFFFF00000000) | HIGH32(value);
-#endif
+    regs->rax = (UINT_PTR) LOW32(value);
+    regs->rdx = (UINT_PTR) HIGH32(value);
 }
 
 VOID
