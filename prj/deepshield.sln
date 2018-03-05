@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27130.2027
+VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "deepshield", "deepshield.vcxproj", "{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}"
 EndProject
@@ -9,6 +9,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
 		Debug|x86 = Debug|x86
+		msi|x64 = msi|x64
+		msi|x86 = msi|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
 	EndGlobalSection
@@ -19,6 +21,12 @@ Global
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Debug|x86.ActiveCfg = Debug|Win32
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Debug|x86.Build.0 = Debug|Win32
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Debug|x86.Deploy.0 = Debug|Win32
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x64.ActiveCfg = msi|x64
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x64.Build.0 = msi|x64
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x64.Deploy.0 = msi|x64
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x86.ActiveCfg = msi|Win32
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x86.Build.0 = msi|Win32
+		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.msi|x86.Deploy.0 = msi|Win32
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Release|x64.ActiveCfg = Release|x64
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Release|x64.Build.0 = Release|x64
 		{9C4DF648-7564-42A5-B8E3-6C1E70F0229F}.Release|x64.Deploy.0 = Release|x64
