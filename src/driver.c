@@ -10,10 +10,16 @@ static BOOLEAN        gIsShutdown;
 
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD     DriverUnload;
+
 _Dispatch_type_(IRP_MJ_DEVICE_CONTROL)
 DRIVER_DISPATCH   DriverDeviceControl;
+
 _Dispatch_type_(IRP_MJ_SHUTDOWN)
 DRIVER_DISPATCH   DriverShutdown;
+
+_Dispatch_type_(IRP_MJ_CREATE)
+_Dispatch_type_(IRP_MJ_CLOSE)
+DRIVER_DISPATCH   DriverDeviceCreateClose;
 
 NTSTATUS
 DriverEntry(
@@ -54,6 +60,8 @@ DriverEntry(
         return status;
     }
 
+    driverObject->MajorFunction[ IRP_MJ_CREATE ]       = DriverDeviceCreateClose;
+    driverObject->MajorFunction[ IRP_MJ_CLOSE ]        = DriverDeviceCreateClose;
     driverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
     driverObject->MajorFunction[IRP_MJ_SHUTDOWN]       = DriverShutdown;
 
@@ -161,6 +169,39 @@ DriverShutdown(
     return STATUS_SUCCESS;
 }
 
+NTSTATUS
+DriverDeviceCreateClose(
+    _In_ PDEVICE_OBJECT DeviceObject,
+    _Inout_ PIRP Irp
+    )
+/*++
+
+Routine Description:
+
+   Dispatch routine to handle create / close IRPs.  No action is performed
+   other than completing the request successfully.
+
+Arguments:
+
+    DeviceObject - a pointer to the object that represents the device
+    that I/O is to be done on.
+
+    Irp - pointer to an I/O Request Packet.
+
+Return Value:
+
+   NT status code
+
+--*/
+{
+    UNREFERENCED_PARAMETER( DeviceObject );
+
+    Irp->IoStatus.Status = STATUS_SUCCESS;
+    Irp->IoStatus.Information = 0;
+
+    IoCompleteRequest( Irp, IO_NO_INCREMENT );
+    return STATUS_SUCCESS;
+}
 
 NTSTATUS
 DriverDeviceControl(
