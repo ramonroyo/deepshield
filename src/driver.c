@@ -203,6 +203,18 @@ Return Value:
     return STATUS_SUCCESS;
 }
 
+NTSTATUS 
+DeviceStatus(
+    _In_ PIRP               irp,
+    _In_ PIO_STACK_LOCATION irpStack
+);
+
+NTSTATUS
+DeviceControl(
+    _In_ PIRP               irp,
+    _In_ PIO_STACK_LOCATION irpStack
+);
+
 NTSTATUS
 DriverDeviceControl(
     _In_    PDEVICE_OBJECT deviceObject,
@@ -211,31 +223,24 @@ DriverDeviceControl(
 {
     NTSTATUS           status = STATUS_SUCCESS;
     PIO_STACK_LOCATION irpStack;
-    ULONG              controlCode;
 
     UNREFERENCED_PARAMETER(deviceObject);
 
     irpStack = IoGetCurrentIrpStackLocation(irp);
-    controlCode = irpStack->Parameters.DeviceIoControl.IoControlCode;
 
     irp->IoStatus.Status = STATUS_INVALID_DEVICE_REQUEST;
     irp->IoStatus.Information = 0;
 
-    switch (controlCode)
+    switch (irpStack->Parameters.DeviceIoControl.IoControlCode)
     {
-        case IOCTL_SHIELD_START_PROTECTION:
+        case IOCTL_SHIELD_STATUS:
         {
-            status = HvStart();
+            status = DeviceStatus(irp, irpStack);
             break;
         }
-        case IOCTL_SHIELD_STOP_PROTECTION:
+        case IOCTL_SHIELD_CONTROL:
         {
-            status = HvStop();
-            break;
-        }
-        case IOCTL_SHIELD_PROTECTION_STATUS:
-        {
-            status = HvLaunched();
+            status = DeviceControl(irp, irpStack);
             break;
         }
     }
@@ -247,4 +252,86 @@ DriverDeviceControl(
     }
 
     return status;
+}
+
+
+NTSTATUS
+DeviceStatus(
+    _In_ PIRP               irp,
+    _In_ PIO_STACK_LOCATION irpStack
+)
+{
+    PSHIELD_STATUS_DATA data;
+    ULONG               inputLength;
+    ULONG               outputLength;
+
+    inputLength  = irpStack->Parameters.DeviceIoControl.InputBufferLength;
+    outputLength = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+
+    if (max(inputLength, outputLength) < sizeof(SHIELD_STATUS_DATA))
+        return STATUS_BUFFER_TOO_SMALL;
+
+    data = (PSHIELD_STATUS_DATA)irp->AssociatedIrp.SystemBuffer;
+    irp->IoStatus.Information = sizeof(SHIELD_STATUS_DATA);
+    
+    if (NT_SUCCESS(HvLaunched()))
+    {
+        data->mode = ShieldRunning;
+    }
+    else
+    {
+        data->mode = ShieldStopped;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+NTSTATUS
+DeviceControl(
+    _In_ PIRP               irp,
+    _In_ PIO_STACK_LOCATION irpStack
+)
+{
+    PSHIELD_CONTROL_DATA data;
+    ULONG                inputLength;
+    ULONG                outputLength;
+
+    inputLength = irpStack->Parameters.DeviceIoControl.InputBufferLength;
+    outputLength = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+
+    if (max(inputLength, outputLength) < sizeof(SHIELD_CONTROL_DATA))
+        return STATUS_BUFFER_TOO_SMALL;
+
+    data = (PSHIELD_CONTROL_DATA)irp->AssociatedIrp.SystemBuffer;
+    irp->IoStatus.Information = sizeof(SHIELD_CONTROL_DATA);
+
+    switch (data->action)
+    {
+        case ShieldStart: 
+        {
+            if (NT_SUCCESS(HvLaunched()))
+            {
+                data->result = STATUS_ALREADY_COMPLETE;
+            }
+            else
+            {
+                data->result = HvStart();
+            }
+            break;
+        }
+        case ShieldStop:
+        {
+            if (NT_SUCCESS(HvLaunched()))
+            {
+                data->result = HvStop();
+            }
+            else
+            {
+                data->result = STATUS_ALREADY_COMPLETE;
+            }
+            break;
+        }
+    }
+
+    return data->result;
 }
