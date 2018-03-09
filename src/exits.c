@@ -131,7 +131,11 @@ DeepShieldExitHandler(
             PageFaultEmulate(regs);
             break;
         }
-
+        case EXIT_REASON_INIT:
+        case EXIT_REASON_SIPI:
+        {
+            break;
+        }
 
         default:
         {
