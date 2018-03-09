@@ -9,7 +9,7 @@ Class                  = "ActivityMonitor"
 ClassGuid              = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider               = %ManufacturerName%
 DriverPackageType      = KernelService
-DriverVer              = 28/02/2018,1.1.120.0
+DriverVer              = 02/28/2018,1.1.120.0
 CatalogFile            = dpshield.cat
 
 [DestinationDirs]
