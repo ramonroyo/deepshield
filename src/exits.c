@@ -133,6 +133,7 @@ DeepShieldExitHandler(
         }
         case EXIT_REASON_INIT:
         case EXIT_REASON_SIPI:
+        case EXIT_REASON_TRIPLE_FAULT:
         {
             break;
         }
