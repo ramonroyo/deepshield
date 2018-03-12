@@ -48,7 +48,7 @@ HvDone(
 NTSTATUS
 HvStart(
     VOID
-)
+    )
 {
     NTSTATUS status;
 
@@ -59,7 +59,6 @@ HvStart(
         return status;
     }
 
-
     return status;
 }
 
@@ -67,15 +66,15 @@ HvStart(
 NTSTATUS
 HvStop(
     VOID
-)
+    )
 {
     return DeepShieldStop();
 }
 
-NTSTATUS
+BOOLEAN
 HvLaunched(
     VOID
-)
+    )
 {
-    return HvmLaunched() ? STATUS_SUCCESS : STATUS_UNSUCCESSFUL;
+    return HvmLaunched();
 }
