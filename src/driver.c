@@ -134,10 +134,11 @@ DriverUnload(
     _In_ PDRIVER_OBJECT driverObject
 )
 {
-    if (!gIsShutdown)
-    {
-        if(HvLaunched())
+    if (!gIsShutdown) {
+
+        if (HvLaunched()) {
             HvStop();
+        }
 
         HvDone();
     }
@@ -157,8 +158,9 @@ DriverShutdown(
 
     gIsShutdown = TRUE;
     
-    if (HvLaunched())
+    if (HvLaunched()) {
         HvStop();
+    }
 
     HvDone();
 
@@ -254,7 +256,6 @@ DriverDeviceControl(
     return status;
 }
 
-
 NTSTATUS
 DeviceStatus(
     _In_ PIRP               irp,
@@ -274,7 +275,7 @@ DeviceStatus(
     data = (PSHIELD_STATUS_DATA)irp->AssociatedIrp.SystemBuffer;
     irp->IoStatus.Information = sizeof(SHIELD_STATUS_DATA);
     
-    if (NT_SUCCESS(HvLaunched()))
+    if (HvLaunched())
     {
         data->mode = ShieldRunning;
     }
@@ -288,50 +289,61 @@ DeviceStatus(
 
 NTSTATUS
 DeviceControl(
-    _In_ PIRP               irp,
-    _In_ PIO_STACK_LOCATION irpStack
-)
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    )
 {
-    PSHIELD_CONTROL_DATA data;
-    ULONG                inputLength;
-    ULONG                outputLength;
+    NTSTATUS Status;
+    PSHIELD_CONTROL_DATA ControlData;
+    ULONG InputLength;
+    ULONG OutputLength;
 
-    inputLength = irpStack->Parameters.DeviceIoControl.InputBufferLength;
-    outputLength = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+    InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
+    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
 
-    if (max(inputLength, outputLength) < sizeof(SHIELD_CONTROL_DATA))
+    if (max( InputLength, OutputLength ) < sizeof( SHIELD_CONTROL_DATA )) {
         return STATUS_BUFFER_TOO_SMALL;
+    }
 
-    data = (PSHIELD_CONTROL_DATA)irp->AssociatedIrp.SystemBuffer;
-    irp->IoStatus.Information = sizeof(SHIELD_CONTROL_DATA);
+    ControlData = (PSHIELD_CONTROL_DATA)Irp->AssociatedIrp.SystemBuffer;
 
-    switch (data->action)
+    switch (ControlData->action)
     {
         case ShieldStart: 
         {
-            if (NT_SUCCESS(HvLaunched()))
-            {
-                data->result = STATUS_ALREADY_COMPLETE;
+            if (HvLaunched()) {
+                ControlData->result = STATUS_ALREADY_COMPLETE;
+                    
+                Status = STATUS_SUCCESS;
+                break;
             }
-            else
-            {
-                data->result = HvStart();
-            }
+            
+            Status = HvStart();
             break;
         }
         case ShieldStop:
         {
-            if (NT_SUCCESS(HvLaunched()))
-            {
-                data->result = HvStop();
+             if (!HvLaunched()) {
+                ControlData->result = STATUS_ALREADY_COMPLETE;
+                    
+                Status = STATUS_SUCCESS;
+                break;
             }
-            else
-            {
-                data->result = STATUS_ALREADY_COMPLETE;
-            }
+
+            Status = HvStop();
+            break;
+        }
+
+        default:
+        {
+            Status = STATUS_INVALID_DEVICE_REQUEST;
             break;
         }
     }
 
-    return STATUS_SUCCESS;
+    if (NT_SUCCESS( Status )) {
+        Irp->IoStatus.Information = sizeof( SHIELD_CONTROL_DATA );
+    }
+
+    return Status;
 }

@@ -23,7 +23,7 @@ HvStop(
     VOID
 );
 
-NTSTATUS
+BOOLEAN
 HvLaunched(
     VOID
 );
