@@ -333,5 +333,5 @@ DeviceControl(
         }
     }
 
-    return data->result;
+    return STATUS_SUCCESS;
 }
