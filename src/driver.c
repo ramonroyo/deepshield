@@ -306,6 +306,7 @@ DeviceControl(
     }
 
     ControlData = (PSHIELD_CONTROL_DATA)Irp->AssociatedIrp.SystemBuffer;
+    ControlData->result = STATUS_SUCCESS;
 
     switch (ControlData->action)
     {
