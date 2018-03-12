@@ -21,6 +21,13 @@ _Dispatch_type_(IRP_MJ_CREATE)
 _Dispatch_type_(IRP_MJ_CLOSE)
 DRIVER_DISPATCH   DriverDeviceCreateClose;
 
+#ifdef DBG
+DECLARE_CONST_UNICODE_STRING(
+    SDDL_DEVOBJ_SYS_ALL_ADM_RW,
+    L"D:P(A;;GA;;;SY)(A;;GRGW;;;BA)"
+    );
+#endif
+
 NTSTATUS
 DriverEntry(
     _In_ PDRIVER_OBJECT  driverObject,
@@ -32,6 +39,7 @@ DriverEntry(
     BOOLEAN        shutdownCallback = FALSE;
     BOOLEAN        symbolicLink     = FALSE;
     BOOLEAN        hvInitiated      = FALSE;
+    PCUNICODE_STRING DeviceSecurityString;
 
     UNREFERENCED_PARAMETER(registryPath);
 
@@ -39,6 +47,13 @@ DriverEntry(
     RtlInitUnicodeString( &gDosDeviceName, DS_MSDOS_DEVICE_NAME );
 
     gIsShutdown = FALSE;
+
+#ifdef DBG
+    DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL_ADM_RW;
+#else
+    DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL;
+#endif
+
 
     //
     //  Kernel code and user mode code running as *SYSTEM* is allowed to open
@@ -51,7 +66,7 @@ DriverEntry(
                                    FILE_DEVICE_UNKNOWN,
                                    FILE_DEVICE_SECURE_OPEN,
                                    FALSE,
-                                   &SDDL_DEVOBJ_SYS_ALL,
+                                   DeviceSecurityString,
                                    NULL,
                                    &deviceObject );
 
@@ -60,8 +75,8 @@ DriverEntry(
         return status;
     }
 
-    driverObject->MajorFunction[ IRP_MJ_CREATE ]       = DriverDeviceCreateClose;
-    driverObject->MajorFunction[ IRP_MJ_CLOSE ]        = DriverDeviceCreateClose;
+    driverObject->MajorFunction[IRP_MJ_CREATE]       = DriverDeviceCreateClose;
+    driverObject->MajorFunction[IRP_MJ_CLOSE]        = DriverDeviceCreateClose;
     driverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
     driverObject->MajorFunction[IRP_MJ_SHUTDOWN]       = DriverShutdown;
 
