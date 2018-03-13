@@ -5,11 +5,11 @@
 
 [Version]
 Signature              = "$Windows NT$"
-Class                  = "ActivityMonitor"
-ClassGuid              = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
+Class                  = "SecurityComponent"
+ClassGuid              = {fb2b5105-e8b9-483e-b18c-205ae7817d44}
 Provider               = %ManufacturerName%
 DriverPackageType      = KernelService
-DriverVer              = 02/28/2018,0.6.0.0
+DriverVer              = 03/12/2018,0.6.0.0
 CatalogFile            = dpshield.cat
 
 [DestinationDirs]
@@ -34,7 +34,7 @@ OptionDesc    = %ServiceDescription%
 CopyFiles     = DeepShield.DriverFiles
 
 [DefaultInstall.Services]
-AddService    = %ServiceName%,,DeepShield.Service,DeepShield.EventLog,,%EventName%
+AddService    = %ServiceName%,0x00000800,DeepShield.Service,DeepShield.EventLog,,%EventName%
 
 ;                
 ; Default uninstall sections
@@ -56,7 +56,7 @@ DisplayName      = %ServiceName%
 Description      = %ServiceDescription%
 ServiceBinary    = %12%\%DriverName%.sys
 ServiceType      = 1
-StartType        = 2
+StartType        = 1
 ErrorControl     = 1
 AddReg           = DeepShield.Registry
 
