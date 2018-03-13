@@ -641,9 +641,6 @@ HeapContains(
     return result;
 }
 
-
-
-
 VOID
 ArenaDone(
     _In_ PMEMORY_ARENA arena
@@ -768,8 +765,6 @@ ArenaPhysicalToVirtual(
 
     return result;
 }
-
-
 
 /*
 *
