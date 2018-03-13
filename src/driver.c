@@ -43,6 +43,8 @@ DriverEntry(
 
     UNREFERENCED_PARAMETER(registryPath);
 
+    ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
+
     RtlInitUnicodeString( &gDeviceName, DS_WINNT_DEVICE_NAME );
     RtlInitUnicodeString( &gDosDeviceName, DS_MSDOS_DEVICE_NAME );
 
