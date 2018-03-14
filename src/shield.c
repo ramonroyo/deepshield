@@ -136,7 +136,6 @@ DeepShieldIsSupported(
     return VmxIsSupported();
 }
 
-
 NTSTATUS
 DeepShieldInit(
     VOID

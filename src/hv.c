@@ -33,7 +33,6 @@ HvInit(
     return status;
 }
 
-
 VOID
 HvDone(
     VOID
@@ -43,7 +42,6 @@ HvDone(
     MmuDone();
     MemDone();
 }
-
 
 NTSTATUS
 HvStart(
