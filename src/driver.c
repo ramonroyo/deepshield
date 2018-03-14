@@ -43,7 +43,9 @@ DriverEntry(
 
     UNREFERENCED_PARAMETER(registryPath);
 
+ #if (NTDDI_VERSION >= NTDDI_VISTA)
     ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
+#endif
 
     RtlInitUnicodeString( &gDeviceName, DS_WINNT_DEVICE_NAME );
     RtlInitUnicodeString( &gDosDeviceName, DS_MSDOS_DEVICE_NAME );
@@ -55,7 +57,6 @@ DriverEntry(
 #else
     DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL;
 #endif
-
 
     //
     //  Kernel code and user mode code running as *SYSTEM* is allowed to open
@@ -82,7 +83,7 @@ DriverEntry(
     driverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
     driverObject->MajorFunction[IRP_MJ_SHUTDOWN]       = DriverShutdown;
 
-    status = IoRegisterShutdownNotification(driverObject->DeviceObject);
+    status = IoRegisterShutdownNotification( driverObject->DeviceObject );
 
     if (!NT_SUCCESS(status))
     {
@@ -110,11 +111,11 @@ DriverEntry(
     //
     // Activate protection as soon as driver starts
     //
-    status = HvStart();
+    /*status = HvStart();
 
     if (!NT_SUCCESS(status)) {
         goto RoutineExit;
-    }
+    }*/
 
     driverObject->DriverUnload = DriverUnload;
 
@@ -330,7 +331,7 @@ DeviceControl(
         case ShieldStart: 
         {
             if (HvLaunched()) {
-                ControlData->result = STATUS_ALREADY_COMPLETE;
+                ControlData->result = 0xFF;
                     
                 Status = STATUS_SUCCESS;
                 break;
@@ -342,7 +343,7 @@ DeviceControl(
         case ShieldStop:
         {
              if (!HvLaunched()) {
-                ControlData->result = STATUS_ALREADY_COMPLETE;
+                ControlData->result = 0xFF;
                     
                 Status = STATUS_SUCCESS;
                 break;
