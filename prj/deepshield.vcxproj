@@ -45,6 +45,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <TargetVersion>Windows7</TargetVersion>
@@ -53,6 +54,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|Win32'" Label="Configuration">
     <TargetVersion>Windows7</TargetVersion>
@@ -61,6 +63,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <TargetVersion>Windows7</TargetVersion>
@@ -69,6 +72,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <TargetVersion>Windows7</TargetVersion>
@@ -77,6 +81,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|x64'" Label="Configuration">
     <TargetVersion>Windows7</TargetVersion>
@@ -85,6 +90,7 @@
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Desktop</DriverTargetPlatform>
+    <SupportsPackaging>true</SupportsPackaging>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -99,42 +105,42 @@
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X86;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X86;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <OutDir>$(SolutionDir)\bin\x86\</OutDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X86;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X64;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X64;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <OutDir>$(SolutionDir)\bin\x64\</OutDir>
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
-    <Inf2CatWindowsVersionList>XP_X64;$(Inf2CatWindowsVersionList)</Inf2CatWindowsVersionList>
+    <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64</Inf2CatWindowsVersionList>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
@@ -147,6 +153,9 @@
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='msi|Win32'">
     <Link>
@@ -159,6 +168,9 @@
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
@@ -169,6 +181,9 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
@@ -179,6 +194,9 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
@@ -188,8 +206,11 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
+      <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='msi|x64'">
     <Link>
@@ -201,6 +222,9 @@
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
     </ClCompile>
+    <DriverSign>
+      <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
