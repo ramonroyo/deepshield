@@ -15,7 +15,7 @@ INCLUDES = ..\inc
 SOURCES = context.c \
 		  driver.c \
 		  exits.c \
-		  hv.c \
+		  hvds.c \
 		  hvm_config.c \
 		  hvm_create.c \
 		  hvm_exits.c \
