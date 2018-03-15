@@ -24,17 +24,6 @@ POPALL MACRO
     add esp, HVM_ADDITIONAL_REGS_SIZE
 ENDM
 
-POPALL_EXCEPT_RAX MACRO
-    pop edi
-    pop esi
-    pop ebp
-    add esp, 4  ; dummy for esp
-    pop ebx
-    pop edx
-    pop ecx
-    add esp, 4  ; ignore rax
-    add esp, HVM_ADDITIONAL_REGS_SIZE
-ENDM
 
 CHECK_VM_ENTRY MACRO
     nop
@@ -142,7 +131,7 @@ HvmpExitHandlerAsm@0 PROC
     ;
     ; First parameter = hvm_core
     ;
-    or   eax, 0FF8h   ; set pointer to top of page where address of hvm_core is stored
+    or   eax, 0FFCh   ; set pointer to top of page where address of hvm_core is stored
     mov  eax, [eax]   ; dereference to get the pointer
     push eax
     call HvmpExitHandler@8

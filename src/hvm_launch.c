@@ -24,6 +24,7 @@ typedef struct _HVM_STOP_STACK_LAYOUT
     REGISTERS  regs;
 #ifdef _WIN64
     IRET_FRAME iret;
+    UINT_PTR   alignment;
 #else
     PIRET_FRAME iret;
 #endif
@@ -289,24 +290,31 @@ HvmpStop(
     _In_ PREGISTERS regs
 )
 {
+#ifndef _WIN64
     HVM_STOP_STACK_LAYOUT stack;
 
     memcpy(&stack.regs, regs, sizeof(REGISTERS));
 
-#ifndef _WIN64
-    stack.iret = (PIRET_FRAME)((PUINT_PTR)VmxVmcsReadPlatform(GUEST_RSP) - (sizeof(IRET_FRAME)/sizeof(UINT_PTR)));
+    stack.iret = (PIRET_FRAME)((PUINT_PTR)VmxVmcsReadPlatform(GUEST_RSP) - (sizeof(IRET_FRAME) / sizeof(UINT_PTR)));
 
     stack.iret->rip    = regs->rip;
     stack.iret->cs     = core->savedState.cs.u.raw;
     stack.iret->rflags = regs->rflags.u.raw;
 #else
-    stack.iret.rip    = regs->rip;
-    stack.iret.cs     = core->savedState.cs.u.raw;
-    stack.iret.rflags = regs->rflags.u.raw;
-    stack.iret.rsp    = regs->rsp;
-    stack.iret.ss     = core->savedState.ss.u.raw;
+    UINT8 arena[sizeof(HVM_STOP_STACK_LAYOUT) + sizeof(UINT_PTR)] = { 0 };
+    PHVM_STOP_STACK_LAYOUT stack;
+
+    stack = (PHVM_STOP_STACK_LAYOUT)(((UINT_PTR)&arena + sizeof(UINT_PTR)) & (~0xF));
+
+    memcpy(&stack->regs, regs, sizeof(REGISTERS));
+
+    stack->iret.rip    = regs->rip;
+    stack->iret.cs     = core->savedState.cs.u.raw;
+    stack->iret.rflags = regs->rflags.u.raw;
+    stack->iret.rsp    = regs->rsp;
+    stack->iret.ss     = core->savedState.ss.u.raw;
 #endif
-    
+
     //
     // Restore (TODO: Restore FULL state (CR0, CR4, fsBase, tr, sysenterCs, etc...)
     //
@@ -322,8 +330,12 @@ HvmpStop(
     __writecr3(VmxVmcsReadPlatform(GUEST_CR3));
 
     VmxpDisable();
-    
+   
+#ifndef _WIN64
     HvmpStopAsm((UINT_PTR)&stack);
+#else
+    HvmpStopAsm((UINT_PTR)stack);
+#endif
 }
 
 

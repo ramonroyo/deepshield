@@ -27,6 +27,12 @@ typedef struct _REGISTERS
 
     UINT_PTR       rip;
     FLAGS_REGISTER rflags;
+
+#ifdef _WIN64
+#ifndef FEATURE_OPTIMIZE_NOT_SAVING_FXSTATE
+    UINT8 fxarea[512];
+#endif
+#endif
 } REGISTERS, *PREGISTERS;
 
 typedef struct _DESCRIPTOR_TABLE_REGISTER
