@@ -12,6 +12,11 @@ HVM_CALL_MAGIC             EQU  0CAFEBABEh
 
 ; Saves all general purpose registers to the stack
 PUSHALL MACRO
+IFNDEF FEATURE_OPTIMIZE_NOT_SAVING_FXSTATE  
+	sub rsp, 512
+	;fxsave64 [rsp]
+    BYTE 48h, 0Fh, 0AEh, 04h, 24h
+ENDIF
     sub  rsp, HVM_ADDITIONAL_REGS_SIZE
     push rax
     push rcx
@@ -50,6 +55,11 @@ POPALL MACRO
     pop rcx
     pop rax
     add rsp, HVM_ADDITIONAL_REGS_SIZE
+IFNDEF FEATURE_OPTIMIZE_NOT_SAVING_FXSTATE  
+	;fxrstor64 [rsp]
+	BYTE 48h, 0Fh, 0AEh, 0Ch, 24h
+	add rsp, 512
+ENDIF
 ENDM
 
 CALLF MACRO X
