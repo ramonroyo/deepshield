@@ -1,0 +1,92 @@
+;
+; Installation INF for ByteHeed DeepShield driver
+; Copyright © 2018 ByteHeed. All Rights Reserved
+;
+
+[Version]
+Signature              = "$Windows NT$"
+Class                  = "Unknown"
+ClassGuid              = {4d36e97e-e325-11ce-bfc1-08002be10318}
+Provider               = %ManufacturerName%
+DriverPackageType      = KernelService
+DriverVer              = 03/12/2018,0.6.0.0
+CatalogFile            = xpshield.cat
+
+[DestinationDirs]
+DefaultDestDir         = 12
+DeepShield.DriverFiles = 12
+
+[DeepShield.DriverFiles]
+%DriverName%.sys
+
+[SourceDisksFiles]
+dpshield.sys = 1
+
+[SourceDisksNames]
+1 = %DiskId%,,,
+
+;
+; Default install sections
+;
+
+[DefaultInstall]
+OptionDesc    = %ServiceDescription%
+CopyFiles     = DeepShield.DriverFiles
+
+[DefaultInstall.Services]
+AddService    = %ServiceName%,0x00000800,DeepShield.Service,DeepShield.EventLog,,%EventName%
+
+;                
+; Default uninstall sections
+;                
+
+[DefaultUninstall]
+DelFiles      = DeepShield.DriverFiles
+DelReg        = DeepShield.Registry
+
+[DefaultUninstall.Services]
+DelService    = %ServiceName%,0x204
+
+;
+; Services Section
+;
+
+[DeepShield.Service] 
+DisplayName      = %ServiceName%
+Description      = %ServiceDescription%
+ServiceBinary    = %12%\%DriverName%.sys
+ServiceType      = 1
+StartType        = 1
+ErrorControl     = 1
+AddReg           = DeepShield.Registry
+
+;
+; Registry Modifications
+;
+
+[DeepShield.Registry]
+HKR,"Parameters\","DebugFlags",0x00010001,0x3
+HKR,"Parameters\","OperationMode",0x00010001,0x1
+
+;
+; EventLog Section
+;
+
+[DeepShield.EventLog] 
+AddReg           = DeepShield.EventLogAddReg
+
+[DeepShield.EventLogAddReg]
+HKR,,EventMessageFile,0x20000,"%%SystemRoot%%\System32\drivers\dhshield.sys"
+HKR,,TypesSupported,0x10001,7
+
+;
+; String Section
+;
+
+[Strings]
+ManufacturerName        = "ByteHeed"
+DiskId                  = "DeepShield Driver Installation Disk"
+ServiceDescription      = "ByteHeed DeepShield Driver for Meltdown protection"
+ServiceName             = "DeepShield"
+EventName               = "DeepShield Protection"
+DriverName              = "dpshield"
