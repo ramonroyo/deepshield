@@ -114,9 +114,7 @@ HvmInit(
 
         hvmCoreStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->cores[i].stack + stackPages * PAGE_SIZE - sizeof(UINT_PTR));
         *hvmCoreStackPointer = (UINT_PTR)&gHvm->cores[i];
-
-        gHvm->cores[i].rsp = (UINT_PTR)hvmCoreStackPointer;
-
+        gHvm->cores[i].rsp = ((UINT_PTR)gHvm->cores[i].stack + stackPages * PAGE_SIZE - 0x10);
         gHvm->cores[i].handler   = handler;
         gHvm->cores[i].configure = configure;
         
