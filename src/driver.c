@@ -2,8 +2,9 @@
 #include <wdmsec.h>
 #include "dsdef.h"
 
-static UNICODE_STRING gDeviceName;
-static UNICODE_STRING gDosDeviceName;
+DECLARE_CONST_UNICODE_STRING( DsDeviceName, DS_WINNT_DEVICE_NAME );
+DECLARE_CONST_UNICODE_STRING( DsDosDeviceName, DS_MSDOS_DEVICE_NAME );
+
 static UNICODE_STRING gDriverKeyName;
 static ULONG gStateFlags;
 static BOOLEAN gShutdownCalled;
@@ -126,9 +127,6 @@ DriverEntry(
         return Status;
     }
 
-    RtlInitUnicodeString( &gDeviceName, DS_WINNT_DEVICE_NAME );
-    RtlInitUnicodeString( &gDosDeviceName, DS_MSDOS_DEVICE_NAME );
-
 #ifdef DBG
     DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL_ADM_RW;
 #else
@@ -142,7 +140,7 @@ DriverEntry(
     //
     Status = IoCreateDeviceSecure( driverObject,
                                    0,
-                                   &gDeviceName,
+                                   (PUNICODE_STRING) &DsDeviceName,
                                    FILE_DEVICE_UNKNOWN,
                                    FILE_DEVICE_SECURE_OPEN,
                                    FALSE,
@@ -168,13 +166,29 @@ DriverEntry(
 
     ShutdownCallback = TRUE;
 
-    Status = IoCreateSymbolicLink( &gDosDeviceName, &gDeviceName );
+    Status = IoCreateSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName, 
+                                   (PUNICODE_STRING) &DsDeviceName );
 
     if (!NT_SUCCESS( Status )) {
         goto RoutineExit;
     }
 
     SymbolicLink = TRUE;
+
+    //
+    //  The shield must be initialized under System context.
+    //
+    Status = DsInitializeShield();
+
+    if (!NT_SUCCESS( Status )) {
+        //
+        //  TODO: log reason and continue.
+        //
+        Status = STATUS_SUCCESS;
+        goto RoutineExit;
+    }
+
+    SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
 
     Status = DsQueryLoadModePolicy( &LoadMode );
 
@@ -189,18 +203,6 @@ DriverEntry(
             goto RoutineExit;
         }
 #endif
-
-        Status = DsInitializeShield();
-
-        if (!NT_SUCCESS( Status )) {
-            //
-            //  TODO: log reason and continue.
-            //
-            Status = STATUS_SUCCESS;
-            goto RoutineExit;
-        }
-
-        SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
 
         Status = DsStartShield();
 
@@ -226,7 +228,7 @@ RoutineExit:
         }
 
         if (SymbolicLink) {
-            IoDeleteSymbolicLink( &gDosDeviceName );
+            IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
         }
 
         if (ShutdownCallback) {
@@ -266,7 +268,7 @@ DriverUnload(
         }
     }
 
-    IoDeleteSymbolicLink( &gDosDeviceName );
+    IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
     IoDeleteDevice( DriverObject->DeviceObject );
     DsFreeUnicodeString( &gDriverKeyName );
 }
@@ -437,21 +439,6 @@ DsCtlShieldControl(
             }
 
             NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
-            
-            if (!FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
-                Status = DsInitializeShield();
-
-                if (NT_SUCCESS( Status )) {
-                    SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
-
-                } else {
-
-                    //
-                    //  TODO: log reason and abort request.
-                    //
-                    break;
-                }
-            }
 
             Status = DsStartShield();
             if (NT_SUCCESS( Status )) {
