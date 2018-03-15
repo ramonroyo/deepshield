@@ -77,11 +77,11 @@ PageFaultEmulate(
 }
 
 VOID 
-DeepShieldExitHandler(
+DsHvdsExitHandler(
     _In_ UINT32     exitReason,
     _In_ PHVM_CORE  core,
     _In_ PREGISTERS regs
-)
+    )
 {
     //
     // Handle exit reasons

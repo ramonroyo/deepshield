@@ -20,10 +20,8 @@ typedef enum _SHIELD_STATUS_MODE
 
 typedef struct _SHIELD_STATUS_DATA
 {
-    SHIELD_STATUS_MODE mode;
+    SHIELD_STATUS_MODE Mode;
 } SHIELD_STATUS_DATA, *PSHIELD_STATUS_DATA;
-
-
 
 //
 // Control IOCTL
@@ -39,8 +37,8 @@ typedef enum _SHIELD_CONTROL_ACTION
 
 typedef struct _SHIELD_CONTROL_DATA
 {
-    SHIELD_CONTROL_ACTION action;
-    NTSTATUS              result;
+    SHIELD_CONTROL_ACTION Action;
+    ULONG Result;
 } SHIELD_CONTROL_DATA, *PSHIELD_CONTROL_DATA;
 
 #endif

@@ -11,8 +11,6 @@
 #define _IRQL_raises_   __drv_raisesIRQL
 #define _Dispatch_type_ __drv_dispatchType
 
-#define STATUS_ALREADY_COMPLETE          ((NTSTATUS)0x000000FFL)
-
 #endif
 
 #endif

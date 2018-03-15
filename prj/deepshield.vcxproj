@@ -232,7 +232,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\context.c" />
     <ClCompile Include="..\src\driver.c" />
-    <ClCompile Include="..\src\hv.c" />
+    <ClCompile Include="..\src\hvds.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
     <ClCompile Include="..\src\hvm_config.c" />
@@ -252,7 +252,8 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ioctl.h" />
     <ClInclude Include="..\src\context.h" />
-    <ClInclude Include="..\src\hv.h" />
+    <ClInclude Include="..\src\dsdef.h" />
+    <ClInclude Include="..\src\hvds.h" />
     <ClInclude Include="..\src\wdk7.h" />
     <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />

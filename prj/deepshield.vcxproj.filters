@@ -49,9 +49,6 @@
     <ClCompile Include="..\src\driver.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\hv.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\context.c">
       <Filter>src</Filter>
     </ClCompile>
@@ -100,17 +97,11 @@
     <ClCompile Include="..\src\shield.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\hvds.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\hv.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\context.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\exits.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\x86.h">
       <Filter>src\x86</Filter>
     </ClInclude>
@@ -138,13 +129,25 @@
     <ClInclude Include="..\src\vmcs.h">
       <Filter>src\vmm</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\shield.h">
-      <Filter>src</Filter>
+    <ClInclude Include="..\inc\ioctl.h">
+      <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\wdk7.h">
-      <Filter>src</Filter>
+      <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ioctl.h">
+    <ClInclude Include="..\src\dsdef.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\exits.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\context.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\shield.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\hvds.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
