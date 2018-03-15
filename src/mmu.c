@@ -120,16 +120,10 @@ MmupMap(
     return 0;
 }
 
-
-
-
-
-
 VOID
 MmuDone(
     VOID
 );
-
 
 NTSTATUS
 MmuInit(

@@ -1,31 +1,31 @@
-#ifndef __SHIELD_H__
-#define __SHIELD_H__
+#ifndef __HV_H__
+#define __HV_H__
 
 #include <ntddk.h>
 
 NTSTATUS
-DeepShieldIsSupported(
+DsInitializeShield(
     VOID
-);
+    );
+
+VOID
+DsFinalizeShield(
+    VOID
+    );
 
 NTSTATUS
-DeepShieldInit(
+DsStartShield(
     VOID
-);
+    );
 
 NTSTATUS
-DeepShieldDone(
+DsStopShield(
     VOID
-);
+    );
 
-NTSTATUS
-DeepShieldStart(
+BOOLEAN
+DsIsShieldRunning(
     VOID
-);
-
-NTSTATUS
-DeepShieldStop(
-    VOID
-);
+    );
 
 #endif
