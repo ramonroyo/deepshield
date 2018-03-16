@@ -1,4 +1,5 @@
-#include "wdk7.h"
+#include <ntddk.h>
+#include "dsdef.h"
 #include "mmu.h"
 #include "smp.h"
 #include "mem.h"
@@ -18,7 +19,19 @@ MmupLocateAutoEntryIndex(
     
     cr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
     cr3Pa.QuadPart = cr3;
-    cr3Va = MmMapIoSpace(cr3Pa, PAGE_SIZE, MmNonCached);
+
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+    if (!RtlIsNtDdiVersionAvailable( NTDDI_WIN10 )) {
+#endif
+        cr3Va = MmMapIoSpace( cr3Pa, PAGE_SIZE, MmNonCached );
+
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+    } else {
+        cr3Va = DsMmMapIoSpaceEx( cr3Pa,
+                                  PAGE_SIZE, 
+                                  PAGE_READWRITE | PAGE_NOCACHE );
+    }
+#endif
 
     if (cr3Va)
     {
@@ -62,7 +75,6 @@ MmupCreatePte(
     }
 #endif
 }
-
 
 VOID
 MmupChangeMapping(

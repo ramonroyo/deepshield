@@ -37,6 +37,16 @@
 #define ClearFlag(_F,_SF)     ((_F) &= ~(_SF))
 #endif
 
+typedef
+PVOID
+(*PMM_MAP_IO_SPACE_EX) (
+    _In_ PHYSICAL_ADDRESS PhysicalAddress,
+    _In_ SIZE_T NumberOfBytes,
+    _In_ ULONG Protect
+    );
+
+extern PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
+
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 
 typedef enum _SYSTEM_INFORMATION_CLASS {
