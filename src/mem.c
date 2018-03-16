@@ -61,7 +61,7 @@ HeappBlockUnlink(
     _In_    PHEAP   heap,
     _Inout_ UINT32* head,
     _In_    UINT32  address
-)
+    )
 {
     if (VNEXT(address))
     {
@@ -84,7 +84,7 @@ HeappBlockLink(
     _In_    PHEAP   heap,
     _Inout_ UINT32* head,
     _In_    UINT32  address
-)
+    )
 {
     VNEXT(address) = *head;
     VPREV(address) = 0;
@@ -101,7 +101,7 @@ VOID
 HeappBlockZero(
     _In_ PHEAP  heap,
     _In_ UINT32 address
-)
+    )
 {
     memset(BLOCK(address), 0, sizeof(HEAP_BLOCK));
 }
@@ -111,7 +111,7 @@ HeappSplit(
     _In_ PHEAP  heap,
     _In_ UINT32 address,
     _In_ UINT32 nbytes
-)
+    )
 {
     //
     //Can we split?
@@ -160,7 +160,7 @@ HeappAlign(
     _In_ UINT32 address,
     _In_ UINT32 aligned,
     _In_ UINT32 numberOfBytes
-)
+    )
 {
     UINT32 gap;
 
@@ -239,7 +239,7 @@ HeappFree(
     _In_ PHEAP   heap,
     _In_ UINT32  current,
     _In_ BOOLEAN secure
-)
+    )
 {
     UINT32 prev;
     UINT32 next;
@@ -356,7 +356,7 @@ BOOLEAN
 HeappContains(
     _In_ PHEAP heap,
     _In_ PVOID address
-)
+    )
 {
     return (address >= (PVOID)((UINT8*)heap->memory + sizeof(HEAP_BLOCK))) && (address < (PVOID)((UINT8*)heap->memory + heap->size));
 }
@@ -367,7 +367,7 @@ PHEAP
 HeapCreate(
     _In_ PVOID  arena,
     _In_ UINT32 size
-)
+    )
 {
     PHEAP       heap;
     HEAP_BLOCK* start;
@@ -396,7 +396,7 @@ HeapCreate(
 VOID
 HeapDelete(
     _In_ PHEAP heap
-)
+    )
 {
     SpinLock(&heap->lock);
     memset(heap, 0, heap->size + sizeof(HEAP));
@@ -406,7 +406,7 @@ PVOID
 HeapAlloc(
     _In_ PHEAP  heap,
     _In_ UINT32 numberOfBytes
-)
+    )
 {
     UINT32 current;
 
@@ -448,7 +448,7 @@ HeapAllocAligned(
     _In_ PHEAP  heap,
     _In_ UINT32 numberOfBytes,
     _In_ UINT32 alignment
-)
+    )
 {
     UINT32 current;
 
@@ -531,7 +531,7 @@ HeapAllocArray(
     _In_ PHEAP  heap,
     _In_ UINT32 numberOfElements,
     _In_ UINT32 elementSize
-)
+    )
 {
     //PVOID array = HeapAllocAligned(heap, numberOfElements * elementSize, elementSize); //if elementSize is not power of two, would fail
     PVOID array = HeapAlloc(heap, numberOfElements * elementSize);
@@ -546,7 +546,7 @@ VOID
 HeapFree(
     _In_ PHEAP heap,
     _In_ PVOID memory
-)
+    )
 {
     //
     // Basic checks
@@ -571,7 +571,7 @@ VOID
 HeapFreeSecure(
     _In_ PHEAP heap,
     _In_ PVOID memory
-)
+    )
 {
     UINT32  current;
     BOOLEAN found;
@@ -628,7 +628,7 @@ BOOLEAN
 HeapContains(
     _In_ PHEAP heap,
     _In_ PVOID address
-)
+    )
 {
     BOOLEAN result = FALSE;
 
@@ -644,23 +644,24 @@ HeapContains(
 VOID
 ArenaDone(
     _In_ PMEMORY_ARENA arena
-);
-
+    );
 
 NTSTATUS
 ArenaInit(
     _In_ PMEMORY_ARENA arena,
     _In_ UINT32        numberOfBytes
-)
+    )
 {
     PHYSICAL_ADDRESS low;
     PHYSICAL_ADDRESS high;
     PHYSICAL_ADDRESS skip;
+    ULONG mappingPriority = HighPagePriority;
 
     low.QuadPart = 0;
     high.QuadPart = (UINT64)-1;
     skip.QuadPart = 0;
 
+    //
     //
     // Zero
     //
@@ -681,10 +682,18 @@ ArenaInit(
     if (MmGetMdlByteCount(arena->mdl) != arena->numberOfPages * PAGE_SIZE)
         goto failure;
 
-    //
-    // Map pages
-    //
-    arena->virtualAddress = MmMapLockedPagesSpecifyCache(arena->mdl, KernelMode, MmNonCached, 0, FALSE, HighPagePriority /*| MdlMappingNoExecute*/);
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN8 )) {
+        mappingPriority |= MdlMappingNoExecute;
+    }
+#endif
+    
+    arena->virtualAddress = MmMapLockedPagesSpecifyCache( arena->mdl, 
+                                                          KernelMode,
+                                                          MmNonCached,
+                                                          0,
+                                                          FALSE,
+                                                          mappingPriority );
     if (!arena->virtualAddress)
         goto failure;
 
@@ -699,7 +708,7 @@ failure:
 VOID
 ArenaDone(
     _In_ PMEMORY_ARENA arena
-)
+    )
 {
     if (arena->virtualAddress)
     {
@@ -719,7 +728,7 @@ PHYSICAL_ADDRESS
 ArenaVirtualToPhysical(
     _In_ PMEMORY_ARENA arena,
     _In_ PVOID         virtualAddress
-)
+    )
 {
     PHYSICAL_ADDRESS result;
     UINT_PTR         start;
@@ -743,7 +752,7 @@ PVOID
 ArenaPhysicalToVirtual(
     _In_ PMEMORY_ARENA    arena,
     _In_ PHYSICAL_ADDRESS physicalAddress
-)
+    )
 {
     PVOID       result;
     PPFN_NUMBER pfns;
@@ -777,7 +786,7 @@ PHEAP        gHeap = 0;
 NTSTATUS
 MemInit(
     _In_ UINT32 numberOfBytes
-)
+    )
 {
     NTSTATUS status;
     
@@ -804,7 +813,7 @@ MemInit(
 VOID
 MemDone(
     VOID
-)
+    )
 {
     HeapDelete(gHeap);
     ArenaDone(&gMemoryArena);
@@ -813,7 +822,7 @@ MemDone(
 PVOID
 MemAlloc(
     _In_ UINT32 numberOfBytes
-)
+    )
 {
     return HeapAlloc(gHeap, numberOfBytes);
 }
@@ -822,7 +831,7 @@ PVOID
 MemAllocAligned(
     _In_ UINT32 numberOfBytes,
     _In_ UINT32 alignment
-)
+    )
 {
     return HeapAllocAligned(gHeap, numberOfBytes, alignment);
 }
@@ -831,7 +840,7 @@ PVOID
 MemAllocArray(
     _In_ UINT32 numberOfElements,
     _In_ UINT32 elementSize
-)
+    )
 {
     return HeapAllocArray(gHeap, numberOfElements, elementSize);
 }
@@ -839,7 +848,7 @@ MemAllocArray(
 VOID
 MemFree(
     _In_ PVOID memory
-)
+    )
 {
     HeapFree(gHeap, memory);
 }
@@ -847,7 +856,7 @@ MemFree(
 VOID
 MemFreeSecure(
     _In_ PVOID memory
-)
+    )
 {
     HeapFreeSecure(gHeap, memory);
 }
@@ -855,7 +864,7 @@ MemFreeSecure(
 PHYSICAL_ADDRESS
 MemVirtualToPhysical(
     _In_ PVOID virtualAddress
-)
+    )
 {
     return ArenaVirtualToPhysical(&gMemoryArena, virtualAddress);
 }
@@ -863,7 +872,7 @@ MemVirtualToPhysical(
 PVOID
 MemPhysicalToVirtual(
     _In_ PHYSICAL_ADDRESS physicalAddress
-)
+    )
 {
     return ArenaPhysicalToVirtual(&gMemoryArena, physicalAddress);
 }

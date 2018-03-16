@@ -34,6 +34,7 @@ DsCtlShieldControl(
     _In_ PIO_STACK_LOCATION IrpStack
     );
 
+_When_(return==0, _Post_satisfies_(String->Buffer != NULL))
 NTSTATUS
 DsAllocateUnicodeString(
     _Inout_ PUNICODE_STRING String
@@ -100,6 +101,8 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
+PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
+
 NTSTATUS
 DriverEntry(
     _In_ PDRIVER_OBJECT driverObject,
@@ -109,18 +112,28 @@ DriverEntry(
     NTSTATUS Status = STATUS_UNSUCCESSFUL;
     PDEVICE_OBJECT deviceObject = NULL;
     PCUNICODE_STRING DeviceSecurityString;
+    UNICODE_STRING FunctionName;
     ULONG LoadMode = 0;
     BOOLEAN ShutdownCallback = FALSE;
     BOOLEAN SymbolicLink = FALSE;
 
-
- #if (NTDDI_VERSION >= NTDDI_VISTA)
-    ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
-#endif
-    
     gShutdownCalled = FALSE;
     gStateFlags = 0;
 
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+    ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
+
+    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN10 )) {
+
+        RtlInitUnicodeString( &FunctionName, L"MmMapIoSpaceEx" );
+        DsMmMapIoSpaceEx = (PMM_MAP_IO_SPACE_EX)
+                      MmGetSystemRoutineAddress( &FunctionName );
+
+    } else {
+        DsMmMapIoSpaceEx = NULL;
+    }
+#endif
+    
     Status = DsCloneUnicodeString( &gDriverKeyName, RegistryPath );
 
     if (!NT_SUCCESS( Status )) {
@@ -346,7 +359,6 @@ DriverDeviceControl(
     NTSTATUS Status = STATUS_SUCCESS;
     PIO_STACK_LOCATION IrpStack;
 
-    PAGED_CODE();
     UNREFERENCED_PARAMETER( DeviceObject );
 
     IrpStack = IoGetCurrentIrpStackLocation( Irp );
@@ -386,6 +398,8 @@ DsCltGetShieldState(
     ULONG InputLength;
     ULONG OutputLength;
 
+    PAGED_CODE();
+
     InputLength  = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
     OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
 
@@ -416,6 +430,8 @@ DsCtlShieldControl(
     PSHIELD_CONTROL_DATA ControlData;
     ULONG InputLength;
     ULONG OutputLength;
+
+    PAGED_CODE();
 
     InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
     OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
