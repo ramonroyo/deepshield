@@ -34,6 +34,12 @@ DsCtlShieldControl(
     _In_ PIO_STACK_LOCATION IrpStack
     );
 
+NTSTATUS
+DsCtlMeltdownExpose(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
 _When_(return==0, _Post_satisfies_(String->Buffer != NULL))
 NTSTATUS
 DsAllocateUnicodeString(
@@ -78,10 +84,19 @@ DsCheckHvciCompliance(
     );
 #endif
 
+VOID
+DsTimerDPC(
+    _In_ struct _KDPC *Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    );
+
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
 #pragma alloc_text(PAGE, DsCltGetShieldState)
 #pragma alloc_text(PAGE, DsCtlShieldControl)
+#pragma alloc_text(PAGE, DsCtlMeltdownExpose)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
 #pragma alloc_text(PAGE, DsFreeUnicodeString)
 #pragma alloc_text(PAGE, DsCloneUnicodeString)
@@ -101,7 +116,12 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
+KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
+KTIMER ExposeTimer;
+PCHAR LeakBuffer;
+
+PCHAR LeakData = "Overconfidence can take over and caution can be thrown to the wind";
 
 NTSTATUS
 DriverEntry(
@@ -141,7 +161,7 @@ DriverEntry(
     }
 
 #ifdef DBG
-    DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL_ADM_RW;
+    DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL_ADM_RWX_WORLD_RWX_RES_RWX;
 #else
     DeviceSecurityString = &SDDL_DEVOBJ_SYS_ALL;
 #endif
@@ -187,7 +207,7 @@ DriverEntry(
     }
 
     SymbolicLink = TRUE;
-
+    
     //
     //  The shield must be initialized under System context.
     //
@@ -202,6 +222,10 @@ DriverEntry(
     }
 
     SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
+
+    KeInitializeDpc( &ExposeDpc, DsTimerDPC, NULL );
+    KeSetTargetProcessorDpc( &ExposeDpc, 0 );
+    KeInitializeTimer( &ExposeTimer );
 
     Status = DsQueryLoadModePolicy( &LoadMode );
 
@@ -234,6 +258,8 @@ RoutineExit:
 
     if (!NT_SUCCESS( Status )) {
 
+        KeCancelTimer( &ExposeTimer );
+
         if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
 
             ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
@@ -264,6 +290,11 @@ DriverUnload(
     )
  {
     IoUnregisterShutdownNotification( DriverObject->DeviceObject );
+    KeCancelTimer( &ExposeTimer );
+
+    if (LeakBuffer) {
+        ExFreePoolWithTag( LeakBuffer, 'dMsD');
+    }
 
     if (FALSE == gShutdownCalled) {
 
@@ -376,6 +407,12 @@ DriverDeviceControl(
         case IOCTL_SHIELD_CONTROL:
         {
             Status = DsCtlShieldControl( Irp, IrpStack );
+            break;
+        }
+
+        case IOCTL_MELTDOWN_EXPOSE:
+        {
+            Status = DsCtlMeltdownExpose( Irp, IrpStack );
             break;
         }
     }
@@ -497,6 +534,52 @@ DsCtlShieldControl(
         Irp->IoStatus.Information = sizeof( SHIELD_CONTROL_DATA );
     }
 
+    return Status;
+}
+
+NTSTATUS
+DsCtlMeltdownExpose(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    )
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+    PMELTDOWN_EXPOSE_DATA ExposeData;
+    LARGE_INTEGER DueTime;
+    ULONG InputLength;
+    ULONG OutputLength;
+
+    PAGED_CODE();
+
+    InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
+    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
+
+    if (max( InputLength, OutputLength ) < sizeof( MELTDOWN_EXPOSE_DATA )) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    ExposeData = (PMELTDOWN_EXPOSE_DATA)Irp->AssociatedIrp.SystemBuffer;
+    ExposeData->LeakAddress = (UINT64)
+                        ExAllocatePoolWithTag( NonPagedPoolNx,
+                                               PAGE_SIZE,
+                                               'dMsD');
+
+    if (0 == ExposeData->LeakAddress) {
+        return STATUS_INSUFFICIENT_RESOURCES;
+    }
+
+    LeakBuffer = (PCHAR)(PVOID)ExposeData->LeakAddress;
+    RtlZeroMemory( LeakBuffer, PAGE_SIZE );
+    RtlCopyMemory( LeakBuffer, LeakData, sizeof( LeakData ) );
+
+    DueTime.QuadPart = -1000000;
+
+    //
+    //  Fire the L1 periodic 10ms prefetcher.
+    //
+    KeSetTimerEx( &ExposeTimer, DueTime, 10, &ExposeDpc );
+
+    Irp->IoStatus.Information = sizeof( MELTDOWN_EXPOSE_DATA );
     return Status;
 }
 
@@ -740,3 +823,23 @@ DsCheckHvciCompliance(
     return TRUE;
 }
 #endif
+
+VOID 
+DsTimerDPC(
+    _In_ struct _KDPC *Dpc,
+    _In_opt_ PVOID DeferredContext,
+    _In_opt_ PVOID SystemArgument1,
+    _In_opt_ PVOID SystemArgument2
+    )
+{
+    INT Idx = 0;
+
+    UNREFERENCED_PARAMETER( Dpc );
+    UNREFERENCED_PARAMETER( DeferredContext );
+    UNREFERENCED_PARAMETER( SystemArgument1 );
+    UNREFERENCED_PARAMETER( SystemArgument2 );
+
+    for (; Idx < 64; Idx += 32) {
+        _mm_prefetch( LeakBuffer + Idx, _MM_HINT_T0 );
+    }
+}
