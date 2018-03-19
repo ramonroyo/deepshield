@@ -4,6 +4,8 @@
 #include "instr.h"
 #include "vmx.h"
 #include "mmu.h"
+#include "smp.h"
+#include "mem.h"
 
 /*
 VOID
@@ -57,6 +59,22 @@ CpuidEmulate(
     InstrRipAdvance(regs);
 }
 
+VOID Invalidate(UINT_PTR address)
+{
+    int i;
+
+    address = (UINT_PTR)PAGE_ALIGN(address);
+
+    for (i = 0; i < 256; ++i)
+    {
+        __invlpg((PVOID)(address + i * PAGE_SIZE));
+    }
+    for (i = 1; i < 256; ++i)
+    {
+        __invlpg((PVOID)(address - i * PAGE_SIZE));
+    }
+}
+
 VOID
 PageFaultEmulate(
     _In_ PREGISTERS regs
@@ -72,7 +90,31 @@ PageFaultEmulate(
 
     if (MmuIsUserModeAddress((PVOID)regs->rip) && MmuIsKernelModeAddress((PVOID)exitQualification))
     {
+        CR0_REGISTER cr0_original = { 0 };
+        CR0_REGISTER cr0_new = { 0 };
+        CR4_REGISTER cr4_original = { 0 };
+        CR4_REGISTER cr4_new = { 0 };
+
+        cr0_original.u.raw = __readcr0();
+        cr0_new = cr0_original;
+
+        cr0_new.u.f.cd = 1;
+        cr0_new.u.f.nw = 0;
+
+        __writecr0(cr0_new.u.raw);
+
         __wbinvd();
+
+        __writecr0(cr0_original.u.raw);
+
+        cr4_original.u.raw = __readcr4();
+        cr4_new = cr4_original;
+
+        cr4_new.u.f.smep = 0;
+        __writecr4(cr4_new.u.raw);
+        __writecr4(cr4_original.u.raw);
+
+        __writecr3(__readcr3());
     }
 }
 
