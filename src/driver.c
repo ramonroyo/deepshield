@@ -560,7 +560,7 @@ DsCtlMeltdownExpose(
 
     ExposeData = (PMELTDOWN_EXPOSE_DATA)Irp->AssociatedIrp.SystemBuffer;
     ExposeData->LeakAddress = (UINT64)
-                        ExAllocatePoolWithTag( NonPagedPoolNx,
+                        ExAllocatePoolWithTag( NonPagedPool,
                                                PAGE_SIZE,
                                                'dMsD');
 
@@ -568,7 +568,7 @@ DsCtlMeltdownExpose(
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    LeakBuffer = (PCHAR)(PVOID)ExposeData->LeakAddress;
+    LeakBuffer = (PCHAR)(ULONG_PTR)ExposeData->LeakAddress;
     RtlZeroMemory( LeakBuffer, PAGE_SIZE );
     RtlCopyMemory( LeakBuffer, LeakData, sizeof( LeakData ) );
 
@@ -824,6 +824,8 @@ DsCheckHvciCompliance(
 }
 #endif
 
+#define _DS_MM_HINT_T0  1
+
 VOID 
 DsTimerDPC(
     _In_ struct _KDPC *Dpc,
@@ -840,6 +842,6 @@ DsTimerDPC(
     UNREFERENCED_PARAMETER( SystemArgument2 );
 
     for (; Idx < 64; Idx += 32) {
-        _mm_prefetch( LeakBuffer + Idx, _MM_HINT_T0 );
+        _mm_prefetch( LeakBuffer + Idx, _DS_MM_HINT_T0 );
     }
 }
