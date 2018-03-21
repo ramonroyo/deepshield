@@ -48,8 +48,8 @@ DsConfigureHvds(
     PGLOBAL_CONTEXT globalContext;
     PLOCAL_CONTEXT  localContext;
 
-    globalContext = (PGLOBAL_CONTEXT)HvmCoreGlobalContext(core);
-    localContext  = (PLOCAL_CONTEXT) HvmCoreLocalContext(core);
+    globalContext = (PGLOBAL_CONTEXT) HvmCoreGlobalContext(core);
+    localContext  = (PLOCAL_CONTEXT)  HvmCoreLocalContext(core);
 
     //
     // Common configuration
@@ -70,6 +70,29 @@ DsConfigureHvds(
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
     }
     */
+
+	//
+	// Enable RDTSC Virtualization
+	//
+    {
+        VMX_PROC_PRIMARY_CTLS Controls;
+
+        Controls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_PRIMARY);
+        Controls.u.f.rdtscExiting = 1;
+        VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, Controls.u.raw);
+    }
+
+    //
+	// Enable RDTSC Virtualization
+    //
+    {
+        VMX_PROC_SECONDARY_CTLS Controls;
+
+        Controls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
+		Controls.u.f.enableRdtscp = 1;
+        VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_SECONDARY, Controls.u.raw);
+    }
+
 
     //
     // Minimize msr exits

@@ -141,6 +141,7 @@ DriverEntry(
     gStateFlags = 0;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
+	#pragma warning(disable:4055)
     ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
 
     if (RtlIsNtDdiVersionAvailable( NTDDI_WIN10 )) {
