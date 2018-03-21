@@ -19,7 +19,7 @@ DsInitializeShield(
         return Status;
     }
 
-    Status = MemInit((SmpNumberOfCores() + 1) * 8 * PAGE_SIZE);
+    Status = MemInit((SmpNumberOfCores() + 1) * 16 * PAGE_SIZE);
     if (!NT_SUCCESS( Status )) {
         return Status;
     }

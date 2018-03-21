@@ -1,5 +1,6 @@
 #include "wdk7.h"
 #include "exits.h"
+#include "tsc.h"
 #include "context.h"
 #include "instr.h"
 #include "vmx.h"
@@ -34,43 +35,6 @@ CrAccessEmulate(
     InstrRipAdvance(regs);
 }
 */
-
-typedef struct _TSC_HIT {
-	UINT64 Address;
-	UINT64 TimeStamp;
-} TSC_HIT, *PTSC_HIT;
-
-typedef struct _TSC_ENTRY {
-	TSC_HIT Before;
-	TSC_HIT After;
-} TSC_ENTRY, *PTSC_ENTRY;
-
-#define TIMESTAMP_TO_REGS(TimeStamp, Regs) \
-
-VOID
-RdtscEmulate(
-	_In_ PREGISTERS Regs
-)
-{
-	UINT64 TimeStamp = __rdtsc();
-
-	Regs->rax = (UINT32) TimeStamp;
-	Regs->rdx = (UINT32) (TimeStamp >> 32);
-}
-
-VOID
-RdtscpEmulate(
-	_In_ PREGISTERS Regs
-)
-{
-	UINT32 Processor = 0;
-	UINT64 TimeStamp = __rdtscp(&Processor);
-
-
-	Regs->rax = (UINT32) TimeStamp;
-	Regs->rdx = (UINT32) (TimeStamp >> 32);
-	Regs->rcx = Processor;
-}
 
 VOID
 CpuidEmulate(
@@ -245,11 +209,11 @@ DsHvdsExitHandler(
         */
 		
         case EXIT_REASON_RDTSC:
-			RdtscEmulate(regs);
+			RdtscEmulate(core->localContext, regs);
 			break;
 
         case EXIT_REASON_RDTSCP:
-			RdtscpEmulate(regs);
+			RdtscpEmulate(core->localContext, regs);
 			break;
 
         case EXIT_REASON_CPUID:

@@ -1,5 +1,6 @@
 #include "wdk7.h"
 #include "context.h"
+#include "tsc.h"
 #include "mem.h"
 #include "mmu.h"
 #include "smp.h"
@@ -20,6 +21,8 @@ GlobalContextConfigure(
     global->msrBitmap = MemAllocAligned(PAGE_SIZE, PAGE_SIZE);
     if (global->msrBitmap == NULL)
         return FALSE;
+
+
     memset(global->msrBitmap, 0, PAGE_SIZE);
 
     return TRUE;
@@ -32,8 +35,9 @@ GlobalContextReset(
 {
     if(global)
     {
-        if (global->msrBitmap)
+        if (global->msrBitmap) {
             MemFree(global->msrBitmap);
+        }
 
         memset(global, 0, sizeof(GLOBAL_CONTEXT));
     }
@@ -46,6 +50,10 @@ LocalContextConfigure(
 {
     memset(local, 0, sizeof(LOCAL_CONTEXT));
 
+    local->TscHits = MemAlloc(sizeof(TSC_ENTRY) * MAX_TSC_HITS);
+
+    memset(local->TscHits, 0, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
+
     return TRUE;
 }
 
@@ -56,6 +64,10 @@ LocalContextReset(
 {
     if (local)
     {
+        if (local->TscHits) {
+            MemFree(local->TscHits);
+        }
+
         memset(local, 0, sizeof(LOCAL_CONTEXT));
     }
 }
