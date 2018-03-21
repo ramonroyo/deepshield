@@ -5,7 +5,7 @@
 
 typedef struct _LOCAL_CONTEXT
 {
-    UINT_PTR dummy;
+    PVOID TscHits;
 } LOCAL_CONTEXT, *PLOCAL_CONTEXT;
 
 typedef struct _GLOBAL_CONTEXT

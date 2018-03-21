@@ -9,6 +9,10 @@
 
 #include <ntddk.h>
 
+
+#define IA32_TSC                0x10
+#define IA32_APIC_BASE          0x1B
+#define IA32_TSC_ADJUST         0x3B
 #define IA32_SYSENTER_CS        0x174
 #define IA32_SYSENTER_ESP       0x175
 #define IA32_SYSENTER_EIP       0x176
@@ -16,7 +20,8 @@
 #define IA32_FS_BASE            0xC0000100
 #define IA32_GS_BASE            0xC0000101
 #define IA32_GS_BASE_SWAP       0xC0000102
-#define IA32_APIC_BASE          0x1B
+#define IA32_TSC_AUX            0xC0000103
+
 
 
 #pragma warning( disable : 4214 ) //Bit field types other than int
