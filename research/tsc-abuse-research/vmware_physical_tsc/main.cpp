@@ -14,6 +14,7 @@ uint64_t timming_rdpmc_elapsed_ns[BLOCK_SIZE];
 uint64_t timming_rdpmc_virtual_ns[BLOCK_SIZE];
 
 extern "C" {
+  uint64_t __vmware_tsc();
   bool detect_vmware();
   uint64_t memory_access_time(void *p);
   uint64_t rdpmc_memory_access(void *p, unsigned int profile);
@@ -112,6 +113,69 @@ void start_tsc_measure(bool is_vmware) {
   }
 
   dump_times(timming_rdtsc, BLOCK_SIZE, "RDTSC\0");
+
+  if ( is_vmware ) {
+      uint64_t average = 0;
+      uint64_t before;
+      uint64_t after;
+      uint64_t time;
+      unsigned int processor;
+      int skips;
+
+      printf("measuring RDTSC instruction with native TSC\n");
+      printf("===========================================\n");
+
+      skips = 0;
+
+      for ( int i = 0; i < 50000; i++ ) {
+
+          before = __vmware_tsc();
+          __rdtsc();
+          after = __vmware_tsc();
+
+          time = (after - before);
+
+
+          if ( (i > 0) && (time > (average * 3)) ) {
+              skips++;
+              continue;
+          }
+
+          average += (after - before);
+          if ( i > 0 ) {
+              average /= 2;
+          }
+      }
+
+      printf("average of rdtsc: %llu (skips %d)\n", average, skips);
+
+      printf("measuring RDTSC(P) instruction with native TSC\n");
+      printf("===========================================\n");
+
+      average = 0;
+      skips = 0;
+
+      for ( int i = 0; i < 50000; i++ ) {
+
+          before = __vmware_tsc();
+          __rdtscp(&processor);
+          after = __vmware_tsc();
+
+          time = (after - before);
+
+          if ( (i > 0) && (time > (average * 3)) ) {
+              skips++;
+              continue;
+          }
+
+          average += (after - before);
+          if ( i > 0 ) {
+              average /= 2;
+          }
+      }
+
+      printf("average of rdtscp: %llu (skips %d)\n", average, skips);
+  }
 }
 
 int main(int argc, char *argv[]) {
