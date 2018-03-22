@@ -29,4 +29,15 @@ RdtscpEmulate(
     _In_ PREGISTERS     Regs
 );
 
+VOID
+EnableUserTimeStamp(
+    VOID
+);
+
+
+VOID
+DisableUserTimeStamp(
+    VOID
+);
+
 #endif
