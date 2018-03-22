@@ -58,6 +58,17 @@ DsConfigureHvds(
     VmcsConfigureCommonHost();
     VmcsConfigureCommonControl();
 
+    //
+    // Unprivilege TSD
+    //
+    {
+        CR4_REGISTER cr4 = {0};
+        cr4.u.raw = __readcr4();
+        cr4.u.f.tsd = 1;
+
+        VmxVmcsWritePlatform(GUEST_CR4, __readcr4());
+    }
+
     /*
     //
     // Follow CR3
@@ -74,20 +85,25 @@ DsConfigureHvds(
     //
     // Enable RDTSC Virtualization
     //
+
+    /*
     {
         VMX_PROC_PRIMARY_CTLS Controls;
 
         Controls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_PRIMARY);
-        Controls.u.f.rdtscExiting = 1;
+        Controls.u.f.rdtscExiting = 0;
         // Controls.u.f.useTscOffseting = 1;
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, Controls.u.raw);
         // VmxVmcsWrite32(TSC_OFFSET, 0);
         
     }
+    */
 
     //
     // Enable RDTSC Virtualization
     //
+
+    /*
     {
         VMX_PROC_SECONDARY_CTLS Controls;
 
@@ -98,7 +114,7 @@ DsConfigureHvds(
         // VmxVmcsWrite32(TSC_MULTIPLIER, 0);
         
     }
-
+    */
 
     //
     // Minimize msr exits

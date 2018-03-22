@@ -152,13 +152,8 @@ PageFaultEmulate(
     VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
     __writecr2(exitQualification);
 
-    if (MmuIsUserModeAddress((PVOID)regs->rip) 
-        && MmuIsKernelModeAddress((PVOID)exitQualification)) {
-
-        ResetCacheOperatingMode();
-        ResetSmepMode();
-
-        FlushCurrentTb();
+    if (MmuIsUserModeAddress((PVOID)regs->rip)) {
+        // 
     }
 }
 
@@ -200,22 +195,12 @@ DsHvdsExitHandler(
         //
         // Custom VM exits
         //
-        /*
-        case EXIT_REASON_CR_ACCESS:
+        case EXIT_REASON_GDTR_IDTR:
         {
-            CrAccessEmulate(regs);
+            // ShadowIdtEmulate(regs);
             break;
         }
-        */
 		
-        case EXIT_REASON_RDTSC:
-			RdtscEmulate(core->localContext, regs);
-			break;
-
-        case EXIT_REASON_RDTSCP:
-			RdtscpEmulate(core->localContext, regs);
-			break;
-
         case EXIT_REASON_CPUID:
         {
             CpuidEmulate(regs);

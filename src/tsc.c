@@ -38,17 +38,19 @@ RdtscEmulate(
 {
     UNREFERENCED_PARAMETER(Local);
 
-	// UINT64 TimeStamp = __readmsr(IA32_TSC);
 	UINT64 TimeStamp = __readmsr(IA32_TSC);
+
+    // Local->TscHits
 
     if ( MmuIsUserModeAddress((PVOID)Regs->rip)) {
         TimeStamp >>= 10;
     }
 
-    // Local->TscHits
-
 	Regs->rax = (UINT32) TimeStamp;
 	Regs->rdx = (UINT32) (TimeStamp >> 32);
+
+    Regs->rdx = (Regs->rax << 3) + (Regs->rdx >> 29);
+    Regs->rax = (Regs->rax) << 3;
 
     InstrRipAdvance(Regs);
 }
@@ -77,4 +79,33 @@ RdtscpEmulate(
 	Regs->rdx = (UINT32) (TimeStamp >> 32);
 
     InstrRipAdvance(Regs);
+}
+
+VOID
+EnableUserTimeStamp(
+    VOID
+    )
+{
+    CR4_REGISTER cr4 = { 0 };
+    cr4.u.raw = __readcr4();
+
+    // disable TimeStamp when requested from user-mode
+    cr4.u.f.tsd = 1;
+
+    __writecr4(cr4.u.raw);
+}
+
+VOID
+DisableUserTimeStamp(
+    VOID
+    )
+{
+    CR4_REGISTER cr4 = { 0 };
+
+    cr4.u.raw = __readcr4();
+
+    // disable TimeStamp when requested from user-mode
+    cr4.u.f.tsd = 0;
+
+    __writecr4(cr4.u.raw);
 }
