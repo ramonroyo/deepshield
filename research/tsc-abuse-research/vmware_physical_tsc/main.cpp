@@ -3,7 +3,8 @@
 #include <cstdint>
 #include <windows.h>
 
-constexpr int BLOCK_SIZE = 256;
+constexpr int BLOCK_SIZE = 16;
+constexpr int PAGE_SIZE  = 4096;
 
 #define set_process_affinity(n) SetProcessAffinityMask(GetCurrentProcess(), n)
 
@@ -11,8 +12,6 @@ uint64_t timming_rdtsc[BLOCK_SIZE];
 uint64_t timming_rdpmc_host_tsc[BLOCK_SIZE];
 uint64_t timming_rdpmc_elapsed_ns[BLOCK_SIZE];
 uint64_t timming_rdpmc_virtual_ns[BLOCK_SIZE];
-
-uint8_t probe[BLOCK_SIZE * 4096];
 
 extern "C" {
   bool detect_vmware();
@@ -31,32 +30,85 @@ void dump_times(uint64_t * times, int size, char* tag) {
     printf("##################################\n");
 }
 
-void timing_research(bool is_vmware) {
-  memset(probe, 0xfe, sizeof(probe));
 
-  for (int i = 0; i < 256; ++i)
-    _mm_clflush(probe + i * 4096);
+class Pool {
+  uint8_t * memory;
+public:
+  Pool(void);
+  ~Pool(void);
+  void flush(void);
+  uint8_t * ptr(void);
+  uint64_t touch(unsigned int offset);
+};
 
-  // caching half of blocks
-  for (int i = 0; i < 256; i += 2)
-    uint64_t _ = memory_access_time(probe + i * 4096);
+uint8_t * Pool::ptr(void) {
+    return memory;
+}
 
+uint64_t Pool::touch(unsigned int index) {
+    return memory_access_time(ptr() + index * PAGE_SIZE );
+}
+
+void Pool::flush(void) {
   for (int i = 0; i < BLOCK_SIZE; ++i) {
-    void * address = probe + i * 4096;
+    _mm_clflush(memory + i * PAGE_SIZE);
+  }
+}
 
-    if ( is_vmware ) {
-      timming_rdpmc_host_tsc[i]   = rdpmc_memory_access(address, 0x10000);
-      timming_rdpmc_elapsed_ns[i] = rdpmc_memory_access(address, 0x10001);
-      timming_rdpmc_virtual_ns[i] = rdpmc_memory_access(address, 0x10002);
-    }
+Pool::Pool() {
+  memory = (uint8_t*) malloc(BLOCK_SIZE * PAGE_SIZE);
+  memset(memory, 0xfe, sizeof(memory));
+}
 
-    timming_rdtsc[i] = memory_access_time(address);
+Pool::~Pool() {
+  if ( memory ) {
+    free( memory );
+  }
+}
+
+void start_tsc_measure(bool is_vmware) {
+
+  Pool pool = Pool::Pool();
+
+
+  for (int trials=0; trials < 500; trials++ ) {
+      pool.flush();
+
+      //
+      // touching pair pages to fastly perceive differences
+      //
+      for (int i = 0; i < BLOCK_SIZE; i += 2) {
+        pool.touch(i);
+      }
+
+      for (int i = 0; i < BLOCK_SIZE; ++i) {
+        void * address = pool.ptr() + i * 4096;
+
+        if ( is_vmware ) {
+
+          timming_rdpmc_host_tsc[i]   += rdpmc_memory_access(address, 0x10000);
+          timming_rdpmc_elapsed_ns[i] += rdpmc_memory_access(address, 0x10001);
+          timming_rdpmc_virtual_ns[i] += rdpmc_memory_access(address, 0x10002);
+
+          if ( trials > 0 ) {
+              timming_rdpmc_host_tsc[i]   /= 2;
+              timming_rdpmc_elapsed_ns[i] /= 2;
+              timming_rdpmc_virtual_ns[i] /= 2;
+          }
+        }
+
+        timming_rdtsc[i] += memory_access_time(address);
+
+        if ( trials > 0 ) {
+          timming_rdtsc[i] /= 2;
+        }
+      }
   }
 
   if ( is_vmware ) {
-    dump_times(timming_rdpmc_host_tsc,   BLOCK_SIZE, "RDPMC (Native TSC)\0");
-    dump_times(timming_rdpmc_elapsed_ns, BLOCK_SIZE, "RDPMC (Elapsed NS)\0");
-    dump_times(timming_rdpmc_virtual_ns, BLOCK_SIZE, "RDPMC (Apparent NS)\0");
+    dump_times(timming_rdpmc_host_tsc,    BLOCK_SIZE, "RDPMC (Native TSC)\0");
+    dump_times(timming_rdpmc_elapsed_ns,  BLOCK_SIZE, "RDPMC (Elapsed NS)\0");
+    dump_times(timming_rdpmc_virtual_ns,  BLOCK_SIZE, "RDPMC (Apparent NS)\0");
   }
 
   dump_times(timming_rdtsc, BLOCK_SIZE, "RDTSC\0");
@@ -84,6 +136,6 @@ int main(int argc, char *argv[]) {
 
   system("pause");
   set_process_affinity(1);
-  timing_research(is_vmware);
+  start_tsc_measure(is_vmware);
   return 0;
 }
