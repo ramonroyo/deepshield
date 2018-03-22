@@ -3,8 +3,16 @@ BITS 64
 global rdpmc_memory_access
 global memory_access_time
 global detect_vmware
+global __vmware_tsc
 
 section .text
+
+__vmware_tsc:
+  mov rcx, 10000h
+  rdpmc
+  shl rdx, 20h
+  or rax, rdx
+  ret
 
 detect_vmware:
   xor rax, rax
