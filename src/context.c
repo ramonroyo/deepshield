@@ -52,6 +52,9 @@ LocalContextConfigure(
 
     local->TscHits = MemAlloc(sizeof(TSC_ENTRY) * MAX_TSC_HITS);
 
+    if (local->TscHits == NULL)
+        return FALSE;
+
     memset(local->TscHits, 0, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
 
     return TRUE;
