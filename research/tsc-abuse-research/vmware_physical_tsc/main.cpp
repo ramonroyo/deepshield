@@ -54,7 +54,9 @@ void timing_research(bool is_vmware) {
   }
 
   if ( is_vmware ) {
-    dump_times(timming_rdpmc, BLOCK_SIZE, "RDPMC\0");
+    dump_times(timming_rdpmc_host_tsc,   BLOCK_SIZE, "RDPMC (Native TSC)\0");
+    dump_times(timming_rdpmc_elapsed_ns, BLOCK_SIZE, "RDPMC (Elapsed NS)\0");
+    dump_times(timming_rdpmc_virtual_ns, BLOCK_SIZE, "RDPMC (Apparent NS)\0");
   }
 
   dump_times(timming_rdtsc, BLOCK_SIZE, "RDTSC\0");
