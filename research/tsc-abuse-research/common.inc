@@ -11,7 +11,7 @@ SRCDIR=.
 CC=cl
 LINKER=link
 SIGNTOOL=signtool
-ASM="C:\Program Files\NASM\nasm.exe"
+ASM="c:\tools\nasm\nasm.exe"
 RD=rd /s /q
 RM=del /q
 

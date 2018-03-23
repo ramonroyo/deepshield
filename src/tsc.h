@@ -4,6 +4,16 @@
 #include "hvm.h"
 #include "context.h"
 
+//
+//  0F 31 (RDTSCP) | 64 / 32-bit
+//
+#define RDTSC_INS_SIZE 2
+
+//
+//  0F 01 F9 (RDTSCP) | 64 / 32-bit
+//
+#define RDTSCP_INS_SIZE 3
+
 #define MAX_TSC_HITS 100
 
 typedef struct _TSC_HIT {

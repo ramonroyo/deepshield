@@ -38,19 +38,19 @@ RdtscEmulate(
 {
     UNREFERENCED_PARAMETER(Local);
 
-	UINT64 TimeStamp = __readmsr(IA32_TSC);
+    ULARGE_INTEGER TimeStamp = { 0 };
+    TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
-    // Local->TscHits
+    Regs->rdx = TimeStamp.HighPart;
+    Regs->rax = TimeStamp.LowPart;
 
-    if ( MmuIsUserModeAddress((PVOID)Regs->rip)) {
-        TimeStamp >>= 10;
+/*
+    PTSC_ENTRY New = GetFreeSlot(Local->TscHits);
+
+    if ( !New )
+        FlushOldHits(Local->TscHits);
     }
-
-	Regs->rax = (UINT32) TimeStamp;
-	Regs->rdx = (UINT32) (TimeStamp >> 32);
-
-    Regs->rdx = (Regs->rax << 3) + (Regs->rdx >> 29);
-    Regs->rax = (Regs->rax) << 3;
+*/
 
     InstrRipAdvance(Regs);
 }
@@ -64,19 +64,17 @@ RdtscpEmulate(
     UNREFERENCED_PARAMETER(Local);
 
 	UINT64 Processor = __readmsr(IA32_TSC_AUX);
-	UINT64 TimeStamp = __readmsr(IA32_TSC);
 
     Regs->rcx = Processor;
 
     // Local->TscHits
 
+    ULARGE_INTEGER TimeStamp = { 0 };
+    TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
-    if ( MmuIsUserModeAddress((PVOID)Regs->rip)) {
-        TimeStamp >>= 10;
-    }
-
-	Regs->rax = (UINT32) TimeStamp;
-	Regs->rdx = (UINT32) (TimeStamp >> 32);
+    Regs->rdx = TimeStamp.HighPart;
+    Regs->rax = TimeStamp.LowPart;
+    Regs->rcx = Processor;
 
     InstrRipAdvance(Regs);
 }

@@ -142,11 +142,13 @@ PageFaultEmulate(
 
 VOID
 GeneralProtectionFaultEmulate(
+    _In_ PVOID local,
     _In_ PREGISTERS regs
 )
 {
     PHYSICAL_ADDRESS pa = { 0 };
     PUINT8 code = 0;
+    UINT32 InstructionLength = 0;
     BOOLEAN isRdtsc  = FALSE;
     BOOLEAN isRdtscp = FALSE;
 
@@ -155,6 +157,16 @@ GeneralProtectionFaultEmulate(
     //
     if (!MmuIsUserModeAddress((PVOID)regs->rip))
         goto inject;
+
+    //
+    // Only interested in potential RDTSC/RDTSCP
+    //
+
+    InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
+
+    if ( InstructionLength < 2 || InstructionLength > 3 ) {
+        goto inject;
+    }
 
     //
     // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
@@ -186,13 +198,9 @@ GeneralProtectionFaultEmulate(
         //
         // Emulate RDTSC
         //
-        ULARGE_INTEGER tsc = { 0 };
-        tsc.QuadPart = __rdtsc();
-        regs->rdx = tsc.HighPart;
-        regs->rax = tsc.LowPart;
-
-        InstrRipAdvance(regs);
+        RdtscEmulate(local, regs);
         return;
+
     }
     
     if (isRdtscp)
@@ -200,16 +208,9 @@ GeneralProtectionFaultEmulate(
         //
         // Emulate RDTSCP
         //
-        ULARGE_INTEGER tsc = { 0 };
-        UINT_PTR ia32TscAuxMsrValue = 0;
-        
-        tsc.QuadPart = __rdtscp(&ia32TscAuxMsrValue);
-        regs->rdx = tsc.HighPart;
-        regs->rax = tsc.LowPart;
-        regs->rcx = ia32TscAuxMsrValue;
-
-        InstrRipAdvance(regs);
+        RdtscpEmulate(local, regs);
         return;
+
     }
 
     //
@@ -265,7 +266,7 @@ DsHvdsExitHandler(
         }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-            GeneralProtectionFaultEmulate(regs);
+            GeneralProtectionFaultEmulate(core->localContext, regs);
             break;
         }
         case EXIT_REASON_INIT:
