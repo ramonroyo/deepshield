@@ -62,11 +62,11 @@ DsConfigureHvds(
     // Unprivilege TSD
     //
     {
-        CR4_REGISTER cr4 = {0};
-        cr4.u.raw = __readcr4();
+        CR4_REGISTER cr4 = { 0 };
+        
+        cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
         cr4.u.f.tsd = 1;
-
-        VmxVmcsWritePlatform(GUEST_CR4, __readcr4());
+        VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
     }
 
     /*
@@ -85,7 +85,6 @@ DsConfigureHvds(
     //
     // Enable RDTSC Virtualization
     //
-
     /*
     {
         VMX_PROC_PRIMARY_CTLS Controls;
@@ -99,10 +98,6 @@ DsConfigureHvds(
     }
     */
 
-    //
-    // Enable RDTSC Virtualization
-    //
-
     /*
     {
         VMX_PROC_SECONDARY_CTLS Controls;
@@ -112,7 +107,6 @@ DsConfigureHvds(
         // Controls.u.f.useTscScaling = 1;
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_SECONDARY, Controls.u.raw);
         // VmxVmcsWrite32(TSC_MULTIPLIER, 0);
-        
     }
     */
 
@@ -132,12 +126,10 @@ DsConfigureHvds(
     }
 
     //
-    // Activate #PF on permissions check
+    // Activate #GP following
     //
     {
-        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 14));
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK,  5);
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 5);
+        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 13));
     }
 }
 
