@@ -60,25 +60,7 @@ CpuidEmulate(
     InstrRipAdvance(regs);
 }
 
-VOID
-InvalidateTbEntryNeighborship(
-    _In_ UINT_PTR address
-    )
-{
-    int i;
-
-    address = (UINT_PTR)PAGE_ALIGN(address);
-
-    for (i = 0; i < 256; ++i)
-    {
-        __invlpg((PVOID)(address + i * PAGE_SIZE));
-    }
-    for (i = 1; i < 256; ++i)
-    {
-        __invlpg((PVOID)(address - i * PAGE_SIZE));
-    }
-}
-
+/*
 VOID
 ResetCacheOperatingMode(
     VOID
@@ -156,6 +138,87 @@ PageFaultEmulate(
         // 
     }
 }
+*/
+
+VOID
+GeneralProtectionFaultEmulate(
+    _In_ PREGISTERS regs
+)
+{
+    PHYSICAL_ADDRESS pa = { 0 };
+    PUINT8 code = 0;
+    BOOLEAN isRdtsc  = FALSE;
+    BOOLEAN isRdtscp = FALSE;
+
+    //
+    // Only interested in #GP's from user
+    //
+    if (!MmuIsUserModeAddress((PVOID)regs->rip))
+        goto inject;
+
+    //
+    // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
+    //
+    pa = MmuGetPhysicalAddress(VmxVmcsReadPlatform(GUEST_CR3), (PVOID)regs->rip);
+    if (!pa.QuadPart)
+        goto inject;
+
+    code = (PUINT8)MmuMap(pa);
+    if (!code)
+        goto inject;
+
+    //
+    // Check if offending instruction is RDTSC/RDTSCP
+    //
+    isRdtsc  = (code[BYTE_OFFSET(regs->rip)] == 0x0F && code[BYTE_OFFSET(regs->rip) + 1] == 0x31);
+    isRdtscp = (code[BYTE_OFFSET(regs->rip)] == 0x0F && code[BYTE_OFFSET(regs->rip) + 1] == 0x01 && code[BYTE_OFFSET(regs->rip) + 2] == 0xF9);
+
+    //
+    // Unmap
+    //
+    MmuUnmap(code);
+
+    //
+    // Check to emulate
+    //
+    if (isRdtsc)
+    {
+        //
+        // Emulate RDTSC
+        //
+        ULARGE_INTEGER tsc = { 0 };
+        tsc.QuadPart = __rdtsc();
+        regs->rdx = tsc.HighPart;
+        regs->rax = tsc.LowPart;
+
+        InstrRipAdvance(regs);
+        return;
+    }
+    
+    if (isRdtscp)
+    {
+        //
+        // Emulate RDTSCP
+        //
+        ULARGE_INTEGER tsc = { 0 };
+        UINT_PTR ia32TscAuxMsrValue = 0;
+        
+        tsc.QuadPart = __rdtscp(&ia32TscAuxMsrValue);
+        regs->rdx = tsc.HighPart;
+        regs->rax = tsc.LowPart;
+        regs->rcx = ia32TscAuxMsrValue;
+
+        InstrRipAdvance(regs);
+        return;
+    }
+
+    //
+    // Reinject exception
+    //
+inject:
+    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
+    VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
+}
 
 VOID 
 DsHvdsExitHandler(
@@ -195,12 +258,6 @@ DsHvdsExitHandler(
         //
         // Custom VM exits
         //
-        case EXIT_REASON_GDTR_IDTR:
-        {
-            // ShadowIdtEmulate(regs);
-            break;
-        }
-		
         case EXIT_REASON_CPUID:
         {
             CpuidEmulate(regs);
@@ -208,7 +265,7 @@ DsHvdsExitHandler(
         }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-            PageFaultEmulate(regs);
+            GeneralProtectionFaultEmulate(regs);
             break;
         }
         case EXIT_REASON_INIT:
