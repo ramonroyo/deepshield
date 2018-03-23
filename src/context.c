@@ -51,6 +51,7 @@ LocalContextConfigure(
     memset(local, 0, sizeof(LOCAL_CONTEXT));
 
     local->TscHits = MemAlloc(sizeof(TSC_ENTRY) * MAX_TSC_HITS);
+    local->TscOffset = 0;
 
     if (local->TscHits == NULL)
         return FALSE;
