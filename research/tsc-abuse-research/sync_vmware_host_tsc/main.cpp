@@ -11,16 +11,21 @@ extern "C" {
 }
 
 void start_tsc_polling(bool is_vmware) {
-  uint64_t time;
+  uint64_t vmware_current;
+  uint64_t vmware_last = 0;
+  uint64_t current;
+  uint64_t last = 0;
 
   while (1) {
     if ( is_vmware ) {
-      time = __vmware_tsc();
-    } else {
-      time = __rdtsc();
+      vmware_current = __vmware_tsc();
+      printf("%016llx (rdpmc) - diff [%llx]\n", vmware_current, (vmware_current - vmware_last));
+      vmware_last = vmware_current;
     }
 
-    printf("%llu\n", time);
+    current = __rdtsc();
+    printf("%016llx (rdtsc) - diff [%llx]\n", current, (current - last));
+    last = current;
 
     Sleep(1000);
   }
