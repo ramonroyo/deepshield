@@ -1,6 +1,7 @@
 #include <ntddk.h>
 #include <wdmsec.h>
 #include "dsdef.h"
+#include "tests.h"
 
 DECLARE_CONST_UNICODE_STRING( DsDeviceName, DS_WINNT_DEVICE_NAME );
 DECLARE_CONST_UNICODE_STRING( DsDosDeviceName, DS_MSDOS_DEVICE_NAME );
@@ -97,6 +98,7 @@ DsTimerDPC(
 #pragma alloc_text(PAGE, DsCltGetShieldState)
 #pragma alloc_text(PAGE, DsCtlShieldControl)
 #pragma alloc_text(PAGE, DsCtlMeltdownExpose)
+#pragma alloc_text(PAGE, DsCtlTestRdtscDetection)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
 #pragma alloc_text(PAGE, DsFreeUnicodeString)
 #pragma alloc_text(PAGE, DsCloneUnicodeString)
@@ -416,6 +418,18 @@ DriverDeviceControl(
             Status = DsCtlMeltdownExpose( Irp, IrpStack );
             break;
         }
+
+//
+// TODO: Enable only-debug when tests are finished.
+//
+// #ifdef DEBUG
+//
+        case IOCTL_TEST_RDTSC:
+        {
+            Status = DsCtlTestRdtscDetection( Irp, IrpStack );
+            break;
+        }
+// #endif
     }
 
     if (STATUS_PENDING != Status) {

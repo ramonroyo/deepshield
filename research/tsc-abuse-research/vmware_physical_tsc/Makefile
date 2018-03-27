@@ -1,6 +1,6 @@
 !include ..\common.inc
 
-TARGET=tsc-sync.exe
+TARGET=tsc-measure.exe
 
 OBJS=\
 	$(OBJDIR)\main.obj\
