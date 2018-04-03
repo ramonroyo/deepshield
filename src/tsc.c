@@ -126,7 +126,8 @@ VOID SiblingIncrement(
         //
         // This means that we reached a potential "After" candidate
         //
-        NT_ASSERT( ADDRESS_CLEAR_LAST_BYTE(Sibling->Before.Address) == OffensiveAddress );
+        NT_ASSERT( ADDRESS_CLEAR_LAST_BYTE(Sibling->Before.Address) == 
+                   ADDRESS_CLEAR_LAST_BYTE(OffensiveAddress) );
 
         if ( Sibling->After.Address == 0 ) {
 
