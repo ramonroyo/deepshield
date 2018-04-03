@@ -5,6 +5,7 @@ extern crate slog;
 extern crate winapi;
 extern crate failure;
 extern crate console;
+extern crate winreg;
 
 use super::cli;
 use super::ffi;

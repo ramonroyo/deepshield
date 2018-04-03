@@ -1,5 +1,5 @@
 [package]
-name = "conveyor"
+name = "dptester"
 version = "0.1.0"
 authors = ["Sherab Giovannini <sherab.giovannini@byteheed.com>"]
 
@@ -23,6 +23,7 @@ rand = "0.4"
 enum_primitive = "0.1"
 indicatif = "*"
 console = "*"
+winreg = "0.5"
 
 [dependencies.winapi]
 version = "0.3"
