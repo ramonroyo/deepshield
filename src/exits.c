@@ -182,7 +182,7 @@ GeneralProtectionFaultEmulate(
 {
     PHYSICAL_ADDRESS pa = { 0 };
     PUINT8 code = 0;
-    UINT32 InstructionLength = 0;
+    //UINT32 InstructionLength = 0;
     BOOLEAN isRdtsc  = FALSE;
     BOOLEAN isRdtscp = FALSE;
 
@@ -196,11 +196,10 @@ GeneralProtectionFaultEmulate(
     // Only interested in potential RDTSC/RDTSCP
     //
 
-    InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
-
-    if ( InstructionLength < 2 || InstructionLength > 3 ) {
-        goto inject;
-    }
+//   InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
+//   if ( InstructionLength < 2 || InstructionLength > 3 ) {
+//      goto inject;
+//   }
 
     //
     // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
