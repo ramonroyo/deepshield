@@ -37,6 +37,40 @@ CrAccessEmulate(
 */
 
 VOID
+Cr4AccessEmulate(
+    _In_ PHVM_CORE  core,
+    _In_ PREGISTERS regs
+)
+{
+    EXIT_QUALIFICATION_CR data;
+    CR4_REGISTER          cr4;
+
+    data.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
+
+    //
+    // Read new CR4
+    //
+    cr4.u.raw = *RegsGpr(regs, (UINT8)data.u.f.gpr);
+
+    //
+    // Save to host "as is"
+    //
+    VmxVmcsWritePlatform(HOST_CR4, cr4.u.raw);
+    core->savedState.cr4 = cr4;
+
+    //
+    // Save to guest enabling and hiding tsd
+    //
+    cr4.u.f.tsd = 1;
+    VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+
+    //
+    // Done
+    //
+    InstrRipAdvance(regs);
+}
+
+VOID
 CpuidEmulate(
     _In_ PREGISTERS regs
 )
@@ -269,6 +303,12 @@ DsHvdsExitHandler(
             GeneralProtectionFaultEmulate(core->localContext, regs);
             break;
         }
+        case EXIT_REASON_CR_ACCESS:
+        {
+            Cr4AccessEmulate(core, regs);
+            break;
+        }
+
         case EXIT_REASON_INIT:
         case EXIT_REASON_SIPI:
         case EXIT_REASON_TRIPLE_FAULT:
