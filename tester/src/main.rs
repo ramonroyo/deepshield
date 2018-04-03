@@ -1,8 +1,8 @@
 // Copyright © ByteHeed.  All rights reserved.
-use conveyor::{iochannel, service, deepshield};
+use dptester::{service, deepshield};
 
 extern crate clap;
-extern crate conveyor;
+extern crate dptester;
 extern crate failure;
 extern crate slog_term;
 extern crate termcolor;
@@ -10,14 +10,15 @@ extern crate termcolor;
 use failure::Error;
 
 use std::process;
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{App, Arg, ArgMatches};
 use std::sync::mpsc::channel;
 use std::sync::mpsc::{Sender};
-use conveyor::cli::output::{create_messenger, MessageType, ShellMessage};
+use dptester::cli::output::{create_messenger, MessageType, ShellMessage};
 
 fn run(app: &ArgMatches, messenger: &Sender<ShellMessage>) -> Result<(), Error> {
     match app.subcommand() {
-        ("services", Some(matches)) => service::command::parse(matches, &messenger),
+        ("service", Some(matches)) => service::command::parse(matches, &messenger),
+        ("test",    Some(matches)) => deepshield::command::parse(matches, &messenger),
         _ => Ok(println!("{}", app.usage())),
     }
 }
@@ -45,20 +46,14 @@ Sherab G. <sherab.giovannini@byteheed.com>
 A simple testing tool for ironlizard.
 ___________________________________________________________________________\n\n"
     );
-    let target = Arg::with_name("target").short("t")
-                            .required(true)
-                            .value_name("TARGET")
-                            .help("service target");
-
-
 
     let matches = App::new("Ironlizard Tester")
         .about("A gate between humans and dragons.")
         .version("1.0")
         .author("Sherab G. <sherab.giovannini@byteheed.com>")
         .arg(Arg::with_name("v") .short("v") .multiple(true) .help("Sets the level of verbosity"))
-        .subcommand(conveyor::service::command::bind())
-        .subcommand(conveyor::deepshield::command::bind())
+        .subcommand(dptester::service::command::bind())
+        .subcommand(dptester::deepshield::command::bind())
         .get_matches();
 
     let (messenger, receiver) = channel();

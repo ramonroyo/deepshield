@@ -7,7 +7,7 @@ extern crate winapi;
 extern crate byteorder;
 extern crate num;
 
-use super::{ffi, iochannel, cli};
+use super::{iochannel, cli};
 
 pub mod error;
 pub mod structs;

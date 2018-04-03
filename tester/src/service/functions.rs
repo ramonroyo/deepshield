@@ -17,35 +17,35 @@ fn full_driver_path(name: &str) -> String {
         .to_string()
 }
 
-pub fn query(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn query(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Querying {}", name), MessageType::Spinner, 0);
 
     ShellMessage::send(
         messenger,
         format!(
             "{:?}",
-            WindowsService::new(name, &full_driver_path(name)).query()
+            WindowsService::new(name, &full_driver_path(filename)).query()
         ),
         MessageType::Close,
         1,
     );
 }
 
-pub fn stop(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn stop(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Service {} Stopping ", style(name).yellow()), MessageType::Spinner, 0);
-    WindowsService::new(name, &full_driver_path(name)).stop();
+    WindowsService::new(name, &full_driver_path(filename)).stop();
     ShellMessage::send(messenger, format!("Service {} stopped", style(name).green()), MessageType::Close, 0);
 }
 
-pub fn start(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn start(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Service {} starting", style(name).yellow()), MessageType::Spinner, 0);
-    WindowsService::new(name, &full_driver_path(name)).start();
+    WindowsService::new(name, &full_driver_path(filename)).start();
     ShellMessage::send(messenger, format!("Service {} started", style(name).green()), MessageType::Close, 0);
 }
 
-pub fn install(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn install(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Service {} installing", name), MessageType::Spinner, 0);
-    WindowsService::new(name, &full_driver_path(name)).install();
+    WindowsService::new(name, &full_driver_path(filename)).install();
     ShellMessage::send(
         messenger,
         format!("Service {} has been successfully {}", style(name).yellow(), style("installed").green()),
@@ -55,10 +55,10 @@ pub fn install(name: &str, messenger: &Sender<ShellMessage>) {
     );
 }
 
-pub fn remove(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn remove(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Service {} removing", name), MessageType::Spinner, 0);
 
-    WindowsService::new(name, &full_driver_path(name)).remove();
+    WindowsService::new(name, &full_driver_path(filename)).remove();
     ShellMessage::send(
         messenger,
         format!("Service {} has been successfully removed", style(name).green()),
@@ -68,11 +68,11 @@ pub fn remove(name: &str, messenger: &Sender<ShellMessage>) {
 
 }
 
-pub fn update(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn update(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(messenger, format!("Service {} updating", name), MessageType::Spinner, 0);
     // debug!(logger, "updating {}", name);
 
-    let mut service = WindowsService::new(name, &full_driver_path(name));
+    let mut service = WindowsService::new(name, &full_driver_path(filename));
 
     if service.exists() {
         service.remove();
@@ -93,7 +93,7 @@ pub fn update(name: &str, messenger: &Sender<ShellMessage>) {
 
 }
 
-pub fn reinstall(name: &str, messenger: &Sender<ShellMessage>) {
+pub fn reinstall(name: &str, filename: &str, messenger: &Sender<ShellMessage>) {
     ShellMessage::send(
         messenger,
         format!("Service {} reinstalling ", style(name).yellow()),
@@ -101,7 +101,7 @@ pub fn reinstall(name: &str, messenger: &Sender<ShellMessage>) {
         0,
     );
 
-    let mut service = WindowsService::new(name, &full_driver_path(name));
+    let mut service = WindowsService::new(name, &full_driver_path(filename));
 
     if service.exists() {
         ShellMessage::send(

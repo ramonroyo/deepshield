@@ -7,14 +7,16 @@
 #define LOCAL_CONTEXT_TAG 'CLSD'
 #define TSC_HITS_TAG      'HTSD'
 
-BOOLEAN CreateLocalContext(
-    _In_ PLOCAL_CONTEXT Context
+PLOCAL_CONTEXT CreateLocalContext(
+    VOID
 )
 {
-    PLOCAL_CONTEXT Local = ExAllocatePoolWithTag(NonPagedPool, sizeof(LOCAL_CONTEXT), LOCAL_CONTEXT_TAG);
+    PLOCAL_CONTEXT Context = NULL;
 
-    if ( !Local ) {
-        return FALSE;
+    Context = ExAllocatePoolWithTag(NonPagedPool, sizeof(LOCAL_CONTEXT), LOCAL_CONTEXT_TAG);
+
+    if ( !Context ) {
+        return NULL;
     }
 
     memset(Context, 0, sizeof(LOCAL_CONTEXT));
@@ -23,14 +25,15 @@ BOOLEAN CreateLocalContext(
 
 
     if ( !Context->TscHits ) {
-        ExFreePoolWithTag(Local, LOCAL_CONTEXT_TAG);
-        return FALSE;
+        ExFreePoolWithTag(Context, LOCAL_CONTEXT_TAG);
+        return NULL;
     }
+
     memset(Context->TscHits, 0, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
 
     Context->TscOffset = 0;
 
-    return TRUE;
+    return Context;
 }
 
 DestroyLocalContext(
@@ -39,7 +42,13 @@ DestroyLocalContext(
 {
     NT_ASSERT(Context);
 
-    ExFreePoolWithTag(Context, 'CLPD');
+    if ( Context ) {
+        if (Context->TscHits) {
+            ExFreePoolWithTag(Context->TscHits, TSC_HITS_TAG);
+        }
+
+        ExFreePoolWithTag(Context, LOCAL_CONTEXT_TAG);
+    }
 }
 
 //
@@ -56,7 +65,9 @@ TestTimeStampDetection(
     LARGE_INTEGER  TimeStamp     = { 0 };
     LARGE_INTEGER  RandomAddress = { 0 };
 
-    if ( !CreateLocalContext(Context) ) {
+    Context = CreateLocalContext();
+
+    if (!Context) {
         return TestErrorNoMemory;
     }
 
