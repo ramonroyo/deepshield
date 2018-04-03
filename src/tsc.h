@@ -50,4 +50,11 @@ DisableUserTimeStamp(
     VOID
 );
 
+
+// TODO: export function only for testing purposes
+// #ifdef DEBUG
+BOOLEAN IsTimmingAttack(
+    _In_ PTSC_ENTRY     Sibling
+);
+// #endif
 #endif
