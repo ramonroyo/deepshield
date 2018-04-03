@@ -103,6 +103,9 @@
     <ClCompile Include="..\src\tsc.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\tests.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -154,6 +157,9 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\tsc.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\tests.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

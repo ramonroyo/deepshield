@@ -272,6 +272,15 @@ int main(int argc, char *argv[]) {
 
   if ( is_vmware ) {
     printf("VMWARE is detected, using physical TSC.\n");
+
+    __try {
+      __vmware_tsc();
+    }
+    __except(EXCEPTION_EXECUTE_HANDLER) {
+      printf("Pseudo performance counters are not enabled, please edit\n");
+      printf("your .vmx and add following lines:\n");
+      printf("monitor_control.pseudo_perfctr = TRUE");
+    }
   } else {
     printf("VMWARE is NOT detected, using native TSC.\n");
   }
