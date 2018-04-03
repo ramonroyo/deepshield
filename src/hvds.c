@@ -63,10 +63,12 @@ DsConfigureHvds(
     //
     {
         CR4_REGISTER cr4 = { 0 };
-        
+
         cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
-        // cr4.u.f.tsd = 1;
+        cr4.u.f.tsd = 1;
         VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+        VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
+        VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
     }
 
     /*
