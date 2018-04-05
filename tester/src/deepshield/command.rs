@@ -3,7 +3,7 @@ use super::failure::Error;
 
 use super::DeviceName;
 use super::iochannel::Device;
-use super::io::{test_deepshield, TestRequest};
+use super::io::{test_deepshield, TestRequest, TestResult};
 
 use std::sync::mpsc::Sender;
 use super::cli::output::ShellMessage;
@@ -28,20 +28,33 @@ pub fn bind() -> App<'static, 'static> {
 
 
 
-#[allow(unused_variables)]
-fn test_rdtsc_detection(messenger: &Sender<ShellMessage>) {
-    println!("opening {}", DeviceName);
 
+#[allow(unused_variables)]
+fn test_rdtsc_request(messenger: &Sender<ShellMessage>, request: TestRequest) {
     let device = Device::new(DeviceName).expect("Can't open deepshield");
 
-    let test = TestRequest::TestDummyRdtscDetection;
+    println!("\n### starting RDTSC test: `{:?}` ###\n", request);
 
-    println!("starting RDTSC {:?}", test);
-
-    let result = test_deepshield(&device, test)
+    let result = test_deepshield(&device, request)
                                     .expect("error calling test");
 
-    println!("Result: {:?}", result);
+    match result {
+        TestResult::TestSuccess => {
+            println!("The test has been completed successfully.");
+        },
+        _ => {
+            println!("Error: {:?}.", result);
+        }
+    }
+
+}
+
+#[allow(unused_variables)]
+fn test_rdtsc_detection(messenger: &Sender<ShellMessage>) {
+    let request: Vec<TestRequest> = vec![TestRequest::TestDummyRdtscDetection,
+         TestRequest::TestRdtscDetection];
+
+    request.iter().for_each(|request| test_rdtsc_request(messenger, *request) );
 }
 
 pub fn parse_rdtsc(matches: &ArgMatches, messenger: &Sender<ShellMessage>) -> Result<(), Error> {

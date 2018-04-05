@@ -8,6 +8,14 @@
 #include "mem.h"
 #include "x86.h"
 
+VOID
+ClearSibling(
+    _In_ PTSC_ENTRY Entry
+)
+{
+    memset(Entry, 0, sizeof(TSC_ENTRY));
+}
+
 BOOLEAN
 IsFreeSlot(
     _In_ PTSC_ENTRY Entry
@@ -37,7 +45,7 @@ PTSC_ENTRY GetSiblingSlot(
             //
             if ( Oldest == NULL ) { Oldest = Sibling; }
 
-            if ( Oldest->Before.TimeStamp > Sibling->Before.TimeStamp ) {
+            if ( Oldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
                 Oldest = Sibling;
             }
         }
@@ -49,11 +57,11 @@ PTSC_ENTRY GetSiblingSlot(
     // If we went to here, means that we are recycling an entry
     // let's clear addresses
     //
-    Oldest->Before.Address = 0;
-    Oldest->After.Address = 0;
+    ClearSibling(Oldest);
 
     return Oldest;
 }
+
 
 #define ADDRESS_CLEAR_LAST_BYTE(address) (address & 0xFFFFFFFFFFFFFF00)
 
@@ -63,6 +71,7 @@ PTSC_ENTRY GetSiblingSlot(
 //
 PTSC_ENTRY FindSibling(
     _In_ PTSC_ENTRY Head, 
+    _In_ UINT_PTR   Process,
     _In_ ULONG_PTR  OffensiveAddress
 ) 
 {
@@ -84,13 +93,14 @@ PTSC_ENTRY FindSibling(
         // if not, we consider it as a potential "After" so current Sibling should have
         // After cleared.
         //
-        if ( ADDRESS_CLEAR_LAST_BYTE(Entry->Before.Address) == ADDRESS_CLEAR_LAST_BYTE(OffensiveAddress) ) {
+        if ( Process == Entry->Process &&
+             ADDRESS_CLEAR_LAST_BYTE(Entry->Before.Address) == ADDRESS_CLEAR_LAST_BYTE(OffensiveAddress) ) {
 
             if (( Entry->Before.Address == OffensiveAddress ) ||
                 ( Entry->After.Address  == OffensiveAddress ) ||
                 ( Entry->After.Address  == 0 )) {
                 return Entry;
-            } else { continue; }
+            } 
         }
     }
 
@@ -134,8 +144,9 @@ VOID SiblingIncrement(
             //
             // Assign detected address
             //
-            Sibling->After.Address = OffensiveAddress;
+            Sibling->After.Address   = OffensiveAddress;
             Hit = &Sibling->After;
+
         }
         else {
             //
@@ -155,6 +166,35 @@ VOID SiblingIncrement(
 
     NT_ASSERT(Hit != NULL);
 
+    if ( Hit->Address == Sibling->After.Address ) {
+        //
+        // We got his brother, let's update difference average
+        // 
+        UINT64 Difference = abs(TimeStamp.QuadPart - Sibling->Before.TimeStamp);
+
+        if ( Sibling->Difference == 0 ) {
+            Sibling->Difference = Difference;
+        } else {
+
+            UINT64 CurrentDifference   = abs(Difference - Sibling->Difference);
+            UINT64 DifferenceThreshold = ( Difference * 3 / 2 );
+
+            if ( CurrentDifference < DifferenceThreshold ) {
+                //
+                // Let's keep a consistent average
+                //
+                Sibling->Difference += Difference;
+                Sibling->Difference /= 2;
+            } else {
+                //
+                // If the average isn't below threshold let's skip it
+                //
+                Sibling->Skips += 1;
+            }
+        }
+
+    }
+
     HitIncrement(Hit, TimeStamp);
 }
 
@@ -165,18 +205,70 @@ BOOLEAN IsTimmingAttack(
     _In_ PTSC_ENTRY     Sibling
 )
 {
-    return (((Sibling->After.TimeStamp - Sibling->Before.TimeStamp) < 500000) &&
-             (Sibling->Before.Count > 255) && (Sibling->After.Count > 255));
+    BOOLEAN IsSibling          = FALSE;
+    BOOLEAN IsSyncThresholdOk  = FALSE; 
+    BOOLEAN IsSkipsThresholdOk = FALSE; 
+    BOOLEAN IsCountThresholdOk = FALSE; 
+    BOOLEAN IsTimmingAttack    = FALSE; 
+
+    if ( Sibling->Difference == 0 ) { return FALSE; }
+
+    IsSibling = Sibling->Before.Address && Sibling->After.Address;
+
+    //
+    // Fast filter for empty entries
+    //
+    if ( !IsSibling ) {
+        return FALSE;
+    }
+
+    //
+    // Any average up to this should be discarded
+    //
+    if ( !Sibling->Difference > 0x50000 ) {
+        ClearSibling(Sibling);
+        return FALSE;
+    }
+
+    //
+    // Count threshold ensures that we, at least, went over 255 retries
+    //
+    IsCountThresholdOk = Sibling->Before.Count > 255;
+
+    //
+    // Difference threshold synchronizes the number of sibling addresses we fetched
+    //
+    IsSyncThresholdOk  = abs(Sibling->Before.Count - Sibling->After.Count) < 2;
+
+    //
+    // Skips threshold ensures that we didn't had more than 5% of fetches flushed
+    //
+    IsSkipsThresholdOk = Sibling->Skips < max((Sibling->Before.Count / 20), 1);
+
+    IsTimmingAttack = ( IsSyncThresholdOk &&
+             IsSkipsThresholdOk &&
+             IsCountThresholdOk );
+
+    //
+    // If it is not already a timming attack, then clear the Sibling
+    //
+    if ( !IsTimmingAttack && IsCountThresholdOk ) {
+        ClearSibling(Sibling);
+    }
+
+    return IsTimmingAttack;
 }
 
 PTSC_ENTRY CreateSibling(
     _In_ PTSC_ENTRY     Head,
     _In_ ULONG_PTR      OffensiveAddress,
+    _In_ UINT_PTR       Process,
     _In_ ULARGE_INTEGER TimeStamp
 )
 {
     PTSC_ENTRY Sibling = GetSiblingSlot(Head);
 
+    Sibling->Process          = Process;
     Sibling->Before.Address   = OffensiveAddress;
     Sibling->Before.Count     = 1;
     Sibling->Before.TimeStamp = TimeStamp.QuadPart;
@@ -184,30 +276,79 @@ PTSC_ENTRY CreateSibling(
     return Sibling;
 }
 
-VOID ProcessTscEvent(
+BOOLEAN ProcessTscEvent(
     _In_ PTSC_ENTRY     Head,
     _In_ ULONG_PTR      OffensiveAddress,
+    _In_ UINT_PTR       Process,
     _In_ ULARGE_INTEGER TimeStamp
 )
 {
-    PTSC_ENTRY Sibling = FindSibling(Head, OffensiveAddress);
+    PTSC_ENTRY Sibling = FindSibling(Head, Process, OffensiveAddress);
 
     if ( Sibling ) {
         SiblingIncrement(Sibling, OffensiveAddress, TimeStamp);
     } else {
-        Sibling = CreateSibling(Head, OffensiveAddress, TimeStamp);
+        Sibling = CreateSibling(Head, OffensiveAddress, Process, TimeStamp);
     }
 
     // 
     // This will be the trigger of a detection
     //
-    // IsTimmingAttack(Sibling);
+    if ( IsTimmingAttack(Sibling) ) {
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+VOID InjectTerminateProcess(
+    PUINT8     Mapping,
+    PREGISTERS Regs
+)
+{
+
+#ifndef _WIN64
+    /*
+    *   TerminateProcess for 32-bit only
+    *   ================================================
+    *
+    *   push -1                   ; CurrentProcess
+    *   mov eax,2C                ; NtTerminateProcess
+    *   syscall                
+    */
+    CHAR TerminateProcessStub[] = {0x48, 0xC7, 0xC1, 0xFF, 0xFF,
+                                   0xFF, 0xFF, 0x4C, 0x8B, 0xD1,
+                                   0xB8, 0x2C, 0x00, 0x00, 0x00,
+                                   0x0F, 0x05};
+#else
+    /*
+    *   TerminateProcess for 64-bit only
+    *   ================================================
+    *
+    *   mov rcx,FFFFFFFFFFFFFFFF  ; CurrentProcess (-1)
+    *   mov r10,rcx              
+    *   mov eax,2C                ; NtTerminateProcess
+    *   syscall                
+    */
+    CHAR TerminateProcessStub[] = {0x48, 0xC7, 0xC1, 0xFF, 0xFF,
+                                   0xFF, 0xFF, 0x4C, 0x8B, 0xD1,
+                                   0xB8, 0x2C, 0x00, 0x00, 0x00,
+                                   0x0F, 0x05};
+#endif
+
+    memcpy(Mapping, TerminateProcessStub, sizeof(TerminateProcessStub));
+
+    // Rip will point to TerminateProcessStub
+    Regs->rip = (UINT_PTR) PAGE_ALIGN(Regs->rip);
 }
 
 VOID
 RdtscEmulate(
     _In_ PLOCAL_CONTEXT Local,
-	_In_ PREGISTERS Regs
+	_In_ PREGISTERS     Regs,
+    _In_ UINT_PTR       Process,
+    _In_ PUINT8         Mapping
 )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
@@ -216,7 +357,10 @@ RdtscEmulate(
     Regs->rdx = TimeStamp.HighPart;
     Regs->rax = TimeStamp.LowPart;
 
-    ProcessTscEvent(Local->TscHits, Regs->rip, TimeStamp);
+    if ( ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
+        InjectTerminateProcess(Mapping, Regs);
+        return;
+    }
 
     InstrRipAdvance(Regs);
 }
@@ -224,7 +368,9 @@ RdtscEmulate(
 VOID
 RdtscpEmulate(
     _In_ PLOCAL_CONTEXT Local,
-	_In_ PREGISTERS Regs
+	_In_ PREGISTERS     Regs,
+    _In_ UINT_PTR       Process,
+    _In_ PUINT8         Mapping
 )
 {
     UNREFERENCED_PARAMETER(Local);
@@ -240,7 +386,11 @@ RdtscpEmulate(
     Regs->rax = TimeStamp.LowPart;
     Regs->rcx = Processor;
 
-    ProcessTscEvent(Local->TscHits, Regs->rip, TimeStamp);
+    if ( ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
+        InjectTerminateProcess(Mapping, Regs);
+        return;
+    }
+
 
     InstrRipAdvance(Regs);
 }

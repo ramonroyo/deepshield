@@ -51,6 +51,51 @@ DestroyLocalContext(
     }
 }
 
+UINT64 gCurrentTsc = 0;
+
+UINT64 
+TestReadMsr(
+    _In_ ULONG Index
+) 
+{
+
+#ifndef DEBUG
+    UNREFERENCED_PARAMETER(Index);
+#endif
+
+    ASSERT( Index == IA32_TSC );
+
+    return gCurrentTsc;
+}
+
+VOID
+RdtscEmulateTester(
+    _In_ PLOCAL_CONTEXT Local,
+	_In_ PREGISTERS     Regs,
+    _In_ UINT_PTR       Process
+)
+{
+    ULARGE_INTEGER TimeStamp = { 0 };
+    TimeStamp.QuadPart = TestReadMsr(IA32_TSC);
+
+    Regs->rdx = TimeStamp.HighPart;
+    Regs->rax = TimeStamp.LowPart;
+
+    ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp);
+
+    // Not necessary while testing
+    // InstrRipAdvance(Regs);
+}
+
+ 
+VOID 
+AddGlobalTsc(
+    UINT64 Value
+) 
+{
+    gCurrentTsc += Value;
+}
+
 //
 // Preliminar dummy test of RDTSC
 //
@@ -61,9 +106,87 @@ TestTimeStampDetection(
 {
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
+
     REGISTERS      Regs          = { 0 };
-    LARGE_INTEGER  TimeStamp     = { 0 };
+    //LARGE_INTEGER  RandomAddress = { 0 };
+
+    Context = CreateLocalContext();
+
+    if (!Context) {
+        return TestErrorNoMemory;
+    }
+
+    gCurrentTsc = __rdtsc();
+
+    for ( int i = 0; i < 256*6; i++ ) {
+        if ( i % 6 == 0 ) {
+            if ( i == 1234 ) {
+                // Simulates a timming difference affected by a flush
+                AddGlobalTsc((0x5000 + (__rdtsc() & 0xFF)));
+            }
+            else {
+                // Simulates around ~1500-2000 cycles
+                AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+            }
+
+            Regs.rip = 0x00007FF6AED493E0;
+
+            RdtscEmulateTester(Context, &Regs, 0);
+
+            if ( i == 1234 ) {
+                // Simulates a timming difference affected by a flush
+                AddGlobalTsc((0x5000 + (__rdtsc() & 0xFF)));
+            }
+            else {
+                // Simulates around ~1500-2000 cycles
+                AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+            }
+            Regs.rip = 0x00007FF6AED493E6;
+
+            RdtscEmulateTester(Context, &Regs, 0);
+        }
+
+        //RandomAddress.QuadPart = __rdtsc();
+        //Regs.rip = 0x00007FF6 | RandomAddress.LowPart;
+
+        //// Simulates around ~1500-2000 cycles
+        //AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+        //RdtscEmulatTest(Context, &Regs);
+    }
+
+    NT_ASSERT(Context != NULL);
+
+    TscHits = (PTSC_ENTRY) Context->TscHits;
+
+    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+        PTSC_ENTRY Entry = &TscHits[i];
+
+        if ( IsTimmingAttack(Entry) ) {
+            return TestSuccess;
+        }
+    }
+
+    DestroyLocalContext(Context);
+
+    return TestErrorDetectionFailed;
+
+}
+
+
+//
+// Preliminar dummy test of RDTSC
+//
+TestResult
+TestBasicTimeStampDetection(
+    VOID
+)
+{
+    PLOCAL_CONTEXT Context       = NULL;
+    PTSC_ENTRY     TscHits       = NULL;
+
+    REGISTERS      Regs          = { 0 };
     LARGE_INTEGER  RandomAddress = { 0 };
+    UINT8          FakeMapping[17] = { 0 };
 
     Context = CreateLocalContext();
 
@@ -76,18 +199,16 @@ TestTimeStampDetection(
     // many different addresses but two of them (siblings)
     // are consecuently being added.
     // 
-    for ( int i = 0; i < 256*6; i++ ) {
+    for ( int i = 0; i < 256 * 6; i++ ) {
         if ( i % 6 == 0 ) {
-            TimeStamp.QuadPart = __rdtsc();
             Regs.rip = 0x00007FF6AED493E0;
-            RdtscEmulate(Context, &Regs);
+            RdtscEmulate(Context, &Regs, 0, FakeMapping);
             Regs.rip = 0x00007FF6AED493E6;
-            RdtscEmulate(Context, &Regs);
+            RdtscEmulate(Context, &Regs, 0, FakeMapping);
         }
 
         RandomAddress.QuadPart = __rdtsc();
         Regs.rip = 0x00007FF6 | RandomAddress.LowPart;
-        RdtscEmulate(Context, &Regs);
     }
 
     NT_ASSERT(Context != NULL);
@@ -132,6 +253,9 @@ DsCtlTestRdtscDetection(
 
     switch ( Request->Request ) {
     case TestDummyRdtscDetection:
+        Request->Result = TestBasicTimeStampDetection();
+        break;
+    case TestRdtscDetection:
         Request->Result = TestTimeStampDetection();
         break;
     default:
