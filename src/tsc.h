@@ -23,20 +23,27 @@ typedef struct _TSC_HIT {
 } TSC_HIT, *PTSC_HIT;
 
 typedef struct _TSC_ENTRY {
-	TSC_HIT Before;
-	TSC_HIT After;
+	TSC_HIT  Before;
+	TSC_HIT  After;
+    ULONG    Skips;
+    UINT64   Difference;
+    UINT_PTR Process;
 } TSC_ENTRY, *PTSC_ENTRY;
 
 VOID
 RdtscEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs
+    _In_ PREGISTERS     Regs,
+    _In_ UINT_PTR       Process,
+    _In_ PUINT8         Mapping
 );
 
 VOID
 RdtscpEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs
+    _In_ PREGISTERS     Regs,
+    _In_ UINT_PTR       Process,
+    _In_ PUINT8         Mapping
 );
 
 VOID
@@ -55,6 +62,13 @@ DisableUserTimeStamp(
 // #ifdef DEBUG
 BOOLEAN IsTimmingAttack(
     _In_ PTSC_ENTRY     Sibling
+);
+
+BOOLEAN ProcessTscEvent(
+    _In_ PTSC_ENTRY     Head,
+    _In_ ULONG_PTR      OffensiveAddress,
+    _In_ UINT_PTR       Process,
+    _In_ ULARGE_INTEGER TimeStamp
 );
 // #endif
 #endif

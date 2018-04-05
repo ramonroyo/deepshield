@@ -6,7 +6,7 @@
 //#[macro_use] extern crate slog;
 #[macro_use] extern crate bitflags;
 #[macro_use] mod ffi;
-#[macro_use] extern crate enum_primitive;
+// #[macro_use] extern crate enum_primitive;
 extern crate indicatif;
 
 pub mod cli;

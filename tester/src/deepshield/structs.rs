@@ -1,8 +1,8 @@
 // Copyright © ByteHeed.  All rights reserved.
 #![allow(non_camel_case_types, non_snake_case, dead_code)]
 
-use super::winapi::shared::minwindef::{LPVOID, ULONG, LPHANDLE, USHORT};
-use super::winapi::shared::ntdef::{HANDLE};
+use super::winapi::shared::minwindef::{LPVOID};
+// use super::winapi::shared::minwindef::{LPVOID, LPHANDLE, USHORT};
 use std::mem;
 
 type ULONG64 = u64;

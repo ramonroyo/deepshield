@@ -176,12 +176,13 @@ PageFaultEmulate(
 
 VOID
 GeneralProtectionFaultEmulate(
-    _In_ PVOID local,
-    _In_ PREGISTERS regs
+    _In_ PVOID Local,
+    _In_ PREGISTERS Regs
 )
 {
-    PHYSICAL_ADDRESS pa = { 0 };
-    PUINT8 code = 0;
+    PHYSICAL_ADDRESS PhysicalAddress = { 0 };
+    UINT_PTR Process = 0;
+    PUINT8 Mapping = 0;
     //UINT32 InstructionLength = 0;
     BOOLEAN isRdtsc  = FALSE;
     BOOLEAN isRdtscp = FALSE;
@@ -189,39 +190,27 @@ GeneralProtectionFaultEmulate(
     //
     // Only interested in #GP's from user
     //
-    if (!MmuIsUserModeAddress((PVOID)regs->rip))
+    if (!MmuIsUserModeAddress((PVOID)Regs->rip))
         goto inject;
-
-    //
-    // Only interested in potential RDTSC/RDTSCP
-    //
-
-//   InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
-//   if ( InstructionLength < 2 || InstructionLength > 3 ) {
-//      goto inject;
-//   }
 
     //
     // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
     //
-    pa = MmuGetPhysicalAddress(VmxVmcsReadPlatform(GUEST_CR3), (PVOID)regs->rip);
-    if (!pa.QuadPart)
+    Process = VmxVmcsReadPlatform(GUEST_CR3);
+
+    PhysicalAddress = MmuGetPhysicalAddress(Process, (PVOID)Regs->rip);
+    if (!PhysicalAddress.QuadPart)
         goto inject;
 
-    code = (PUINT8)MmuMap(pa);
-    if (!code)
+    Mapping = (PUINT8)MmuMap(PhysicalAddress);
+    if (!Mapping)
         goto inject;
 
     //
     // Check if offending instruction is RDTSC/RDTSCP
     //
-    isRdtsc  = (code[BYTE_OFFSET(regs->rip)] == 0x0F && code[BYTE_OFFSET(regs->rip) + 1] == 0x31);
-    isRdtscp = (code[BYTE_OFFSET(regs->rip)] == 0x0F && code[BYTE_OFFSET(regs->rip) + 1] == 0x01 && code[BYTE_OFFSET(regs->rip) + 2] == 0xF9);
-
-    //
-    // Unmap
-    //
-    MmuUnmap(code);
+    isRdtsc  = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x31);
+    isRdtscp = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x01 && Mapping[BYTE_OFFSET(Regs->rip) + 2] == 0xF9);
 
     //
     // Check to emulate
@@ -231,7 +220,9 @@ GeneralProtectionFaultEmulate(
         //
         // Emulate RDTSC
         //
-        RdtscEmulate(local, regs);
+        RdtscEmulate(Local, Regs, Process, Mapping);
+        MmuUnmap(Mapping);
+
         return;
 
     }
@@ -241,7 +232,8 @@ GeneralProtectionFaultEmulate(
         //
         // Emulate RDTSCP
         //
-        RdtscpEmulate(local, regs);
+        RdtscpEmulate(Local, Regs, Process, Mapping);
+        MmuUnmap(Mapping);
         return;
 
     }
