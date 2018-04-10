@@ -182,7 +182,7 @@ GeneralProtectionFaultEmulate(
 {
     PHYSICAL_ADDRESS PhysicalAddress = { 0 };
     UINT_PTR Process = 0;
-    PUINT8 Mapping = 0;
+    PUINT8 Mapping = NULL;
     //UINT32 InstructionLength = 0;
     BOOLEAN isRdtsc  = FALSE;
     BOOLEAN isRdtscp = FALSE;
@@ -191,7 +191,7 @@ GeneralProtectionFaultEmulate(
     // Only interested in #GP's from user
     //
     if (!MmuIsUserModeAddress((PVOID)Regs->rip))
-        goto inject;
+        goto Inject;
 
     //
     // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
@@ -200,11 +200,11 @@ GeneralProtectionFaultEmulate(
 
     PhysicalAddress = MmuGetPhysicalAddress(Process, (PVOID)Regs->rip);
     if (!PhysicalAddress.QuadPart)
-        goto inject;
+        goto Inject;
 
     Mapping = (PUINT8)MmuMap(PhysicalAddress);
     if (!Mapping)
-        goto inject;
+        goto Inject;
 
     //
     // Check if offending instruction is RDTSC/RDTSCP
@@ -215,35 +215,35 @@ GeneralProtectionFaultEmulate(
     //
     // Check to emulate
     //
-    if (isRdtsc)
-    {
+    if (isRdtsc) {
         //
         // Emulate RDTSC
         //
         RdtscEmulate(Local, Regs, Process, Mapping);
         MmuUnmap(Mapping);
-
-        return;
-
+        goto Unmap;
     }
     
-    if (isRdtscp)
-    {
+    if (isRdtscp) {
         //
         // Emulate RDTSCP
         //
         RdtscpEmulate(Local, Regs, Process, Mapping);
-        MmuUnmap(Mapping);
-        return;
+        goto Unmap;
 
     }
+
 
     //
     // Reinject exception
     //
-inject:
+Inject:
     VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
     VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
+Unmap:
+    if ( Mapping ) {
+        MmuUnmap(Mapping);
+    }
 }
 
 VOID 

@@ -12,12 +12,17 @@ typedef enum EnumTestResult {
     TestErrorNoMemory,
     TestErrorRequestInvalid,
     TestErrorDetectionFailed,
+    TestErrorReuse,
+    TestErrorSkipping,
+    TestErrorDifference,
     TestErrorUnknown
 } TestResult;
 
 typedef enum EnumTestRequest {
-    TestRdtscDetection = 1,
-    TestDummyRdtscDetection,
+    TestBasicRdtscDetection = 1,
+    TestBasicRdtscDetectionWithSkip,
+    TestRdtscDetectionReuse,
+    TestRdtscDetection,
     TestUnknown
 } TestRequest;
 
