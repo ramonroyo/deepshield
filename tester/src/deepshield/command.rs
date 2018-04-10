@@ -51,8 +51,9 @@ fn test_rdtsc_request(messenger: &Sender<ShellMessage>, request: TestRequest) {
 
 #[allow(unused_variables)]
 fn test_rdtsc_detection(messenger: &Sender<ShellMessage>) {
-    let request: Vec<TestRequest> = vec![TestRequest::TestDummyRdtscDetection,
-         TestRequest::TestRdtscDetection];
+    let request: Vec<TestRequest> = vec![TestRequest::TestBasicRdtscDetection,
+                                         TestRequest::TestBasicRdtscDetectionWithSkip,
+                                         TestRequest::TestRdtscDetectionReuse];
 
     request.iter().for_each(|request| test_rdtsc_request(messenger, *request) );
 }
