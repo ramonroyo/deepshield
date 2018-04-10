@@ -7,6 +7,28 @@
 #define LOCAL_CONTEXT_TAG 'CLSD'
 #define TSC_HITS_TAG      'HTSD'
 
+UINT64 RandomInt(
+    VOID
+)
+{
+    LARGE_INTEGER TimeStampA = { 0 };
+    LARGE_INTEGER TimeStampB = { 0 };
+
+    TimeStampA.QuadPart = __rdtsc();
+    TimeStampB.QuadPart = __rdtsc();
+
+    return TimeStampA.QuadPart * (!TimeStampB.QuadPart);
+}
+
+ULONG_PTR 
+CreateCR3 (
+    VOID
+    )
+{
+    return (ULONG_PTR)RandomInt() & 0x00000000FFFFFF00;
+}
+
+
 PLOCAL_CONTEXT CreateLocalContext(
     VOID
 )
@@ -100,15 +122,17 @@ AddGlobalTsc(
 // Preliminar dummy test of RDTSC
 //
 TestResult
-TestTimeStampDetection(
+TestBasicTimeStampDetectionReuse(
     VOID
 )
 {
+    #define CONSTANT_TSC 0x600
+
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
+    UINT_PTR       Process       = 0;
 
     REGISTERS      Regs          = { 0 };
-    //LARGE_INTEGER  RandomAddress = { 0 };
 
     Context = CreateLocalContext();
 
@@ -118,40 +142,131 @@ TestTimeStampDetection(
 
     gCurrentTsc = __rdtsc();
 
-    for ( int i = 0; i < 256*6; i++ ) {
+
+    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+        // create a new CR3 per Sibling
+        Process = CreateCR3();
+
+        // Sibling1
+        Regs.rip = (UINT_PTR) (0x00007FF6AE0093E0 | ( i << 16 ));
+        AddGlobalTsc(CONSTANT_TSC);
+        RdtscEmulateTester(Context, &Regs, Process);
+
+        // Sibling2
+        Regs.rip = (UINT_PTR) (0x00007FF6AE0093E6 | ( i << 16 ));
+        AddGlobalTsc(CONSTANT_TSC);
+        RdtscEmulateTester(Context, &Regs, Process);
+
+    }
+
+    // Verify that all entries are inserted in 
+    // different entries
+
+    TscHits = (PTSC_ENTRY) Context->TscHits;
+
+    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+        PTSC_ENTRY Entry = &TscHits[i];
+
+        if ( Entry->Before.Address == 0 ||
+             Entry->After.Address  == 0 ) {
+            return TestErrorReuse;
+        }
+
+        if ( Entry->Skips > 0 ) {
+            return TestErrorSkipping;
+        }
+
+        if ( Entry->Difference != CONSTANT_TSC ) {
+            return TestErrorDifference;
+        }
+    }
+
+    // Let's force to reuse address
+    Process = CreateCR3();
+    Regs.rip = (UINT_PTR) 0x00007FF6AED493E0;
+    AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+    RdtscEmulateTester(Context, &Regs, Process);
+
+    TscHits = (PTSC_ENTRY) Context->TscHits;
+
+    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+        PTSC_ENTRY Entry = &TscHits[i];
+
+        if ( Entry->Process == Process ) {
+            if ( i != 0 ) {
+                DestroyLocalContext(Context);
+                return TestErrorReuse;
+            }
+            DestroyLocalContext(Context);
+            return TestSuccess;
+        }
+    }
+
+    DestroyLocalContext(Context);
+
+    return TestErrorDetectionFailed;
+
+}
+
+
+//
+// Preliminar dummy test of RDTSC
+//
+TestResult
+TestBasicTimeStampDetectionWithSkip(
+    VOID
+)
+{
+    PLOCAL_CONTEXT Context       = NULL;
+    PTSC_ENTRY     TscHits       = NULL;
+    UINT_PTR       Process       = 0;
+
+    REGISTERS      Regs          = { 0 };
+    UINT32         Addition      = 0;
+
+    Context = CreateLocalContext();
+
+    if (!Context) {
+        return TestErrorNoMemory;
+    }
+
+    gCurrentTsc = __rdtsc();
+
+    Process = CreateCR3();
+
+    #define TOTAL_TEST_HITS 256 * 6
+
+    for ( int i = 0; i < TOTAL_TEST_HITS; i++ ) {
         if ( i % 6 == 0 ) {
-            if ( i == 1234 ) {
+            if ( i % (TOTAL_TEST_HITS/12) == 0) {
                 // Simulates a timming difference affected by a flush
-                AddGlobalTsc((0x5000 + (__rdtsc() & 0xFF)));
-            }
-            else {
+                Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
+            } else {
                 // Simulates around ~1500-2000 cycles
-                AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+                Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
             }
+
+            AddGlobalTsc(Addition);
 
             Regs.rip = 0x00007FF6AED493E0;
 
-            RdtscEmulateTester(Context, &Regs, 0);
+            RdtscEmulateTester(Context, &Regs, Process);
 
-            if ( i == 1234 ) {
+            // this should be reached each total/12 times
+            if ( i % (TOTAL_TEST_HITS/12) == 0) {
                 // Simulates a timming difference affected by a flush
-                AddGlobalTsc((0x5000 + (__rdtsc() & 0xFF)));
-            }
-            else {
+                Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
+            } else {
                 // Simulates around ~1500-2000 cycles
-                AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
+                Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
             }
-            Regs.rip = 0x00007FF6AED493E6;
 
-            RdtscEmulateTester(Context, &Regs, 0);
+            AddGlobalTsc(Addition);
+            Regs.rip = (UINT_PTR) 0x00007FF6AED493E6;
+
+            RdtscEmulateTester(Context, &Regs, Process);
         }
 
-        //RandomAddress.QuadPart = __rdtsc();
-        //Regs.rip = 0x00007FF6 | RandomAddress.LowPart;
-
-        //// Simulates around ~1500-2000 cycles
-        //AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
-        //RdtscEmulatTest(Context, &Regs);
     }
 
     NT_ASSERT(Context != NULL);
@@ -162,6 +277,7 @@ TestTimeStampDetection(
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( IsTimmingAttack(Entry) ) {
+            DestroyLocalContext(Context);
             return TestSuccess;
         }
     }
@@ -201,14 +317,14 @@ TestBasicTimeStampDetection(
     // 
     for ( int i = 0; i < 256 * 6; i++ ) {
         if ( i % 6 == 0 ) {
-            Regs.rip = 0x00007FF6AED493E0;
+            Regs.rip = (UINT_PTR) 0x00007FF6AED493E0;
             RdtscEmulate(Context, &Regs, 0, FakeMapping);
-            Regs.rip = 0x00007FF6AED493E6;
+            Regs.rip = (UINT_PTR) 0x00007FF6AED493E6;
             RdtscEmulate(Context, &Regs, 0, FakeMapping);
         }
 
         RandomAddress.QuadPart = __rdtsc();
-        Regs.rip = 0x00007FF6 | RandomAddress.LowPart;
+        Regs.rip = (UINT_PTR) (0x00007FF6 | RandomAddress.LowPart);
     }
 
     NT_ASSERT(Context != NULL);
@@ -219,6 +335,7 @@ TestBasicTimeStampDetection(
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( IsTimmingAttack(Entry) ) {
+            DestroyLocalContext(Context);
             return TestSuccess;
         }
     }
@@ -252,11 +369,14 @@ DsCtlTestRdtscDetection(
     Request = (PTEST_RDTSC_DETECTION) Irp->AssociatedIrp.SystemBuffer;
 
     switch ( Request->Request ) {
-    case TestDummyRdtscDetection:
+    case TestBasicRdtscDetection:
         Request->Result = TestBasicTimeStampDetection();
         break;
-    case TestRdtscDetection:
-        Request->Result = TestTimeStampDetection();
+    case TestBasicRdtscDetectionWithSkip:
+        Request->Result = TestBasicTimeStampDetectionWithSkip();
+        break;
+    case TestRdtscDetectionReuse:
+        Request->Result = TestBasicTimeStampDetectionReuse();
         break;
     default:
         Request->Result = TestErrorRequestInvalid;

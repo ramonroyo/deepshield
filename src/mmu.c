@@ -129,7 +129,7 @@ MmupMap(
         }
     }
 
-    return 0;
+    return NULL;
 }
 
 VOID
@@ -409,6 +409,15 @@ MmuGetPhysicalAddress(
             UINT64  entry;
 
             pml   = MmuMapUncached(pa);
+
+            //
+            // We went out of cached slots, exit
+            //
+            if ( !pml ) { 
+                ASSERT( FALSE );
+                break; 
+            }
+
             index = MmuGetPxeIndex(level, address);
             entry = MmuGetPmlEntry(pml, index);
             MmuUnmap(pml);
