@@ -5,13 +5,15 @@ use std::time::Duration;
 use std::thread;
 
 use std::ptr::null_mut;
-use std::io::Error;
+use std::io;
 use std::mem::{zeroed, size_of_val};
 
 use super::ffi;
 use super::winapi;
 use super::winapi::um::winsvc;
 use super::winapi::um::winsvc::{SC_HANDLE};
+
+use super::error::ServiceError;
 
 // custom namespaces
 
@@ -21,7 +23,7 @@ use super::consts::{SERVICE_KERNEL_DRIVER, SERVICE_DEMAND_START, SERVICE_ERROR_N
 
 
 #[derive(Debug, PartialEq)]
-pub enum ServiceError {
+pub enum ServiceStatusError {
     DeletePending,
     ServiceDisabled,
     ServiceAlreadyExists,
@@ -50,7 +52,7 @@ impl WindowsServiceControlManager {
         };
 
         if handle.is_null() {
-            return Err(Error::last_os_error().to_string());
+            return Err(io::Error::last_os_error().to_string());
         }
 
         Ok(handle)
@@ -91,22 +93,21 @@ impl WindowsService {
         }
     }
 
-    pub fn remove(&mut self) -> &Self {
-        self.delete().expect("Can't remove service");
-        // println!("Service {:?} has been successfully removed", self.name);
+    pub fn remove(&mut self) -> Result<&Self, ServiceError> {
+        self.delete()?;
 
-        self
+        Ok(self)
     }
 
     pub fn install(&mut self) -> &Self {
         let wait = Duration::from_secs(1);
 
         if let Err(err) = self.create() {
-            match err {
-                ServiceError::ServiceAlreadyExists => {
+            match WindowsService::service_error() {
+                ServiceStatusError::ServiceAlreadyExists => {
                     // println!("Failed to install {:?}: Service already exists.", self.name);
                 },
-                ServiceError::DeletePending => {
+                ServiceStatusError::DeletePending => {
                     let service_name = self.name.clone();
 
                     self.retries = self.retries.checked_sub(wait).ok_or_else(move|| {
@@ -134,29 +135,27 @@ impl WindowsService {
         self.name.clone()
     }
 
-    pub fn stop(&self) -> &Self {
+    pub fn stop(&self) -> Result<&Self, ServiceError> {
         let service = self.open().expect("Unable to open service");
 
         let mut status: winsvc::SERVICE_STATUS = unsafe {zeroed()};
 
-        let _success = unsafe {
+        let success = unsafe {
             winsvc::ControlService(
             service,
             winsvc::SERVICE_CONTROL_STOP,
             &mut status) == 0
         };
 
-        // if success {
-        //     println!("Can't stop service ({}): {:?}", self.name, WindowsService::service_error())
-        // }
+        service_check!("stop", self, service, success);
 
-        self.close(service)
+        // self.close(service)
     }
 
-    pub fn start(&self) -> &Self {
+    pub fn start(&self) -> Result<&Self, ServiceError> {
         let service = self.open().expect("Unable to open service");
 
-        let _success = unsafe {
+        let success = unsafe {
             ffi::StartServiceW(
                 service,
                 0,
@@ -164,11 +163,7 @@ impl WindowsService {
             ) == 0
         };
 
-        // if success {
-        //     println!("Can't start service ({}): {:?}", self.name, WindowsService::service_error())
-        // }
-
-        self.close(service)
+        service_check!("start", self, service, success);
     }
 
 
@@ -190,7 +185,7 @@ impl WindowsService {
         };
 
         if result == 0 {
-            return Err(Error::last_os_error().to_string())
+            return Err(io::Error::last_os_error().to_string())
         }
 
         Ok(process)
@@ -212,7 +207,7 @@ impl WindowsService {
         self
     }
 
-    pub fn open(&self) -> Result<SC_HANDLE, ServiceError> {
+    pub fn open(&self) -> Result<SC_HANDLE, ServiceStatusError> {
         let handle = unsafe {
             winsvc::OpenServiceW(
                 self.manager.handle,
@@ -228,25 +223,25 @@ impl WindowsService {
         Ok(handle)
     }
 
-    fn service_error() -> ServiceError {
-        match Error::last_os_error().raw_os_error() {
-            Some(1056) => ServiceError::ServiceAlreadyRunning,
-            Some(1058) => ServiceError::ServiceDisabled,
-            Some(1060) => ServiceError::ServiceDoesNotExist,
-            Some(1061) => ServiceError::ServiceCannotAcceptCtrl,
-            Some(1062) => ServiceError::ServiceNotActive,
-            Some(1072) => ServiceError::DeletePending,
-            Some(1073) => ServiceError::ServiceAlreadyExists,
-            Some(5)    => ServiceError::AccessViolation,
-            Some(6)    => ServiceError::InvalidHandle,
-            Some(code) => ServiceError::UnknownError(code),
+    fn service_error() -> ServiceStatusError {
+        match io::Error::last_os_error().raw_os_error() {
+            Some(1056) => ServiceStatusError::ServiceAlreadyRunning,
+            Some(1058) => ServiceStatusError::ServiceDisabled,
+            Some(1060) => ServiceStatusError::ServiceDoesNotExist,
+            Some(1061) => ServiceStatusError::ServiceCannotAcceptCtrl,
+            Some(1062) => ServiceStatusError::ServiceNotActive,
+            Some(1072) => ServiceStatusError::DeletePending,
+            Some(1073) => ServiceStatusError::ServiceAlreadyExists,
+            Some(5)    => ServiceStatusError::AccessViolation,
+            Some(6)    => ServiceStatusError::InvalidHandle,
+            Some(code) => ServiceStatusError::UnknownError(code),
             _          => panic!("Can't retrieve OS Error, panicking!")
         }
     }
 
     pub fn exists(&self) -> bool {
         match self.open() {
-            Err(ServiceError::AccessViolation) => {
+            Err(ServiceStatusError::AccessViolation) => {
                 println!("INFO: Access violation while opening service.");
                 false
             },
@@ -258,20 +253,14 @@ impl WindowsService {
         }
     }
 
-    pub fn delete(&self) -> Result<(), ServiceError> {
+    pub fn delete(&self) -> Result<&Self, ServiceError> {
         let handle = self.open().expect("Can't open service");
         let success = unsafe { winsvc::DeleteService(handle) == 0 };
 
-        if success {
-            return Err(WindowsService::service_error())
-        }
-
-        self.close(handle);
-        Ok(())
-
+        service_check!("delete", self, handle, success);
     }
 
-    pub fn create(&self) -> Result<(), ServiceError> {
+    pub fn create(&self) -> Result<&Self, ServiceError> {
         let handle = unsafe {
             winsvc::CreateServiceW(
                 self.manager.handle,                    // handle
@@ -290,12 +279,7 @@ impl WindowsService {
             )
         };
 
-        if handle.is_null() {
-            return Err(WindowsService::service_error())
-        }
-
-        self.close(handle);
-        Ok(())
+        service_check!("create", self, handle, handle == null_mut());
     }
 
     fn close_service_handle(handle: SC_HANDLE) {

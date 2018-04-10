@@ -36,18 +36,22 @@ pub enum MapMode {
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub enum TestResult {
-    TestSuccess,
+    TestSuccess = 0,
     TestErrorNoMemory,
     TestErrorRequestInvalid,
     TestErrorDetectionFailed,
+    TestErrorReuse,
+    TestErrorSkipping,
+    TestErrorDifference,
     TestErrorUnknown
 }
 
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub enum TestRequest {
-    TestRdtscDetection = 1,
-    TestDummyRdtscDetection,
+    TestBasicRdtscDetection = 1,
+    TestBasicRdtscDetectionWithSkip,
+    TestRdtscDetectionReuse,
     TestUnknown
 }
 
