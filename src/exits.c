@@ -220,7 +220,6 @@ GeneralProtectionFaultEmulate(
         // Emulate RDTSC
         //
         RdtscEmulate(Local, Regs, Process, Mapping);
-        MmuUnmap(Mapping);
         goto Unmap;
     }
     

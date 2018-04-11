@@ -475,13 +475,51 @@ InterruptEmulate(
     }
 }
 
-VOID
-InstrRipAdvance(
-    _In_ PREGISTERS regs
+BOOLEAN 
+IsSingleStep(
+    _In_ PREGISTERS Regs
 )
 {
-    UINT32 instrLength;
+    return Regs->rflags.u.f.tf == TRUE;
+}
 
-    instrLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
-    regs->rip += instrLength;
+VOID InjectInt1(
+    _In_ PREGISTERS Regs
+)
+{
+    INTERRUPT_INFORMATION Int1 = { 0 };
+
+    Int1.u.f.valid = 1;
+    Int1.u.f.vector = 1;
+    Int1.u.f.type = INTERRUPT_TYPE_HARDWARE_EXCEPTION;
+
+    //
+    // Clear trap flag
+    //
+    Regs->rflags.u.f.tf = 0;
+
+    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, Int1.u.raw);
+}
+
+VOID
+InstrRipAdvance(
+    _In_ PREGISTERS Regs
+)
+{
+    UINT32 InstructionLength;
+
+    InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
+
+    Regs->rip += InstructionLength;
+
+    //
+    // Single step emulation (has TF enabled)
+    //
+    if ( IsSingleStep(Regs) )
+    {
+        //
+        // Injects an int1 and clears trap flag
+        //
+        InjectInt1(Regs);
+    }
 }
