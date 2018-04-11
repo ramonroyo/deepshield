@@ -225,7 +225,7 @@ BOOLEAN IsTimmingAttack(
     //
     // Any average up to this should be discarded
     //
-    if ( !Sibling->Difference > 0x50000 ) {
+    if ( Sibling->Difference > 0x50000 ) {
         ClearSibling(Sibling);
         return FALSE;
     }
@@ -319,7 +319,7 @@ VOID InjectTerminateProcess(
     */
     CHAR TerminateProcessStub[] = {0x48, 0xC7, 0xC1, 0xFF, 0xFF,
                                    0xFF, 0xFF, 0x4C, 0x8B, 0xD1,
-                                   0xB8, 0x2C, 0x00, 0x00, 0x00,
+                                   0xB8, 0x29, 0x00, 0x00, 0x00,
                                    0x0F, 0x05};
 #else
     /*
@@ -373,18 +373,18 @@ RdtscpEmulate(
     _In_ PUINT8         Mapping
 )
 {
-    UNREFERENCED_PARAMETER(Local);
+    LARGE_INTEGER Processor = { 0 };
 
-	UINT64 Processor = __readmsr(IA32_TSC_AUX);
+	Processor.QuadPart = __readmsr(IA32_TSC_AUX);
 
-    Regs->rcx = Processor;
+    Regs->rcx = Processor.LowPart;
 
     ULARGE_INTEGER TimeStamp = { 0 };
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
     Regs->rdx = TimeStamp.HighPart;
     Regs->rax = TimeStamp.LowPart;
-    Regs->rcx = Processor;
+    Regs->rcx = Processor.LowPart;
 
     if ( ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
         InjectTerminateProcess(Mapping, Regs);

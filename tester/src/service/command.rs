@@ -42,9 +42,9 @@ pub fn parse(matches: &ArgMatches, messenger: &Sender<ShellMessage>) -> Result<(
         Some("stop")    => { &super::functions::stop },
         Some("query")   => { &super::functions::query },
         Some("run")     => {
+            create_registry_parameter()?;
             super::functions::reinstall(service_name, service_filename, messenger);
             super::functions::start(service_name, service_filename, messenger);
-            create_registry_parameter()?;
             return Ok(());
         },
         _               => {
@@ -54,9 +54,9 @@ pub fn parse(matches: &ArgMatches, messenger: &Sender<ShellMessage>) -> Result<(
 
     };
 
-    action(service_name, service_filename, messenger);
-
     create_registry_parameter()?;
+
+    action(service_name, service_filename, messenger);
 
     Ok(())
 }

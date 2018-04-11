@@ -98,6 +98,10 @@ RdtscEmulateTester(
 )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
+
+    // 
+    // Simulates a MSR read of IA32_TSC
+    //
     TimeStamp.QuadPart = TestReadMsr(IA32_TSC);
 
     Regs->rdx = TimeStamp.HighPart;
@@ -148,12 +152,12 @@ TestBasicTimeStampDetectionReuse(
         Process = CreateCR3();
 
         // Sibling1
-        Regs.rip = (UINT_PTR) (0x00007FF6AE0093E0 | ( i << 16 ));
+        Regs.rip = (0x7F0093E0 | ( i << 16 ));
         AddGlobalTsc(CONSTANT_TSC);
         RdtscEmulateTester(Context, &Regs, Process);
 
         // Sibling2
-        Regs.rip = (UINT_PTR) (0x00007FF6AE0093E6 | ( i << 16 ));
+        Regs.rip = (0x7F0093E6 | ( i << 16 ));
         AddGlobalTsc(CONSTANT_TSC);
         RdtscEmulateTester(Context, &Regs, Process);
 
@@ -183,7 +187,8 @@ TestBasicTimeStampDetectionReuse(
 
     // Let's force to reuse address
     Process = CreateCR3();
-    Regs.rip = (UINT_PTR) 0x00007FF6AED493E0;
+    Regs.rip = 0x07FF6AEE0;
+
     AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
     RdtscEmulateTester(Context, &Regs, Process);
 
@@ -238,7 +243,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     for ( int i = 0; i < TOTAL_TEST_HITS; i++ ) {
         if ( i % 6 == 0 ) {
-            if ( i % (TOTAL_TEST_HITS/12) == 0) {
+            if ( i % (TOTAL_TEST_HITS / 30) == 0) {
                 // Simulates a timming difference affected by a flush
                 Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
             } else {
@@ -248,12 +253,12 @@ TestBasicTimeStampDetectionWithSkip(
 
             AddGlobalTsc(Addition);
 
-            Regs.rip = 0x00007FF6AED493E0;
+            Regs.rip = 0x07FF6AEE0;
 
             RdtscEmulateTester(Context, &Regs, Process);
 
-            // this should be reached each total/12 times
-            if ( i % (TOTAL_TEST_HITS/12) == 0) {
+            // this should be reached each total/30 times
+            if ( i % (TOTAL_TEST_HITS/30) == 0) {
                 // Simulates a timming difference affected by a flush
                 Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
             } else {
@@ -262,8 +267,8 @@ TestBasicTimeStampDetectionWithSkip(
             }
 
             AddGlobalTsc(Addition);
-            Regs.rip = (UINT_PTR) 0x00007FF6AED493E6;
 
+            Regs.rip = 0x07FF6AEE6;
             RdtscEmulateTester(Context, &Regs, Process);
         }
 
@@ -300,15 +305,18 @@ TestBasicTimeStampDetection(
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
 
-    REGISTERS      Regs          = { 0 };
-    LARGE_INTEGER  RandomAddress = { 0 };
-    UINT8          FakeMapping[17] = { 0 };
+    REGISTERS      Regs            = { 0 };
+    LARGE_INTEGER  RandomAddress   = { 0 };
+    //UINT8          FakeMapping[17] = { 0 };
+    ULONG_PTR      Process         =   0;
 
     Context = CreateLocalContext();
 
     if (!Context) {
         return TestErrorNoMemory;
     }
+
+    Process = CreateCR3();
 
     //
     // This test aims to simulate a situation where you have 
@@ -317,14 +325,17 @@ TestBasicTimeStampDetection(
     // 
     for ( int i = 0; i < 256 * 6; i++ ) {
         if ( i % 6 == 0 ) {
-            Regs.rip = (UINT_PTR) 0x00007FF6AED493E0;
-            RdtscEmulate(Context, &Regs, 0, FakeMapping);
-            Regs.rip = (UINT_PTR) 0x00007FF6AED493E6;
-            RdtscEmulate(Context, &Regs, 0, FakeMapping);
+
+            Regs.rip = 0x07FF6AEE0;
+            RdtscEmulateTester(Context, &Regs, Process);
+
+            Regs.rip = 0x07FF6AEE6;
+            RdtscEmulateTester(Context, &Regs, Process);
         }
 
         RandomAddress.QuadPart = __rdtsc();
-        Regs.rip = (UINT_PTR) (0x00007FF6 | RandomAddress.LowPart);
+        Regs.rip = (0x7FF70000 | (RandomAddress.LowPart & 0xFFFF));
+        RdtscEmulateTester(Context, &Regs, CreateCR3());
     }
 
     NT_ASSERT(Context != NULL);
