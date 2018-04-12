@@ -15,6 +15,8 @@ INCLUDES = ..\inc
 SOURCES = context.c \
 		  driver.c \
 		  exits.c \
+			tests.c \
+			tsc.c \
 		  hvds.c \
 		  hvm_config.c \
 		  hvm_create.c \
@@ -34,5 +36,3 @@ SOURCES = context.c \
 		  vmx_a.asm \
 		  x86_a.asm \
 		  deepshield.rc
-		  
-		  
