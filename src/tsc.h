@@ -1,6 +1,7 @@
 #ifndef __TSC_H__
 #define __TSC_H__
 
+#include "dsdef.h"
 #include "hvm.h"
 #include "context.h"
 

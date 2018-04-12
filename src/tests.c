@@ -1,4 +1,4 @@
-#include <ntddk.h>
+#include <wdm.h>
 #include "tests.h"
 #include "tsc.h"
 #include "context.h"

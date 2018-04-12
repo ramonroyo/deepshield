@@ -1,6 +1,9 @@
 #ifndef __SHIELD_IOCTL_H__
 #define __SHIELD_IOCTL_H__
 
+#include <ntdef.h>
+#include "dsdef.h"
+
 #define DS_WINNT_DEVICE_NAME L"\\Device\\DeepShield"
 #define DS_MSDOS_DEVICE_NAME L"\\DosDevices\\DeepShield"
 

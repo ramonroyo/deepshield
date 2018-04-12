@@ -5,7 +5,7 @@
 #ifndef __TESTS_H__
 #define __TESTS_H__
 
-#include <ntddk.h>
+#include "dsdef.h"
 
 typedef enum EnumTestResult {
     TestSuccess = 0,
