@@ -1,8 +1,8 @@
-#include <wdm.h>
 #include "tests.h"
 #include "tsc.h"
 #include "context.h"
 
+#pragma intrinsic(__rdtsc)
 
 #define LOCAL_CONTEXT_TAG 'CLSD'
 #define TSC_HITS_TAG      'HTSD'
@@ -113,6 +113,14 @@ RdtscEmulateTester(
     // InstrRipAdvance(Regs);
 }
 
+VOID 
+InitGlobalTsc(
+    VOID
+) 
+{
+    gCurrentTsc = __rdtsc();
+}
+
  
 VOID 
 AddGlobalTsc(
@@ -137,6 +145,7 @@ TestBasicTimeStampDetectionReuse(
     UINT_PTR       Process       = 0;
 
     REGISTERS      Regs          = { 0 };
+    INT            i             = 0;
 
     Context = CreateLocalContext();
 
@@ -144,10 +153,10 @@ TestBasicTimeStampDetectionReuse(
         return TestErrorNoMemory;
     }
 
-    gCurrentTsc = __rdtsc();
+    InitGlobalTsc();
 
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         // create a new CR3 per Sibling
         Process = CreateCR3();
 
@@ -168,7 +177,7 @@ TestBasicTimeStampDetectionReuse(
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( Entry->Before.Address == 0 ||
@@ -194,7 +203,7 @@ TestBasicTimeStampDetectionReuse(
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( Entry->Process == Process ) {
@@ -228,6 +237,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     REGISTERS      Regs          = { 0 };
     UINT32         Addition      = 0;
+    INT            i             = 0;
 
     Context = CreateLocalContext();
 
@@ -241,7 +251,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     #define TOTAL_TEST_HITS 256 * 6
 
-    for ( int i = 0; i < TOTAL_TEST_HITS; i++ ) {
+    for ( i = 0; i < TOTAL_TEST_HITS; i++ ) {
         if ( i % 6 == 0 ) {
             if ( i % (TOTAL_TEST_HITS / 30) == 0) {
                 // Simulates a timming difference affected by a flush
@@ -278,7 +288,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( IsTimmingAttack(Entry) ) {
@@ -309,6 +319,8 @@ TestBasicTimeStampDetection(
     LARGE_INTEGER  RandomAddress   = { 0 };
     //UINT8          FakeMapping[17] = { 0 };
     ULONG_PTR      Process         =   0;
+    INT            i               =   0;
+
 
     Context = CreateLocalContext();
 
@@ -323,7 +335,7 @@ TestBasicTimeStampDetection(
     // many different addresses but two of them (siblings)
     // are consecuently being added.
     // 
-    for ( int i = 0; i < 256 * 6; i++ ) {
+    for ( i = 0; i < 256 * 6; i++ ) {
         if ( i % 6 == 0 ) {
 
             Regs.rip = 0x07FF6AEE0;
@@ -342,7 +354,7 @@ TestBasicTimeStampDetection(
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
         if ( IsTimmingAttack(Entry) ) {

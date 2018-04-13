@@ -3,7 +3,6 @@
 
 #include <ioctl.h>
 #include "wdk7.h"
-#include <wdm.h> 
 #include "shield.h"
 
 #define DSH_POLICY_KEY_NAME    L"Parameters"
