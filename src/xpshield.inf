@@ -1,6 +1,6 @@
 ;
 ; Installation INF for ByteHeed DeepShield driver
-; Copyright © 2018 ByteHeed. All Rights Reserved
+; Copyright ï¿½ 2018 ByteHeed. All Rights Reserved
 ;
 
 [Version]
@@ -9,7 +9,7 @@ Class                  = "Unknown"
 ClassGuid              = {4d36e97e-e325-11ce-bfc1-08002be10318}
 Provider               = %ManufacturerName%
 DriverPackageType      = KernelService
-DriverVer              = 03/12/2018,0.6.0.0
+DriverVer	       = 03/28/2018,09.45.52.316
 CatalogFile            = xpshield.cat
 
 [DestinationDirs]
