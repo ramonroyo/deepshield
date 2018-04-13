@@ -48,8 +48,8 @@ DsConfigureHvds(
     PGLOBAL_CONTEXT globalContext;
     PLOCAL_CONTEXT  localContext;
 
-    globalContext = (PGLOBAL_CONTEXT)HvmCoreGlobalContext(core);
-    localContext  = (PLOCAL_CONTEXT) HvmCoreLocalContext(core);
+    globalContext = (PGLOBAL_CONTEXT) HvmCoreGlobalContext(core);
+    localContext  = (PLOCAL_CONTEXT)  HvmCoreLocalContext(core);
 
     //
     // Common configuration
@@ -57,6 +57,19 @@ DsConfigureHvds(
     VmcsConfigureCommonGuest();
     VmcsConfigureCommonHost();
     VmcsConfigureCommonControl();
+
+    //
+    // Unprivilege TSD
+    //
+    {
+        CR4_REGISTER cr4 = { 0 };
+
+        cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
+        cr4.u.f.tsd = 1;
+        VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+        VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
+        VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
+    }
 
     /*
     //
@@ -70,6 +83,7 @@ DsConfigureHvds(
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
     }
     */
+
 
     //
     // Minimize msr exits
@@ -87,12 +101,10 @@ DsConfigureHvds(
     }
 
     //
-    // Activate #PF on permissions check
+    // Activate #GP following
     //
     {
-        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 14));
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MASK,  5);
-        VmxVmcsWrite32(PAGE_FAULT_ERRORCODE_MATCH, 5);
+        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 13));
     }
 }
 

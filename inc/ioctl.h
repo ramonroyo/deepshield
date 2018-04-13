@@ -1,6 +1,9 @@
 #ifndef __SHIELD_IOCTL_H__
 #define __SHIELD_IOCTL_H__
 
+#include <ntdef.h>
+#include "dsdef.h"
+
 #define DS_WINNT_DEVICE_NAME L"\\Device\\DeepShield"
 #define DS_MSDOS_DEVICE_NAME L"\\DosDevices\\DeepShield"
 
@@ -49,6 +52,13 @@ typedef struct _SHIELD_CONTROL_DATA
 
 #define IOCTL_MELTDOWN_COVER \
     CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A03, METHOD_BUFFERED, FILE_ANY_ACCESS )
+
+// 
+// 
+// TESTS of RDTSC Detection
+//
+#define IOCTL_TEST_RDTSC \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A20, METHOD_BUFFERED, FILE_ANY_ACCESS )
 
 typedef struct _MELTDOWN_EXPOSE_DATA
 {

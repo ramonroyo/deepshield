@@ -62,8 +62,9 @@ HvmInit(
 {
     UINT32 i;
 
-    if (!NT_SUCCESS(VmxIsSupported()))
+	if (!NT_SUCCESS(VmxIsSupported())) {
         return STATUS_NOT_SUPPORTED;
+	}
 
     if (gHvm != 0)
     {

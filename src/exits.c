@@ -1,5 +1,6 @@
 #include "wdk7.h"
 #include "exits.h"
+#include "tsc.h"
 #include "context.h"
 #include "instr.h"
 #include "vmx.h"
@@ -36,6 +37,40 @@ CrAccessEmulate(
 */
 
 VOID
+Cr4AccessEmulate(
+    _In_ PHVM_CORE  core,
+    _In_ PREGISTERS regs
+)
+{
+    EXIT_QUALIFICATION_CR data;
+    CR4_REGISTER          cr4;
+
+    data.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
+
+    //
+    // Read new CR4
+    //
+    cr4.u.raw = *RegsGpr(regs, (UINT8)data.u.f.gpr);
+
+    //
+    // Save to host "as is"
+    //
+    VmxVmcsWritePlatform(HOST_CR4, cr4.u.raw);
+    core->savedState.cr4 = cr4;
+
+    //
+    // Save to guest enabling and hiding tsd
+    //
+    cr4.u.f.tsd = 1;
+    VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+
+    //
+    // Done
+    //
+    InstrRipAdvance(regs);
+}
+
+VOID
 CpuidEmulate(
     _In_ PREGISTERS regs
 )
@@ -59,25 +94,7 @@ CpuidEmulate(
     InstrRipAdvance(regs);
 }
 
-VOID
-InvalidateTbEntryNeighborship(
-    _In_ UINT_PTR address
-    )
-{
-    int i;
-
-    address = (UINT_PTR)PAGE_ALIGN(address);
-
-    for (i = 0; i < 256; ++i)
-    {
-        __invlpg((PVOID)(address + i * PAGE_SIZE));
-    }
-    for (i = 1; i < 256; ++i)
-    {
-        __invlpg((PVOID)(address - i * PAGE_SIZE));
-    }
-}
-
+/*
 VOID
 ResetCacheOperatingMode(
     VOID
@@ -151,13 +168,80 @@ PageFaultEmulate(
     VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
     __writecr2(exitQualification);
 
-    if (MmuIsUserModeAddress((PVOID)regs->rip) 
-        && MmuIsKernelModeAddress((PVOID)exitQualification)) {
+    if (MmuIsUserModeAddress((PVOID)regs->rip)) {
+        // 
+    }
+}
+*/
 
-        ResetCacheOperatingMode();
-        ResetSmepMode();
+VOID
+GeneralProtectionFaultEmulate(
+    _In_ PVOID Local,
+    _In_ PREGISTERS Regs
+)
+{
+    PHYSICAL_ADDRESS PhysicalAddress = { 0 };
+    UINT_PTR Process = 0;
+    PUINT8 Mapping = NULL;
+    //UINT32 InstructionLength = 0;
+    BOOLEAN isRdtsc  = FALSE;
+    BOOLEAN isRdtscp = FALSE;
 
-        FlushCurrentTb();
+    //
+    // Only interested in #GP's from user
+    //
+    if (!MmuIsUserModeAddress((PVOID)Regs->rip))
+        goto Inject;
+
+    //
+    // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
+    //
+    Process = VmxVmcsReadPlatform(GUEST_CR3);
+
+    PhysicalAddress = MmuGetPhysicalAddress(Process, (PVOID)Regs->rip);
+    if (!PhysicalAddress.QuadPart)
+        goto Inject;
+
+    Mapping = (PUINT8)MmuMap(PhysicalAddress);
+    if (!Mapping)
+        goto Inject;
+
+    //
+    // Check if offending instruction is RDTSC/RDTSCP
+    //
+    isRdtsc  = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x31);
+    isRdtscp = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x01 && Mapping[BYTE_OFFSET(Regs->rip) + 2] == 0xF9);
+
+    //
+    // Check to emulate
+    //
+    if (isRdtsc) {
+        //
+        // Emulate RDTSC
+        //
+        RdtscEmulate(Local, Regs, Process, Mapping);
+        goto Unmap;
+    }
+    
+    if (isRdtscp) {
+        //
+        // Emulate RDTSCP
+        //
+        RdtscpEmulate(Local, Regs, Process, Mapping);
+        goto Unmap;
+
+    }
+
+
+    //
+    // Reinject exception
+    //
+Inject:
+    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
+    VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
+Unmap:
+    if ( Mapping ) {
+        MmuUnmap(Mapping);
     }
 }
 
@@ -199,13 +283,6 @@ DsHvdsExitHandler(
         //
         // Custom VM exits
         //
-        /*
-        case EXIT_REASON_CR_ACCESS:
-        {
-            CrAccessEmulate(regs);
-            break;
-        }
-        */
         case EXIT_REASON_CPUID:
         {
             CpuidEmulate(regs);
@@ -213,9 +290,15 @@ DsHvdsExitHandler(
         }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-            PageFaultEmulate(regs);
+            GeneralProtectionFaultEmulate(core->localContext, regs);
             break;
         }
+        case EXIT_REASON_CR_ACCESS:
+        {
+            Cr4AccessEmulate(core, regs);
+            break;
+        }
+
         case EXIT_REASON_INIT:
         case EXIT_REASON_SIPI:
         case EXIT_REASON_TRIPLE_FAULT:
