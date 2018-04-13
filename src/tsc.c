@@ -32,8 +32,9 @@ PTSC_ENTRY GetSiblingSlot(
 {
     PTSC_ENTRY Sibling = NULL;
     PTSC_ENTRY Oldest = NULL;
+    UINT32     i;
 
-    for (UINT32 i = 0; i < MAX_TSC_HITS; i++) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
          Sibling = &Head[i];
 
         if ( IsFreeSlot(Sibling) ) {
@@ -75,8 +76,9 @@ PTSC_ENTRY FindSibling(
 ) 
 {
     PTSC_ENTRY Entry = NULL;
+    INT        i;
 
-    for ( int i = 0; i < MAX_TSC_HITS; i++ ) {
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         Entry = &Head[i];
         
         // 
@@ -373,12 +375,12 @@ RdtscpEmulate(
 )
 {
     LARGE_INTEGER Processor = { 0 };
+    ULARGE_INTEGER TimeStamp = { 0 };
 
 	Processor.QuadPart = __readmsr(IA32_TSC_AUX);
 
     Regs->rcx = Processor.LowPart;
 
-    ULARGE_INTEGER TimeStamp = { 0 };
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
     Regs->rdx = TimeStamp.HighPart;
