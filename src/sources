@@ -5,8 +5,7 @@ TARGETPATH = ..\bin\WDK7
 
 _NT_TARGET_VERSION=$(_NT_TARGET_VERSION_WINXP)
 
-TARGETLIBS = $(DDK_LIB_PATH)\wdmsec.lib
-
+TARGETLIBS = $(DDK_LIB_PATH)\wdmsec.lib $(DDK_LIB_PATH)\wdm.lib
 LINKER_FLAGS=$(LINKER_FLAGS) /MAP /MAPINFO:EXPORTS /INTEGRITYCHECK
 C_DEFINES = $(C_DEFINES) -DWDK7 -DPOOL_NX_OPTIN=1
 
@@ -15,6 +14,8 @@ INCLUDES = ..\inc
 SOURCES = context.c \
 		  driver.c \
 		  exits.c \
+			tests.c \
+			tsc.c \
 		  hvds.c \
 		  hvm_config.c \
 		  hvm_create.c \
@@ -34,5 +35,3 @@ SOURCES = context.c \
 		  vmx_a.asm \
 		  x86_a.asm \
 		  deepshield.rc
-		  
-		  

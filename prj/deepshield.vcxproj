@@ -251,6 +251,8 @@
     <ClCompile Include="..\src\sync.c" />
     <ClCompile Include="..\src\hvm_exits.c" />
     <ClCompile Include="..\src\hvm_launch.c" />
+    <ClCompile Include="..\src\tests.c" />
+    <ClCompile Include="..\src\tsc.c" />
     <ClCompile Include="..\src\vmcs.c" />
     <ClCompile Include="..\src\vmx.c" />
     <ClCompile Include="..\src\x86.c" />
@@ -260,6 +262,8 @@
     <ClInclude Include="..\src\context.h" />
     <ClInclude Include="..\src\dsdef.h" />
     <ClInclude Include="..\src\hvds.h" />
+    <ClInclude Include="..\src\tests.h" />
+    <ClInclude Include="..\src\tsc.h" />
     <ClInclude Include="..\src\wdk7.h" />
     <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />

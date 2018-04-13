@@ -1,3 +1,6 @@
+#ifndef __DSDEF_H
+#define __DSDEF_H
+
 #include <ioctl.h>
 #include "wdk7.h"
 #include "shield.h"
@@ -250,4 +253,5 @@ ZwQuerySystemInformation(
     _In_ ULONG SystemInformationLength,
     _Out_opt_ PULONG ReturnLength
 );
+#endif
 #endif
