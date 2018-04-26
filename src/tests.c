@@ -72,7 +72,7 @@ UINT64 RandomInt(
     TimeStampA.QuadPart = __rdtsc();
     TimeStampB.QuadPart = __rdtsc();
 
-    return TimeStampA.QuadPart * (!TimeStampB.QuadPart);
+    return TimeStampA.QuadPart * (~TimeStampB.QuadPart);
 }
 
 ULONG_PTR 
@@ -152,7 +152,7 @@ TestReadMsr(
     return gCurrentTsc;
 }
 
-VOID
+BOOLEAN
 RdtscEmulateTester(
     _In_ PLOCAL_CONTEXT Local,
     _In_ PREGISTERS     Regs,
@@ -169,10 +169,7 @@ RdtscEmulateTester(
     Regs->rdx = TimeStamp.HighPart;
     Regs->rax = TimeStamp.LowPart;
 
-    ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp);
-
-    // Not necessary while testing
-    // InstrRipAdvance(Regs);
+    return ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp);
 }
 
 VOID 
@@ -193,10 +190,8 @@ AddGlobalTsc(
 }
 
 //
-// Preliminar dummy test of RDTSC
+// Test to cover situations where siblings are discarded
 //
-#define CONSTANT_TSC 0x600
-
 TestResult
 TestBasicTimeStampDetectionReuse(
     VOID
@@ -361,8 +356,68 @@ TestBasicTimeStampDetectionWithSkip(
     }
 
     DestroyLocalContext(Context);
+
     return TestErrorDetectionFailed;
+
 }
+
+//
+// Test that ensures that difference of addresses is absolute
+// instead of masked.
+//
+TestResult
+TestRdtscInstructionBoundaries(
+    VOID
+)
+{
+    PLOCAL_CONTEXT Context       = NULL;
+    PTSC_ENTRY     TscHits       = NULL;
+
+    REGISTERS      Regs            = { 0 };
+    ULONG_PTR      Process         =   0;
+    INT            i               =   0;
+
+
+    Context = CreateLocalContext();
+
+    if (!Context) {
+        return TestErrorNoMemory;
+    }
+
+    Process = CreateCR3();
+
+    for ( i = 0; i < 256 * 6; i++ ) {
+        if ( i % 6 == 0 ) {
+            AddGlobalTsc(300);
+            Regs.rip = 0x07F7FFFFE;
+            RdtscEmulateTester(Context, &Regs, Process);
+
+            AddGlobalTsc(300);
+            Regs.rip = 0x07F800003;
+            RdtscEmulateTester(Context, &Regs, Process);
+        }
+    }
+
+    NT_ASSERT(Context != NULL);
+
+    TscHits = (PTSC_ENTRY) Context->TscHits;
+
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
+        PTSC_ENTRY Entry = &TscHits[i];
+
+        if ( IsTimmingAttack(Entry) ) {
+            DestroyLocalContext(Context);
+            return TestSuccess;
+        }
+    }
+
+    DestroyLocalContext(Context);
+
+    return TestErrorDetectionFailed;
+
+}
+
+
 
 //
 // Preliminar dummy test of RDTSC
@@ -377,7 +432,6 @@ TestBasicTimeStampDetection(
 
     REGISTERS      Regs            = { 0 };
     LARGE_INTEGER  RandomAddress   = { 0 };
-    //UINT8          FakeMapping[17] = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;
     
@@ -399,15 +453,19 @@ TestBasicTimeStampDetection(
     for ( i = 0; i < 256 * 6; i++ ) {
         if ( i % 6 == 0 ) {
 
+            AddGlobalTsc(300);
             Regs.rip = 0x07FF6AEE0;
             RdtscEmulateTester(Context, &Regs, Process);
 
+            AddGlobalTsc(300);
             Regs.rip = 0x07FF6AEE6;
             RdtscEmulateTester(Context, &Regs, Process);
         }
 
         RandomAddress.QuadPart = __rdtsc();
         Regs.rip = (0x7FF70000 | (RandomAddress.LowPart & 0xFFFF));
+
+        AddGlobalTsc(RandomAddress.LowPart & 0xFFFF);
         RdtscEmulateTester(Context, &Regs, CreateCR3());
     }
 
@@ -463,6 +521,9 @@ DsCtlTestRdtscDetection(
         Request->Result = TestBasicTimeStampDetectionReuse();
         break;
 
+    case TestInstructionBoundaries:
+        Request->Result = TestRdtscInstructionBoundaries();
+        break;
     default:
         Request->Result = TestErrorRequestInvalid;
         break;

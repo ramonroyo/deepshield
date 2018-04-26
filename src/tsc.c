@@ -25,7 +25,8 @@ IsFreeSlot(
     return Entry->Before.Address == 0;
 }
 
-//
+#define IS_SIBLING(Sibling) (Sibling->After.Address != 0) && (Sibling->Before.Address != 0)
+
 //
 // Get first free slot available, or return oldest hit instead.
 //
@@ -34,7 +35,8 @@ PTSC_ENTRY GetSiblingSlot(
 ) 
 {
     PTSC_ENTRY Sibling = NULL;
-    PTSC_ENTRY Oldest = NULL;
+    PTSC_ENTRY OrphanOldest = NULL;
+    PTSC_ENTRY SiblingOldest = NULL;
     UINT32     i;
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
@@ -46,27 +48,46 @@ PTSC_ENTRY GetSiblingSlot(
             //
             // Initialize with the first non-free slot available
             //
-            if ( Oldest == NULL ) { Oldest = Sibling; }
+            if ( IS_SIBLING(Sibling) ) {
+                if ( SiblingOldest == NULL ) { SiblingOldest = Sibling; }
 
-            if ( Oldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
-                Oldest = Sibling;
+                if ( SiblingOldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
+                    SiblingOldest = Sibling;
+                }
+
+            } else {
+                if ( OrphanOldest == NULL ) { OrphanOldest = Sibling; }
+
+                if ( OrphanOldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
+                    OrphanOldest = Sibling;
+                }
             }
+
         }
     }
 
-    NT_ASSERT( Oldest != NULL );
+    NT_ASSERT( SiblingOldest != NULL || OrphanOldest != NULL );
 
     //
     // If we went to here, means that we are recycling an entry
-    // let's clear addresses
+    // let's clear addresses. Also, there are priority for Siblings
+    // to remain alive.
     //
-    ClearSibling(Oldest);
+    if ( OrphanOldest ) {
+        ClearSibling(OrphanOldest);
+        return OrphanOldest;
+    }
+    else {
+        ClearSibling(SiblingOldest);
+        return SiblingOldest;
+    }
 
-    return Oldest;
 }
 
 
 #define ADDRESS_CLEAR_LAST_BYTE(address) (address & 0xFFFFFFFFFFFFFF00)
+
+#define ADDRESSES_ARE_BYTE_SHORT(source, target) abs(ADDRESS_CLEAR_LAST_BYTE(source) - ADDRESS_CLEAR_LAST_BYTE(target)) < 0xFF
 
 //
 // This function requires to reorder the lists 
@@ -97,8 +118,14 @@ PTSC_ENTRY FindSibling(
         // if not, we consider it as a potential "After" so current Sibling should have
         // After cleared.
         //
+        //  Consider also, instructions that potentially are between page boundaries.
+        //
+        //              0000789FFFFFFFFF | 0F 31 | rdtsc | ; Before
+        //              000078A000000001 | 0F A2 | cpuid |
+        //              000078A000000003 | 0F 31 | rdtsc | ; After
+        //
         if ( Process == Entry->Process &&
-             ADDRESS_CLEAR_LAST_BYTE(Entry->Before.Address) == ADDRESS_CLEAR_LAST_BYTE(OffensiveAddress) ) {
+             ADDRESSES_ARE_BYTE_SHORT(Entry->Before.Address, OffensiveAddress) ) {
 
             if (( Entry->Before.Address == OffensiveAddress ) ||
                 ( Entry->After.Address  == OffensiveAddress ) ||
@@ -140,8 +167,8 @@ VOID SiblingIncrement(
         //
         // This means that we reached a potential "After" candidate
         //
-        NT_ASSERT( ADDRESS_CLEAR_LAST_BYTE(Sibling->Before.Address) == 
-                   ADDRESS_CLEAR_LAST_BYTE(OffensiveAddress) );
+
+        NT_ASSERT( ADDRESSES_ARE_BYTE_SHORT(Sibling->Before.Address, OffensiveAddress) );
 
         if ( Sibling->After.Address == 0 ) {
 

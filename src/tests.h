@@ -29,6 +29,7 @@ typedef enum EnumTestRequest {
     TestBasicRdtscDetectionWithSkip,
     TestRdtscDetectionReuse,
     TestRdtscDetection,
+    TestInstructionBoundaries,
     TestUnknown
 } TestRequest;
 
