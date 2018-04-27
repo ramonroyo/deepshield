@@ -172,6 +172,8 @@ RdtscEmulateTester(
     return ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp);
 }
 
+#define CONSTANT_TSC 0x600
+
 VOID 
 InitGlobalTsc(
     VOID
@@ -189,6 +191,63 @@ AddGlobalTsc(
     gCurrentTsc += Value;
 }
 
+VOID 
+AddTimeStampHit(
+    _In_     PLOCAL_CONTEXT Context, 
+    _In_opt_ UINT_PTR Process, 
+    _In_     UINT_PTR Address, 
+    _In_opt_ UINT64 Delta
+) {
+
+    REGISTERS      Regs          = { 0 };
+
+    if ( Process == 0 ) {
+        Process = CreateCR3();
+    }
+
+    Regs.rip = Address;
+
+    AddGlobalTsc(Delta);
+
+    RdtscEmulateTester(Context, &Regs, Process);
+
+}
+
+/*
+VOID FillWithOrphans(PLOCAL_CONTEXT Context) {
+    NT_ASSERT(Context != NULL);
+
+    UINT_PTR       Process       = 0;
+    INT            i             = 0;
+
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
+        //
+        // Unique CR3 per Sibling
+        //
+        Process = CreateCR3();
+
+        AddTimeStampHit(Context, Process, 0x7F0093E0, CONSTANT_TSC);
+    }
+}
+*/
+
+VOID FillWithSiblings(PLOCAL_CONTEXT Context) {
+    NT_ASSERT(Context != NULL);
+
+    UINT_PTR       Process       = 0;
+    INT            i             = 0;
+
+    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
+        //
+        // Unique CR3 per Sibling
+        //
+        Process = CreateCR3();
+
+        AddTimeStampHit(Context, Process, 0x7F0093E0, CONSTANT_TSC);
+        AddTimeStampHit(Context, Process, 0x7F0093E6 | ( i << 16 ), CONSTANT_TSC);
+    }
+}
+
 //
 // Test to cover situations where siblings are discarded
 //
@@ -201,7 +260,6 @@ TestBasicTimeStampDetectionReuse(
     PTSC_ENTRY     TscHits       = NULL;
     UINT_PTR       Process       = 0;
 
-    REGISTERS      Regs          = { 0 };
     INT            i             = 0;
 
     PAGED_CODE();
@@ -214,24 +272,13 @@ TestBasicTimeStampDetectionReuse(
 
     InitGlobalTsc();
 
-    for ( i = 0; i < MAX_TSC_HITS; i++ ) {
-        // create a new CR3 per Sibling
-        Process = CreateCR3();
 
-        // Sibling1
-        Regs.rip = (0x7F0093E0 | ( i << 16 ));
-        AddGlobalTsc(CONSTANT_TSC);
-        RdtscEmulateTester(Context, &Regs, Process);
+    FillWithSiblings(Context);
 
-        // Sibling2
-        Regs.rip = (0x7F0093E6 | ( i << 16 ));
-        AddGlobalTsc(CONSTANT_TSC);
-        RdtscEmulateTester(Context, &Regs, Process);
-
-    }
-
+    //
     // Verify that all entries are inserted in 
     // different entries
+    //
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
@@ -252,12 +299,12 @@ TestBasicTimeStampDetectionReuse(
         }
     }
 
-    // Let's force to reuse address
     Process = CreateCR3();
-    Regs.rip = 0x07FF6AEE0;
 
-    AddGlobalTsc((0x600 + (__rdtsc() & 0xFF)));
-    RdtscEmulateTester(Context, &Regs, Process);
+    //
+    // Let's add new entry so we force reuse
+    //
+    AddTimeStampHit(Context, Process, 0x07FF6AEE0, 0x600);
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
