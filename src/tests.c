@@ -243,7 +243,7 @@ VOID FillWithSiblings(PLOCAL_CONTEXT Context) {
         //
         Process = CreateCR3();
 
-        AddTimeStampHit(Context, Process, 0x7F0093E0, CONSTANT_TSC);
+        AddTimeStampHit(Context, Process, 0x7F0093E0 | ( i << 16 ), CONSTANT_TSC);
         AddTimeStampHit(Context, Process, 0x7F0093E6 | ( i << 16 ), CONSTANT_TSC);
     }
 }
@@ -277,7 +277,7 @@ TestBasicTimeStampDetectionReuse(
 
     //
     // Verify that all entries are inserted in 
-    // different entries
+    // different slots
     //
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
@@ -354,39 +354,36 @@ TestBasicTimeStampDetectionWithSkip(
 
     Process = CreateCR3();
 
-    #define TOTAL_TEST_HITS 256 * 6
+    #define TOTAL_TEST_HITS 256
 
     for ( i = 0; i < TOTAL_TEST_HITS; i++ ) {
-        if ( i % 6 == 0 ) {
-            if ( i % (TOTAL_TEST_HITS / 30) == 0) {
-                // Simulates a timming difference affected by a flush
-                Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
-            } else {
-                // Simulates around ~1500-2000 cycles
-                Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
-            }
-
-            AddGlobalTsc(Addition);
-
-            Regs.rip = 0x07FF6AEE0;
-
-            RdtscEmulateTester(Context, &Regs, Process);
-
-            // this should be reached each total/30 times
-            if ( i % (TOTAL_TEST_HITS/30) == 0) {
-                // Simulates a timming difference affected by a flush
-                Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
-            } else {
-                // Simulates around ~1500-2000 cycles
-                Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
-            }
-
-            AddGlobalTsc(Addition);
-
-            Regs.rip = 0x07FF6AEE6;
-            RdtscEmulateTester(Context, &Regs, Process);
+        if ( i > 0 && i % 30 == 0) {
+            // Simulates a timming difference affected by a flush
+            Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
+        } else {
+            // Simulates around ~1500-2000 cycles
+            Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
         }
 
+        AddGlobalTsc(Addition);
+
+        Regs.rip = 0x07FF6AEE0;
+
+        RdtscEmulateTester(Context, &Regs, Process);
+
+        // this should be reached each total/30 times
+        if ( i > 0 && i % 30 == 0) {
+            // Simulates a timming difference affected by a flush
+            Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
+        } else {
+            // Simulates around ~1500-2000 cycles
+            Addition = CONSTANT_TSC + (__rdtsc() & 0xFF);
+        }
+
+        AddGlobalTsc(Addition);
+
+        Regs.rip = 0x07FF6AEE6;
+        RdtscEmulateTester(Context, &Regs, Process);
     }
 
     NT_ASSERT(Context != NULL);
@@ -433,16 +430,14 @@ TestRdtscInstructionBoundaries(
 
     Process = CreateCR3();
 
-    for ( i = 0; i < 256 * 6; i++ ) {
-        if ( i % 6 == 0 ) {
-            AddGlobalTsc(300);
-            Regs.rip = 0x07F7FFFFE;
-            RdtscEmulateTester(Context, &Regs, Process);
+    for ( i = 0; i < 256; i++ ) {
+        AddGlobalTsc(300);
+        Regs.rip = 0x07F7FFFFE;
+        RdtscEmulateTester(Context, &Regs, Process);
 
-            AddGlobalTsc(300);
-            Regs.rip = 0x07F800003;
-            RdtscEmulateTester(Context, &Regs, Process);
-        }
+        AddGlobalTsc(300);
+        Regs.rip = 0x07F800003;
+        RdtscEmulateTester(Context, &Regs, Process);
     }
 
     NT_ASSERT(Context != NULL);

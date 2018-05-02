@@ -51,14 +51,14 @@ PTSC_ENTRY GetSiblingSlot(
             if ( IS_SIBLING(Sibling) ) {
                 if ( SiblingOldest == NULL ) { SiblingOldest = Sibling; }
 
-                if ( SiblingOldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
+                if ( Sibling->Before.TimeStamp < SiblingOldest->Before.TimeStamp ) {
                     SiblingOldest = Sibling;
                 }
 
             } else {
                 if ( OrphanOldest == NULL ) { OrphanOldest = Sibling; }
 
-                if ( OrphanOldest->Before.TimeStamp < Sibling->Before.TimeStamp ) {
+                if ( Sibling->Before.TimeStamp < OrphanOldest->Before.TimeStamp ) {
                     OrphanOldest = Sibling;
                 }
             }
@@ -208,19 +208,20 @@ VOID SiblingIncrement(
         } else {
 
             UINT64 CurrentDifference   = abs(Difference - Sibling->Difference);
-            UINT64 DifferenceThreshold = ( Difference * 3 / 2 );
+            UINT64 DifferenceThreshold = ( Sibling->Difference * 3 / 2 );
 
-            if ( CurrentDifference < DifferenceThreshold ) {
+            if (( Difference > Sibling->Difference ) &&
+                ( CurrentDifference > DifferenceThreshold )) {
+                //
+                // If the average isn't below threshold let's skip it
+                //
+                Sibling->Skips += 1;
+            } else {
                 //
                 // Let's keep a consistent average
                 //
                 Sibling->Difference += Difference;
                 Sibling->Difference /= 2;
-            } else {
-                //
-                // If the average isn't below threshold let's skip it
-                //
-                Sibling->Skips += 1;
             }
         }
 
