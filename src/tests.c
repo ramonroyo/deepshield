@@ -232,10 +232,10 @@ VOID FillWithOrphans(PLOCAL_CONTEXT Context) {
 */
 
 VOID FillWithSiblings(PLOCAL_CONTEXT Context) {
-    NT_ASSERT(Context != NULL);
-
     UINT_PTR       Process       = 0;
     INT            i             = 0;
+
+    NT_ASSERT(Context != NULL);
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         //

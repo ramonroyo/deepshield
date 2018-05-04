@@ -87,7 +87,7 @@ PTSC_ENTRY GetSiblingSlot(
 
 #define ADDRESS_CLEAR_LAST_BYTE(address) (address & 0xFFFFFFFFFFFFFF00)
 
-#define ADDRESSES_ARE_BYTE_SHORT(source, target) abs(ADDRESS_CLEAR_LAST_BYTE(source) - ADDRESS_CLEAR_LAST_BYTE(target)) < 0xFF
+#define ADDRESSES_ARE_BYTE_SHORT(source, target) abs(source - target) < 0xFF
 
 //
 // This function requires to reorder the lists 
