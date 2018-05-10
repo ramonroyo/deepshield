@@ -239,6 +239,7 @@
     <ClCompile Include="..\src\context.c" />
     <ClCompile Include="..\src\driver.c" />
     <ClCompile Include="..\src\hvds.c" />
+    <ClCompile Include="..\src\ringbuf.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
     <ClCompile Include="..\src\hvm_config.c" />
@@ -264,6 +265,7 @@
     <ClInclude Include="..\src\hvds.h" />
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />
+    <ClInclude Include="..\src\ringbuf.h" />
     <ClInclude Include="..\src\wdk7.h" />
     <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />

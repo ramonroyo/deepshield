@@ -73,7 +73,7 @@ Cr4AccessEmulate(
 VOID
 CpuidEmulate(
     _In_ PREGISTERS regs
-)
+    )
 {
     UINT_PTR function;
     UINT_PTR subleaf;
@@ -247,8 +247,8 @@ Unmap:
 
 VOID 
 DsHvdsExitHandler(
-    _In_ UINT32     exitReason,
-    _In_ PHVM_CORE  core,
+    _In_ UINT32 exitReason,
+    _In_ PHVM_CORE core,
     _In_ PREGISTERS regs
     )
 {

@@ -19,11 +19,6 @@ DsInitializeShield(
         return Status;
     }
 
-    Status = MemInit((SmpNumberOfCores() + 1) * 16 * PAGE_SIZE);
-    if (!NT_SUCCESS( Status )) {
-        return Status;
-    }
-
     Status = MmuInit();
     if (!NT_SUCCESS( Status )) {
         return Status;
@@ -44,7 +39,6 @@ DsFinalizeShield(
 {
     DsFinalizeHvds();
     MmuDone();
-    MemDone();
 }
 
 NTSTATUS
