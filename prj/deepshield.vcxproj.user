@@ -15,9 +15,12 @@
     <ProductionCertificate>CN="ByteHeed, SL", O="ByteHeed, SL", L=Bilbao, C=ES, SERIALNUMBER=B95783866, OID.2.5.4.15=Private Organization, OID.1.3.6.1.4.1.311.60.2.1.3=ES | F20486D4B731956FAACC8D554B513BDAEDAE7EAF</ProductionCertificate>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <TestCertificate>CN="WDKTestCert agiovannini,131647338018698187" | A77E1952783A27A771A02920F2A274E3BB10F206</TestCertificate>
+    <TestCertificate>CN="WDKTestCert Ramon,131683591482611180" | 5C7499ED848C702768B540789B540AB144B54CFB</TestCertificate>
   </PropertyGroup>
   <PropertyGroup>
     <ShowAllFiles>false</ShowAllFiles>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <TestCertificate>CN="WDKTestCert Ramon,131683591639080682" | DA6DE0F0075A9137527833F1BAD6FFFEE6F30E7C</TestCertificate>
   </PropertyGroup>
 </Project>

@@ -6,10 +6,6 @@
 DECLARE_CONST_UNICODE_STRING( DsDeviceName, DS_WINNT_DEVICE_NAME );
 DECLARE_CONST_UNICODE_STRING( DsDosDeviceName, DS_MSDOS_DEVICE_NAME );
 
-static UNICODE_STRING gDriverKeyName;
-static ULONG gStateFlags;
-static BOOLEAN gShutdownCalled;
-
 DRIVER_INITIALIZE DriverEntry;
 DRIVER_UNLOAD DriverUnload;
 
@@ -118,6 +114,12 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
+static UNICODE_STRING gDriverKeyName;
+static ULONG gStateFlags;
+static BOOLEAN gShutdownCalled;
+
+PUCHAR RingPool;
+RING_BUFFER RingBuffer;
 KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
 KTIMER ExposeTimer;
@@ -127,20 +129,23 @@ PCHAR LeakData = "Overconfidence can take over and caution can be thrown to the 
 
 NTSTATUS
 DriverEntry(
-    _In_ PDRIVER_OBJECT driverObject,
+    _In_ PDRIVER_OBJECT DriverObject,
     _In_ PUNICODE_STRING RegistryPath
     )
 {
     NTSTATUS Status = STATUS_UNSUCCESSFUL;
-    PDEVICE_OBJECT deviceObject = NULL;
+    PDEVICE_OBJECT DeviceObject = NULL;
     PCUNICODE_STRING DeviceSecurityString;
     UNICODE_STRING FunctionName;
     ULONG LoadMode = 0;
     BOOLEAN ShutdownCallback = FALSE;
     BOOLEAN SymbolicLink = FALSE;
+    BOOLEAN RingBufferInitialized = FALSE;
 
     gShutdownCalled = FALSE;
     gStateFlags = 0;
+
+    RtlInitUnicodeString( &gDriverKeyName, NULL );
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
 	#pragma warning(disable:4055)
@@ -156,11 +161,24 @@ DriverEntry(
         DsMmMapIoSpaceEx = NULL;
     }
 #endif
-    
+
+    Status = DsInitializeNonPagedPoolList( 256 * PAGE_SIZE );
+    if (!NT_SUCCESS( Status )) {
+        return Status;
+    }
+
+    RingPool = DsAllocatePoolWithTag( NonPagedPool, 1024 * 256, 'pRsD' );
+    if (NULL == RingPool) {
+        goto RoutineExit;
+    }
+
+    RtlRingBufferInitialize( &RingBuffer, RingPool, 1024 * 256 );
+    RingBufferInitialized = TRUE;
+
     Status = DsCloneUnicodeString( &gDriverKeyName, RegistryPath );
 
     if (!NT_SUCCESS( Status )) {
-        return Status;
+        goto RoutineExit;
     }
 
 #ifdef DBG
@@ -174,7 +192,7 @@ DriverEntry(
     //  the device for any access. This tight security settings and let its
     //  service to open the device up.
     //
-    Status = IoCreateDeviceSecure( driverObject,
+    Status = IoCreateDeviceSecure( DriverObject,
                                    0,
                                    (PUNICODE_STRING) &DsDeviceName,
                                    FILE_DEVICE_UNKNOWN,
@@ -182,19 +200,19 @@ DriverEntry(
                                    FALSE,
                                    DeviceSecurityString,
                                    NULL,
-                                   &deviceObject );
+                                   &DeviceObject );
 
     if (!NT_SUCCESS( Status )) {
         goto RoutineExit;
     }
 
-    driverObject->MajorFunction[IRP_MJ_CREATE] = DriverDeviceCreateClose;
-    driverObject->MajorFunction[IRP_MJ_CLOSE] = DriverDeviceCreateClose;
-    driverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
-    driverObject->MajorFunction[IRP_MJ_SHUTDOWN] = DriverShutdown;
-    driverObject->DriverUnload = DriverUnload;
+    DriverObject->MajorFunction[IRP_MJ_CREATE] = DriverDeviceCreateClose;
+    DriverObject->MajorFunction[IRP_MJ_CLOSE] = DriverDeviceCreateClose;
+    DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
+    DriverObject->MajorFunction[IRP_MJ_SHUTDOWN] = DriverShutdown;
+    DriverObject->DriverUnload = DriverUnload;
 
-    Status = IoRegisterShutdownNotification( driverObject->DeviceObject );
+    Status = IoRegisterShutdownNotification( DriverObject->DeviceObject );
 
     if (!NT_SUCCESS( Status )) {
         goto RoutineExit;
@@ -274,14 +292,26 @@ RoutineExit:
         }
 
         if (ShutdownCallback) {
-            IoUnregisterShutdownNotification( driverObject->DeviceObject );
+            IoUnregisterShutdownNotification( DriverObject->DeviceObject );
         }
 
-        if (deviceObject) {
-            IoDeleteDevice( driverObject->DeviceObject );
+        if (DeviceObject) {
+            IoDeleteDevice( DriverObject->DeviceObject );
         }
 
-        DsFreeUnicodeString( &gDriverKeyName );
+        if (gDriverKeyName.Length) {
+            DsFreeUnicodeString( &gDriverKeyName );
+        }
+
+        if (RingBufferInitialized) {
+            RtlRingBufferDestroy( &RingBuffer );
+        }
+
+        if (RingPool) {
+            DsFreePoolWithTag( RingPool, 'pRsD' );
+        }
+
+        DsDeleteNonPagedPoolList();
     }
 
     return Status;
@@ -317,7 +347,12 @@ DriverUnload(
 
     IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
     IoDeleteDevice( DriverObject->DeviceObject );
+
     DsFreeUnicodeString( &gDriverKeyName );
+    RtlRingBufferDestroy( &RingBuffer );
+
+    DsFreePoolWithTag( RingPool, 'pRsD' );
+    DsDeleteNonPagedPoolList();
 }
 
 NTSTATUS

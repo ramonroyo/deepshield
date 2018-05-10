@@ -3,7 +3,10 @@
 
 #include <ioctl.h>
 #include "wdk7.h"
+#include "ringbuf.h"
 #include "shield.h"
+#include "mem.h"
+#include "smp.h"
 
 #define DSH_POLICY_KEY_NAME    L"Parameters"
 #define DSH_RUN_MODE_POLICY    L"OperationMode"
@@ -39,6 +42,18 @@
 #ifndef ClearFlag
 #define ClearFlag(_F,_SF)     ((_F) &= ~(_SF))
 #endif
+
+#ifdef ENABLE_LIB_POOL
+#define DsInitializeNonPagedPoolList(_x_) MemInit(_x_)
+#define DsDeleteNonPagedPoolList() MemDone()
+#define DsAllocatePoolWithTag(_p_, _x_, _t_) MemAllocAligned(_x_, 16)
+#define DsFreePoolWithTag(_p_, _t_) MemFree(_p_)
+#else
+#define DsInitializeNonPagedPoolList(_x_) (0)
+#define DsDeleteNonPagedPoolList()
+#define DsAllocatePoolWithTag(_p_, _x_, _t_) ExAllocatePoolWithTag (_p_, _x_, _t_)
+#define DsFreePoolWithTag(_p_, _t_) ExFreePoolWithTag( _p_, _t_)
+#endif // ENABLE_LIB_POOL
 
 typedef
 PVOID
