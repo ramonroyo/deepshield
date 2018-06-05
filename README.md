@@ -1,3 +1,3 @@
 ## DeepShield ##
 
-**A hypervisor against Meltdown vulnerability.**
+**The Hypervisor based solution against Speculative Execution Side Channels.**
