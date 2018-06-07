@@ -7,8 +7,7 @@
 #ifndef __X86_H__
 #define __X86_H__
 
-#include <ntddk.h>
-
+#include <ntifs.h>
 
 #define IA32_TSC                0x10
 #define IA32_APIC_BASE          0x1B

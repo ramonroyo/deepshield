@@ -10,13 +10,14 @@ Module Name:
 
 #pragma once
 
-#include <ntddk.h>
+#include <ntifs.h>
+#include "wdk7.h"
 
 #pragma warning(disable:4201)   // nameless struct/union
 
 typedef enum _RING_BUFFER_TYPE {
-    TraceMessage = 1,
-    NotificationMessage
+    TraceBuffer = 1,
+    NotificationBuffer
 } RING_BUFFER_TYPE;
 
 typedef struct _RING_BUFFER_HEADER {
@@ -67,7 +68,6 @@ typedef struct _RING_BUFFER {
 
 } RING_BUFFER, *PRING_BUFFER;
 
-
 VOID
 RtlRingBufferInitialize(
     _In_ PRING_BUFFER RingBuffer,
@@ -90,14 +90,14 @@ RtlRingBufferGetAvailBytes(
 NTSTATUS
 RtlRingBufferWrite(
     _In_  PRING_BUFFER RingBuffer,
-    _In_reads_bytes_( DataSize ) PUCHAR Data,
+    _In_reads_bytes_( DataSize ) PCHAR Data,
     _In_ SIZE_T DataSize
 );
 
 NTSTATUS
 RtlRingBufferRead(
     _In_ PRING_BUFFER RingBuffer,
-    _Out_writes_bytes_to_( DataSize, *BytesCopied ) PUCHAR Data,
+    _Out_writes_bytes_to_( DataSize, *BytesCopied ) PCHAR Data,
     _In_ SIZE_T DataSize,
     _Out_ PSIZE_T BytesCopied
 );

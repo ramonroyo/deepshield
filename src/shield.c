@@ -1,4 +1,5 @@
 #include "wdk7.h"
+#include "channel.h"
 #include "shield.h"
 #include "mmu.h"
 #include "mem.h"
@@ -51,6 +52,7 @@ DsStartShield(
     Status = DsStartHvds();
 
     if (!NT_SUCCESS( Status )) {
+
         DsStopHvds();
         return Status;
     }

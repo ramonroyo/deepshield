@@ -1,7 +1,7 @@
 #ifndef __HV_H__
 #define __HV_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 NTSTATUS
 DsInitializeShield(

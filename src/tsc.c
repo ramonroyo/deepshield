@@ -1,3 +1,5 @@
+#include "dsdef.h"
+#include "wpp.h"
 #include "tsc.h"
 #include "context.h"
 #include "instr.h"
@@ -23,6 +25,7 @@ IsFreeSlot(
     return Entry->Before.Address == 0;
 }
 
+//
 //
 // Get first free slot available, or return oldest hit instead.
 //
@@ -277,25 +280,42 @@ PTSC_ENTRY CreateSibling(
     return Sibling;
 }
 
-BOOLEAN ProcessTscEvent(
-    _In_ PTSC_ENTRY     Head,
-    _In_ ULONG_PTR      OffensiveAddress,
-    _In_ UINT_PTR       Process,
+BOOLEAN
+ProcessTscEvent(
+    _In_ PTSC_ENTRY Head,
+    _In_ ULONG_PTR OffensiveAddress,
+    _In_ UINT_PTR Process,
     _In_ ULARGE_INTEGER TimeStamp
-)
+    )
 {
-    PTSC_ENTRY Sibling = FindSibling(Head, Process, OffensiveAddress);
+    DS_NOTIFICATION_MESSAGE Notification;
+
+    PTSC_ENTRY Sibling = FindSibling( Head, Process, OffensiveAddress );
 
     if ( Sibling ) {
-        SiblingIncrement(Sibling, OffensiveAddress, TimeStamp);
+        SiblingIncrement( Sibling, OffensiveAddress, TimeStamp );
+
     } else {
-        Sibling = CreateSibling(Head, OffensiveAddress, Process, TimeStamp);
+        Sibling = CreateSibling( Head, OffensiveAddress, Process, TimeStamp );
     }
 
     // 
-    // This will be the trigger of a detection
+    //  This will be the trigger of a detection.
     //
-    if ( IsTimmingAttack(Sibling) ) {
+    if (IsTimmingAttack( Sibling )) {
+        RtlPostMailboxTrace( TRACE_LEVEL_INFORMATION,
+                             TRACE_IOA_ROOT,
+                             "Timing Attack Found (ProcessId = %p)\n",
+                             PsGetCurrentProcessId() );
+
+        Notification.ControlFlags = 0;
+        Notification.MessageType = NotificationMessage;
+
+        Notification.ProcessId = (UINT64)PsGetCurrentProcessId();
+        Notification.ThreadId = (UINT64)PsGetCurrentThreadId();
+        Notification.Type = TimerAbuse;
+
+        RtlPostMailboxNotification( &Notification, sizeof( DS_NOTIFICATION_MESSAGE ) );
 
         return TRUE;
     }
@@ -306,7 +326,7 @@ BOOLEAN ProcessTscEvent(
 VOID InjectTerminateProcess(
     PUINT8     Mapping,
     PREGISTERS Regs
-)
+    )
 {
 
 #ifndef _WIN64
@@ -347,7 +367,7 @@ VOID InjectTerminateProcess(
 VOID
 RdtscEmulate(
     _In_ PLOCAL_CONTEXT Local,
-	_In_ PREGISTERS     Regs,
+    _In_ PREGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 )
@@ -369,7 +389,7 @@ RdtscEmulate(
 VOID
 RdtscpEmulate(
     _In_ PLOCAL_CONTEXT Local,
-	_In_ PREGISTERS     Regs,
+    _In_ PREGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 )
@@ -377,7 +397,7 @@ RdtscpEmulate(
     LARGE_INTEGER Processor = { 0 };
     ULARGE_INTEGER TimeStamp = { 0 };
 
-	Processor.QuadPart = __readmsr(IA32_TSC_AUX);
+    Processor.QuadPart = __readmsr(IA32_TSC_AUX);
 
     Regs->rcx = Processor.LowPart;
 

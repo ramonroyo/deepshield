@@ -51,9 +51,9 @@ typedef struct _HEAP_BLOCK
 */
 typedef struct _MEMORY_ARENA
 {
-    PMDL   mdl;				//!< Physical pages description
-    PVOID  virtualAddress;	//!< Virtual address where pages are mapped
-    UINT32 numberOfPages;	//!< Allocated pages
+    PMDL   mdl;                //!< Physical pages description
+    PVOID  virtualAddress;    //!< Virtual address where pages are mapped
+    UINT32 numberOfPages;    //!< Allocated pages
 } MEMORY_ARENA, *PMEMORY_ARENA;
 
 VOID

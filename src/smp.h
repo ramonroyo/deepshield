@@ -5,7 +5,7 @@
 #ifndef __SMP_H__
 #define __SMP_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 /**
 *  Callback type to be executed on every core.

@@ -89,7 +89,7 @@ SmpExecuteOnAllCores(
 
         status = callback(SmpCurrentCore(), context);
 
-        KeLowerIrql(savedIrql);	
+        KeLowerIrql(savedIrql);    
     }
 
     return status;

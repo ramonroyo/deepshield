@@ -5,7 +5,7 @@
 #ifndef __MEM_H__
 #define __MEM_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 typedef struct _HEAP* PHEAP;
 

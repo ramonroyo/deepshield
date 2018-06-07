@@ -7,7 +7,7 @@
 #ifndef __VMX_H__
 #define __VMX_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 //
 // VMX NTSTATUS Errors

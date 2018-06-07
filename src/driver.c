@@ -1,7 +1,15 @@
-#include <ntddk.h>
+#include <ntifs.h>
 #include <wdmsec.h>
 #include "dsdef.h"
 #include "tests.h"
+
+#if defined(WPP_EVENT_TRACING)
+#include "driver.tmh"
+#else
+#define _DRIVER_NAME_ "DeepShield"
+ULONG DebugLevel = TRACE_LEVEL_INFORMATION;
+ULONG DebugFlag = 0xff;
+#endif
 
 DECLARE_CONST_UNICODE_STRING( DsDeviceName, DS_WINNT_DEVICE_NAME );
 DECLARE_CONST_UNICODE_STRING( DsDosDeviceName, DS_MSDOS_DEVICE_NAME );
@@ -19,24 +27,6 @@ _Dispatch_type_(IRP_MJ_CREATE)
 _Dispatch_type_(IRP_MJ_CLOSE)
 DRIVER_DISPATCH DriverDeviceCreateClose;
 
-NTSTATUS 
-DsCltGetShieldState(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    );
-
-NTSTATUS
-DsCtlShieldControl(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    );
-
-NTSTATUS
-DsCtlMeltdownExpose(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    );
-
 _When_(return==0, _Post_satisfies_(String->Buffer != NULL))
 NTSTATUS
 DsAllocateUnicodeString(
@@ -52,26 +42,6 @@ NTSTATUS
 DsCloneUnicodeString(
     _Inout_ PUNICODE_STRING DestinationString,
     _In_ PCUNICODE_STRING SourceString
-    );
-
-NTSTATUS
-DsOpenPolicyKey(
-    _Out_ PHANDLE PolicyKey
-    );
-
-VOID
-DsClosePolicyKey(
-    _In_ HANDLE PolicyKey
-    );
-
-NTSTATUS
-DsQueryLoadModePolicy(
-    _Out_ PULONG LoadMode
-    );
-
-NTSTATUS
-DsSetLoadModePolicy(
-    _In_ ULONG LoadMode
     );
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
@@ -91,17 +61,9 @@ DsTimerDPC(
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
-#pragma alloc_text(PAGE, DsCltGetShieldState)
-#pragma alloc_text(PAGE, DsCtlShieldControl)
-#pragma alloc_text(PAGE, DsCtlMeltdownExpose)
-#pragma alloc_text(PAGE, DsCtlTestRdtscDetection)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
 #pragma alloc_text(PAGE, DsFreeUnicodeString)
 #pragma alloc_text(PAGE, DsCloneUnicodeString)
-#pragma alloc_text(PAGE, DsOpenPolicyKey)
-#pragma alloc_text(PAGE, DsClosePolicyKey)
-#pragma alloc_text(PAGE, DsQueryLoadModePolicy)
-#pragma alloc_text(PAGE, DsSetLoadModePolicy)
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 #pragma alloc_text(PAGE, DsCheckHvciCompliance)
 #endif
@@ -114,18 +76,18 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
-static UNICODE_STRING gDriverKeyName;
-static ULONG gStateFlags;
+UNICODE_STRING gDriverKeyName;
 static BOOLEAN gShutdownCalled;
+ULONG gStateFlags;
+EX_RUNDOWN_REF gChannelRundown;
+PDS_CHANNEL gChannel;
 
-PUCHAR RingPool;
-RING_BUFFER RingBuffer;
+
 KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
 KTIMER ExposeTimer;
 PCHAR LeakBuffer;
-
-PCHAR LeakData = "Overconfidence can take over and caution can be thrown to the wind";
+extern PCHAR LeakData;
 
 NTSTATUS
 DriverEntry(
@@ -140,15 +102,17 @@ DriverEntry(
     ULONG LoadMode = 0;
     BOOLEAN ShutdownCallback = FALSE;
     BOOLEAN SymbolicLink = FALSE;
-    BOOLEAN RingBufferInitialized = FALSE;
+    BOOLEAN MailboxInitialized = FALSE;
 
     gShutdownCalled = FALSE;
     gStateFlags = 0;
 
+    WPP_INIT_TRACING( DriverObject, RegistryPath );
+
     RtlInitUnicodeString( &gDriverKeyName, NULL );
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
-	#pragma warning(disable:4055)
+    #pragma warning(disable:4055)
     ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
 
     if (RtlIsNtDdiVersionAvailable( NTDDI_WIN10 )) {
@@ -163,17 +127,21 @@ DriverEntry(
 #endif
 
     Status = DsInitializeNonPagedPoolList( 256 * PAGE_SIZE );
+
     if (!NT_SUCCESS( Status )) {
+        TraceEvents( TRACE_LEVEL_ERROR, TRACE_INIT,
+                     "DsInitializeNonPagedPoolList failed with status %!STATUS!\n",
+                     Status );
         return Status;
     }
 
-    RingPool = DsAllocatePoolWithTag( NonPagedPool, 1024 * 256, 'pRsD' );
-    if (NULL == RingPool) {
+    Status = RtlMailboxInitialize( MAILBOX_POOL_DEFAULT_SIZE );
+
+    if ( !NT_SUCCESS( Status ) ) {
         goto RoutineExit;
     }
 
-    RtlRingBufferInitialize( &RingBuffer, RingPool, 1024 * 256 );
-    RingBufferInitialized = TRUE;
+    MailboxInitialized = TRUE;
 
     Status = DsCloneUnicodeString( &gDriverKeyName, RegistryPath );
 
@@ -303,15 +271,12 @@ RoutineExit:
             DsFreeUnicodeString( &gDriverKeyName );
         }
 
-        if (RingBufferInitialized) {
-            RtlRingBufferDestroy( &RingBuffer );
-        }
-
-        if (RingPool) {
-            DsFreePoolWithTag( RingPool, 'pRsD' );
+        if (MailboxInitialized) {
+            RtlMailboxDestroy();
         }
 
         DsDeleteNonPagedPoolList();
+        WPP_CLEANUP( DriverObject );
     }
 
     return Status;
@@ -345,14 +310,23 @@ DriverUnload(
         }
     }
 
+    if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
+        ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+
+        ExWaitForRundownProtectionRelease( &gChannelRundown );
+        ExRundownCompleted( &gChannelRundown );
+
+        DsDestroyChannel( gChannel, UnloadDriverReason );
+    }
+
     IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
     IoDeleteDevice( DriverObject->DeviceObject );
 
     DsFreeUnicodeString( &gDriverKeyName );
-    RtlRingBufferDestroy( &RingBuffer );
+    RtlMailboxDestroy();
 
-    DsFreePoolWithTag( RingPool, 'pRsD' );
     DsDeleteNonPagedPoolList();
+    WPP_CLEANUP( DriverObject );
 }
 
 NTSTATUS
@@ -448,6 +422,18 @@ DriverDeviceControl(
             break;
         }
 
+        case IOCTL_SHIELD_CHANNEL_SETUP:
+        {
+            Status = DsCtlShieldChannelSetup( Irp, IrpStack );
+            break;
+        }
+
+        case IOCTL_SHIELD_CHANNEL_TEARDOWN:
+        {
+            Status = DsCtlShieldChannelTeardown( Irp, IrpStack );
+            break;
+        }
+
         case IOCTL_MELTDOWN_EXPOSE:
         {
             Status = DsCtlMeltdownExpose( Irp, IrpStack );
@@ -472,164 +458,6 @@ DriverDeviceControl(
         IoCompleteRequest( Irp, IO_NO_INCREMENT );
     }
 
-    return Status;
-}
-
-NTSTATUS
-DsCltGetShieldState(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    )
-{
-    PSHIELD_STATUS_DATA StatusData;
-    ULONG InputLength;
-    ULONG OutputLength;
-
-    PAGED_CODE();
-
-    InputLength  = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
-    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
-
-    if (max( InputLength, OutputLength ) < sizeof( SHIELD_STATUS_DATA )) {
-        return STATUS_BUFFER_TOO_SMALL;
-    }
-
-    StatusData = (PSHIELD_STATUS_DATA)Irp->AssociatedIrp.SystemBuffer;
-    Irp->IoStatus.Information = sizeof( SHIELD_STATUS_DATA );
-    
-    if (DsIsShieldRunning()) {
-        StatusData->Mode = ShieldRunning;
-    }
-    else {
-        StatusData->Mode = ShieldStopped;
-    }
-
-    return STATUS_SUCCESS;
-}
-
-NTSTATUS
-DsCtlShieldControl(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    )
-{
-    NTSTATUS Status = STATUS_SUCCESS;
-    PSHIELD_CONTROL_DATA ControlData;
-    ULONG InputLength;
-    ULONG OutputLength;
-
-    PAGED_CODE();
-
-    InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
-    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
-
-    if (max( InputLength, OutputLength ) < sizeof( SHIELD_CONTROL_DATA )) {
-        return STATUS_BUFFER_TOO_SMALL;
-    }
-
-    ControlData = (PSHIELD_CONTROL_DATA)Irp->AssociatedIrp.SystemBuffer;
-    ControlData->Result = 0;
-
-    switch (ControlData->Action)
-    {
-        case ShieldStart: 
-        {
-            if (DsIsShieldRunning()) {
-                ControlData->Result = 0xFF;
-                    
-                Status = STATUS_SUCCESS;
-                break;
-            }
-
-            NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
-
-            Status = DsStartShield();
-            if (NT_SUCCESS( Status )) {
-
-                SetFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-                DsSetLoadModePolicy( DSH_RUN_MODE_AUTO_START );
-            }
-
-            break;
-        }
-        case ShieldStop:
-        {
-            if (!DsIsShieldRunning()) {
-                ControlData->Result = 0xFF;
-                    
-                Status = STATUS_SUCCESS;
-                break;
-            }
-
-            NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
-
-            Status = DsStopShield();
-
-            if (NT_SUCCESS( Status )) {
-                ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-                DsSetLoadModePolicy( DSH_RUN_MODE_DISABLED );
-            }
-
-            break;
-        }
-
-        default:
-        {
-            Status = STATUS_INVALID_DEVICE_REQUEST;
-            break;
-        }
-    }
-
-    if (NT_SUCCESS( Status )) {
-        Irp->IoStatus.Information = sizeof( SHIELD_CONTROL_DATA );
-    }
-
-    return Status;
-}
-
-NTSTATUS
-DsCtlMeltdownExpose(
-    _In_ PIRP Irp,
-    _In_ PIO_STACK_LOCATION IrpStack
-    )
-{
-    NTSTATUS Status = STATUS_SUCCESS;
-    PMELTDOWN_EXPOSE_DATA ExposeData;
-    LARGE_INTEGER DueTime;
-    ULONG InputLength;
-    ULONG OutputLength;
-
-    PAGED_CODE();
-
-    InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
-    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
-
-    if (max( InputLength, OutputLength ) < sizeof( MELTDOWN_EXPOSE_DATA )) {
-        return STATUS_BUFFER_TOO_SMALL;
-    }
-
-    ExposeData = (PMELTDOWN_EXPOSE_DATA)Irp->AssociatedIrp.SystemBuffer;
-    ExposeData->LeakAddress = (UINT64)
-                        ExAllocatePoolWithTag( NonPagedPool,
-                                               PAGE_SIZE,
-                                               'dMsD');
-
-    if (0 == ExposeData->LeakAddress) {
-        return STATUS_INSUFFICIENT_RESOURCES;
-    }
-
-    LeakBuffer = (PCHAR)(ULONG_PTR)ExposeData->LeakAddress;
-    RtlZeroMemory( LeakBuffer, PAGE_SIZE );
-    RtlCopyMemory( LeakBuffer, LeakData, sizeof( LeakData ) );
-
-    DueTime.QuadPart = -1000000;
-
-    //
-    //  Fire the L1 periodic 10ms prefetcher.
-    //
-    KeSetTimerEx( &ExposeTimer, DueTime, 10, &ExposeDpc );
-
-    Irp->IoStatus.Information = sizeof( MELTDOWN_EXPOSE_DATA );
     return Status;
 }
 
@@ -662,7 +490,6 @@ DsFreeUnicodeString(
     PAGED_CODE();
 
     if (String->Buffer) {
-
         ExFreePoolWithTag( String->Buffer, 'sUsD' );
         String->Buffer = NULL;
     }
@@ -693,146 +520,6 @@ DsCloneUnicodeString(
     return Status;
 }
 
-NTSTATUS
-DsOpenPolicyKey(
-    _Out_ PHANDLE PolicyKey
-    )
-{
-    HANDLE RootKey = NULL;
-    OBJECT_ATTRIBUTES KeyAttributes;
-    UNICODE_STRING KeyName;
-    NTSTATUS Status = STATUS_UNSUCCESSFUL;
-
-    PAGED_CODE();
-
-    NT_ASSERT( PolicyKey );
-    *PolicyKey = NULL;
-
-    if (NULL == gDriverKeyName.Buffer) {
-        goto RoutineExit;
-    }
-
-    InitializeObjectAttributes( &KeyAttributes,
-                                &gDriverKeyName,
-                                OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                                NULL,
-                                NULL );
-
-    Status = ZwOpenKey( &RootKey, KEY_ALL_ACCESS, &KeyAttributes );
-
-    if (NT_SUCCESS( Status )) {
-
-        RtlInitUnicodeString( &KeyName, DSH_POLICY_KEY_NAME);
-
-        RtlZeroMemory( &KeyAttributes, sizeof( OBJECT_ATTRIBUTES ));
-        InitializeObjectAttributes( &KeyAttributes,
-                                    &KeyName,
-                                    OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-                                    RootKey,
-                                    NULL);
-
-        Status = ZwCreateKey( PolicyKey,
-                              KEY_ALL_ACCESS,
-                              &KeyAttributes,
-                              0,
-                              NULL,
-                              REG_OPTION_NON_VOLATILE,
-                              NULL );
-
-        if (!NT_SUCCESS( Status )) {
-            *PolicyKey = NULL;
-        }
-    }
-
-RoutineExit:
-
-    if (RootKey) {
-        ZwClose( RootKey );
-    }
-
-    return Status;
-}
-
-VOID
-DsClosePolicyKey(
-    _In_ HANDLE PolicyKey
-    )
-{
-    PAGED_CODE();
-    ZwClose( PolicyKey );
-}
-
-NTSTATUS
-DsSetLoadModePolicy(
-    _In_ ULONG LoadMode
-    )
-{
-    HANDLE PolicyKey;
-    UNICODE_STRING ValueName;
-    NTSTATUS Status;
-
-    PAGED_CODE();
-
-    Status = DsOpenPolicyKey( &PolicyKey );
-
-    if (NT_SUCCESS( Status )) {
-        RtlInitUnicodeString( &ValueName, DSH_RUN_MODE_POLICY );
-
-        Status = ZwSetValueKey( PolicyKey,
-                                &ValueName,
-                                0,
-                                REG_DWORD,
-                                &LoadMode,
-                                sizeof( ULONG ));
-
-        DsClosePolicyKey( PolicyKey );
-    }
-
-    return Status;
-}
-
-NTSTATUS
-DsQueryLoadModePolicy(
-    _Out_ PULONG LoadMode
-    )
-{
-    NTSTATUS Status;
-    HANDLE PolicyKey;
-    UCHAR Buffer[sizeof( KEY_VALUE_PARTIAL_INFORMATION ) + sizeof( LONG )];
-    PKEY_VALUE_PARTIAL_INFORMATION ValuePartialInfo;
-    UNICODE_STRING ValueName;
-    ULONG ResultLength;
-
-    PAGED_CODE();
-
-    NT_ASSERT( LoadMode );
-    *LoadMode = 0;
-
-    Status = DsOpenPolicyKey( &PolicyKey );
-
-    if (NT_SUCCESS( Status )) {
-        RtlInitUnicodeString( &ValueName, DSH_RUN_MODE_POLICY );
-
-        Status = ZwQueryValueKey( PolicyKey,
-                                  &ValueName,
-                                  KeyValuePartialInformation,
-                                  Buffer,
-                                  sizeof( Buffer ),
-                                  &ResultLength );
-
-        if (NT_SUCCESS( Status )) {
-            ValuePartialInfo = (PKEY_VALUE_PARTIAL_INFORMATION) Buffer;
-
-            if (ValuePartialInfo->Type == REG_DWORD) {
-                *LoadMode = *((PLONG)&(ValuePartialInfo->Data));
-            }
-        }
-
-        DsClosePolicyKey( PolicyKey );
-    }
-    
-    return Status;
-}
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 BOOLEAN
 DsCheckHvciCompliance(
@@ -895,3 +582,65 @@ DsTimerDPC(
         _mm_prefetch( LeakBuffer + Idx, _DS_MM_HINT_T0 );
     }
 }
+
+#if !defined(WPP_EVENT_TRACING)
+VOID
+TraceEvents(
+    _In_ ULONG DebugPrintLevel,
+    _In_ ULONG DebugPrintFlag,
+    __drv_formatString( printf ) __in PCSTR DebugMessage,
+    ...
+    )
+/*++
+Routine Description:
+    
+    Debug print for the DeepShield driver.
+
+Arguments:
+    
+    TraceEventsLevel - print level between 0 and 3, with 3 the most verbose
+
+Return Value:
+    
+    None.
+
+ --*/
+ {
+#if DBG
+#define     TEMP_BUFFER_SIZE        1024
+    va_list    list;
+    CHAR       debugMessageBuffer[TEMP_BUFFER_SIZE];
+    NTSTATUS   Status;
+
+    va_start( list, DebugMessage );
+
+    if (DebugMessage) {
+        //
+        //  Using new safe string functions instead of _vsnprintf.
+        //
+        Status = RtlStringCbVPrintfA( debugMessageBuffer,
+                                      sizeof(debugMessageBuffer),
+                                      DebugMessage,
+                                      list );
+        if (!NT_SUCCESS( Status )) {
+            DbgPrint (_DRIVER_NAME_": RtlStringCbVPrintfA failed 0x%x\n", Status);
+            return;
+        }
+
+        if (DebugPrintLevel <= TRACE_LEVEL_ERROR 
+            || (DebugPrintLevel <= DebugLevel &&
+              ((DebugPrintFlag & DebugFlag) == DebugPrintFlag))) {
+
+            DbgPrint( "%s %s", _DRIVER_NAME_, debugMessageBuffer );
+        }
+    }
+
+    va_end( list );
+    return;
+#else
+    UNREFERENCED_PARAMETER(DebugPrintLevel);
+    UNREFERENCED_PARAMETER(DebugPrintFlag);
+    UNREFERENCED_PARAMETER(DebugMessage);
+#endif
+}
+#endif

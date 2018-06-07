@@ -7,31 +7,38 @@ _NT_TARGET_VERSION=$(_NT_TARGET_VERSION_WINXP)
 
 TARGETLIBS = $(DDK_LIB_PATH)\wdmsec.lib $(DDK_LIB_PATH)\wdm.lib
 LINKER_FLAGS=$(LINKER_FLAGS) /MAP /MAPINFO:EXPORTS /INTEGRITYCHECK
-C_DEFINES = $(C_DEFINES) -DWDK7 -DPOOL_NX_OPTIN=1
+C_DEFINES = $(C_DEFINES) -DWDK7 -DPOOL_NX_OPTIN=1 -DWPP_EVENT_TRACING
+
+RUN_WPP=$(SOURCES) -km -func:TraceEvents(LEVEL,FLAGS,MSG,...)
 
 INCLUDES = ..\inc
 
-SOURCES = context.c \
-		  driver.c \
-		  exits.c \
-			tests.c \
-			tsc.c \
-		  hvds.c \
-		  hvm_config.c \
-		  hvm_create.c \
-		  hvm_exits.c \
-		  hvm_launch.c \
-		  hvm_root.c \
-		  instr.c \
-		  mem.c \
-		  mmu.c \
-		  shield.c \
-		  smp.c \
-		  sync.c \
-		  vmcs.c \
-		  vmx.c \
-		  x86.c \
-		  hvm_a.asm \
-		  vmx_a.asm \
-		  x86_a.asm \
-		  deepshield.rc
+SOURCES = channel.c \
+          context.c \
+          driver.c \
+          exits.c \
+          hvds.c \
+          hvm_config.c \
+          hvm_create.c \
+          hvm_exits.c \
+          hvm_launch.c \
+          hvm_root.c \
+          instr.c \
+          ioctl.c \
+          mailbox.c \
+          mem.c \
+          mmu.c \
+          policy.c \
+          ringbuf.c \
+          shield.c \
+          smp.c \
+          sync.c \
+          tests.c \
+          tsc.c \
+          vmcs.c \
+          vmx.c \
+          x86.c \
+          hvm_a.asm \
+          vmx_a.asm \
+          x86_a.asm \
+          deepshield.rc
