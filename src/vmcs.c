@@ -244,7 +244,7 @@ VmcsConfigureCommonEntry(
 {
 #ifndef _WIN64
     ULONG_PTR cr4 = 0;
-#endif	
+#endif    
     VmxVmcsWritePlatform(GUEST_RSP,    rsp);
     VmxVmcsWritePlatform(GUEST_RIP,    rip);
     VmxVmcsWritePlatform(GUEST_RFLAGS, rflags.u.raw);

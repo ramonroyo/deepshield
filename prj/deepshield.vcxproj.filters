@@ -109,6 +109,18 @@
     <ClCompile Include="..\src\ringbuf.c">
       <Filter>src\rtl</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\mailbox.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\channel.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ioctl.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\policy.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -167,6 +179,18 @@
     </ClInclude>
     <ClInclude Include="..\src\ringbuf.h">
       <Filter>src\rtl</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\wpp.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\mailbox.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\channel.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\policy.h">
+      <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

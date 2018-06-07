@@ -348,19 +348,22 @@ HvmStart(
 
     status = STATUS_UNSUCCESSFUL;
 
-    if(gHvm == 0)
+    if (gHvm == 0) {
         return status;
+    }
 
-    if (AtomicRead(&gHvm->launched) == TRUE)
+    if (AtomicRead( &gHvm->launched ) == TRUE) {
         return status;
+    }
 
     //
     // Start virtualization
     //
-    status = SmpExecuteOnAllCores(HvmpStartCore, gHvm);
+    status = SmpExecuteOnAllCores( HvmpStartCore, gHvm );
 
-    if (NT_SUCCESS(status))
-        AtomicWrite(&gHvm->launched, TRUE);
+    if (NT_SUCCESS( status )) {
+        AtomicWrite( &gHvm->launched, TRUE );
+    }
 
     return status;
 }
@@ -374,18 +377,22 @@ HvmStop(
 
     status = STATUS_UNSUCCESSFUL;
 
-    if (gHvm == 0)
+    if (gHvm == 0) {
         return status;
+    }
 
-    if (AtomicRead(&gHvm->launched) == FALSE)
+    if (AtomicRead( &gHvm->launched ) == FALSE) {
         return status;
+    }
 
     //
     // Stop virtualization
     //
-    status = SmpExecuteOnAllCores(HvmpStopCore, 0);
-    if(NT_SUCCESS(status))
+    status = SmpExecuteOnAllCores( HvmpStopCore, 0 );
+
+    if (NT_SUCCESS( status )) {
         AtomicWrite(&gHvm->launched, FALSE);
+    }
 
     return status;
 }

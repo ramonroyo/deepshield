@@ -14,7 +14,7 @@ Environment:
 
 --*/
 
-#include <ntddk.h>
+#include <ntifs.h>
 #include "ringbuf.h"
 
 #define RB_AVAILABLE_BYTES( h, t, b ) \
@@ -64,7 +64,7 @@ RtlRingBufferGetAvailBytes(
 NTSTATUS
 RtlRingBufferWrite(
     _In_ PRING_BUFFER RingBuffer,
-    _In_reads_bytes_(DataSize) PUCHAR Data,
+    _In_reads_bytes_(DataSize) PCHAR Data,
     _In_ SIZE_T DataSize
     )
 {
@@ -148,7 +148,7 @@ RtlRingBufferWrite(
 NTSTATUS
 RtlRingBufferRead(
     _In_ PRING_BUFFER RingBuffer,
-    _Out_writes_bytes_to_(DataSize, *BytesCopied) PUCHAR Data,
+    _Out_writes_bytes_to_(DataSize, *BytesCopied) PCHAR Data,
     _In_ SIZE_T DataSize,
     _Out_ PSIZE_T BytesCopied
     )
@@ -171,6 +171,7 @@ RtlRingBufferRead(
     RtlRingBufferGetAvailBytes( RingBuffer, &AvailToWrite, &AvailToRead );
 
     if (AvailToRead == 0) {
+        KeReleaseSpinLock( &RingBuffer->Lock, OldIrql );
         return STATUS_SUCCESS;
     }
 

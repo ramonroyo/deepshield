@@ -1,7 +1,7 @@
 #ifndef __SHIELD_H__
 #define __SHIELD_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 NTSTATUS
 DsIsHvdsSupported(

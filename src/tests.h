@@ -1,9 +1,15 @@
-/**
-*  @file    tests.h
-*  @brief   All testing related functionality.
-*/
-#ifndef __TESTS_H__
-#define __TESTS_H__
+/*++
+
+Copyright (C) ByteHeed. All Rights Reserved
+
+Module Name:
+
+    tests.h
+
+--*/
+
+#ifndef _TESTS_H_
+#define _TESTS_H_
 
 #include "dsdef.h"
 
@@ -36,6 +42,5 @@ DsCtlTestRdtscDetection(
     _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpStack
     );
-
 
 #endif

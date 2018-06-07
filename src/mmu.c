@@ -1,4 +1,3 @@
-#include <ntddk.h>
 #include "dsdef.h"
 #include "mmu.h"
 #include "smp.h"

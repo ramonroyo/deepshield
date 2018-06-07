@@ -5,7 +5,7 @@
 #ifndef __MMU_H__
 #define __MMU_H__
 
-#include <ntddk.h>
+#include <ntifs.h>
 
 #define CR4_PAE_ENABLED 0x20
 

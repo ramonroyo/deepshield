@@ -152,7 +152,11 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;WPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -168,7 +172,11 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;WPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -182,7 +190,11 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;POOL_NX_OPTIN=1;WPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -196,7 +208,12 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;NOWPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -211,7 +228,12 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NotSet</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;WPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -226,7 +248,12 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <EnableEnhancedInstructionSet>NoExtensions</EnableEnhancedInstructionSet>
-      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WIN64;_AMD64_;POOL_NX_OPTIN=1;WPP_EVENT_TRACING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WppEnabled>true</WppEnabled>
+      <WppKernelMode>true</WppKernelMode>
+      <WppTraceFunction>
+      </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -236,9 +263,13 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\channel.c" />
     <ClCompile Include="..\src\context.c" />
     <ClCompile Include="..\src\driver.c" />
     <ClCompile Include="..\src\hvds.c" />
+    <ClCompile Include="..\src\ioctl.c" />
+    <ClCompile Include="..\src\mailbox.c" />
+    <ClCompile Include="..\src\policy.c" />
     <ClCompile Include="..\src\ringbuf.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
@@ -260,9 +291,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\ioctl.h" />
+    <ClInclude Include="..\src\channel.h" />
     <ClInclude Include="..\src\context.h" />
     <ClInclude Include="..\src\dsdef.h" />
     <ClInclude Include="..\src\hvds.h" />
+    <ClInclude Include="..\src\mailbox.h" />
+    <ClInclude Include="..\src\policy.h" />
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />
     <ClInclude Include="..\src\ringbuf.h" />
@@ -277,6 +311,7 @@
     <ClInclude Include="..\src\sync.h" />
     <ClInclude Include="..\src\vmcs.h" />
     <ClInclude Include="..\src\vmx.h" />
+    <ClInclude Include="..\src\wpp.h" />
     <ClInclude Include="..\src\x86.h" />
   </ItemGroup>
   <ItemGroup>

@@ -1,12 +1,26 @@
 #ifndef __DSDEF_H
 #define __DSDEF_H
 
+#include <ntifs.h>
+#include <ntstrsafe.h>
+#include <stdarg.h>
 #include <ioctl.h>
 #include "wdk7.h"
+#include "wpp.h"
 #include "ringbuf.h"
+#include "mailbox.h"
+#include "channel.h"
 #include "shield.h"
+#include "policy.h"
+#include "ioctl.h"
+#include "tests.h"
 #include "mem.h"
 #include "smp.h"
+
+extern ULONG gStateFlags;
+extern EX_RUNDOWN_REF gChannelRundown;
+extern PDS_CHANNEL gChannel;
+extern UNICODE_STRING gDriverKeyName;
 
 #define DSH_POLICY_KEY_NAME    L"Parameters"
 #define DSH_RUN_MODE_POLICY    L"OperationMode"
@@ -22,6 +36,7 @@
 //
 #define DSH_GFL_SHIELD_INITIALIZED  0x00000001
 #define DSH_GFL_SHIELD_STARTED      0x00000002
+#define DSH_GFL_CHANNEL_SETUP       0x00000004
 
 //
 //  These macros are used to test, set and clear flags respectivly
@@ -53,7 +68,7 @@
 #define DsDeleteNonPagedPoolList()
 #define DsAllocatePoolWithTag(_p_, _x_, _t_) ExAllocatePoolWithTag (_p_, _x_, _t_)
 #define DsFreePoolWithTag(_p_, _t_) ExFreePoolWithTag( _p_, _t_)
-#endif // ENABLE_LIB_POOL
+#endif
 
 typedef
 PVOID
@@ -249,8 +264,8 @@ typedef enum _SYSTEM_INFORMATION_CLASS {
     MaxSystemInfoClass = 177,
 } SYSTEM_INFORMATION_CLASS;
 
-#define CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED	            0x0400
-#define	CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED    0x0800
+#define CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED                0x0400
+#define    CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED    0x0800
 #define CODEINTEGRITY_OPTION_HVCI_KMCI_STRICTMODE_ENABLED   0x1000
 #define CODEINTEGRITY_OPTION_HVCI_IUM_ENABLED               0x2000
 
@@ -268,5 +283,29 @@ ZwQuerySystemInformation(
     _In_ ULONG SystemInformationLength,
     _Out_opt_ PULONG ReturnLength
 );
-#endif
+#endif // (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
+
+
+#define TIMEOUT_TO_SEC              ((LONGLONG) 1 * 10 * 1000 * 1000)
+#define TIMEOUT_TO_MS               ((LONGLONG) 1 * 10 * 1000)
+#define TIMEOUT_TO_US               ((LONGLONG) 1 * 10)
+
+LONGLONG
+FORCEINLINE
+REL_TIMEOUT_IN_MS(
+    _In_ ULONGLONG Time
+    )
+{
+    return Time * -1 * TIMEOUT_TO_MS;
+}
+
+LONGLONG
+FORCEINLINE
+ABS_TIMEOUT_IN_MS(
+    _In_ ULONGLONG Time
+    )
+{
+    return Time * 1 * TIMEOUT_TO_MS;
+}
+
 #endif

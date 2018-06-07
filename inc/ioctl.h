@@ -1,8 +1,8 @@
 #ifndef __SHIELD_IOCTL_H__
 #define __SHIELD_IOCTL_H__
 
-#include <ntdef.h>
-#include "dsdef.h"
+#include <ntifs.h>
+#include "wdk7.h"
 
 #define DS_WINNT_DEVICE_NAME L"\\Device\\DeepShield"
 #define DS_MSDOS_DEVICE_NAME L"\\DosDevices\\DeepShield"
@@ -44,6 +44,22 @@ typedef struct _SHIELD_CONTROL_DATA
     ULONG Result;
 } SHIELD_CONTROL_DATA, *PSHIELD_CONTROL_DATA;
 
+#define IOCTL_SHIELD_CHANNEL_SETUP \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A100, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
+
+#define IOCTL_SHIELD_CHANNEL_TEARDOWN \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A101, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
+
+typedef struct _SHIELD_CHANNEL_DATA {
+    ULONG ChannelId;
+    PVOID ChannelAddress;
+    ULONG ChannelSize;
+} SHIELD_CHANNEL_DATA, *PSHIELD_CHANNEL_DATA;
+
+typedef struct _SHIELD_CHANNEL_ID {
+    ULONG ChannelId;
+} SHIELD_CHANNEL_ID, *PSHIELD_CHANNEL_ID;
+
 //
 // Meltdown Expose IOCTL
 //
@@ -64,5 +80,35 @@ typedef struct _MELTDOWN_EXPOSE_DATA
 {
     ULONG64 LeakAddress;
 } MELTDOWN_EXPOSE_DATA, *PMELTDOWN_EXPOSE_DATA;
+
+NTSTATUS
+DsCltGetShieldState(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
+NTSTATUS
+DsCtlShieldControl(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
+NTSTATUS
+DsCtlShieldChannelSetup(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
+NTSTATUS
+DsCtlShieldChannelTeardown(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
+NTSTATUS
+DsCtlMeltdownExpose(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
 
 #endif

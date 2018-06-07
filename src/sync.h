@@ -5,8 +5,7 @@
 #ifndef __SYNC_H__
 #define __SYNC_H__
 
-#include <ntddk.h>
-
+#include <ntifs.h>
 
 /**
 * Spinlock type. Natural word.

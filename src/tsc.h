@@ -18,14 +18,14 @@
 #define MAX_TSC_HITS 100
 
 typedef struct _TSC_HIT {
-	UINT64 Address;
-	UINT64 TimeStamp;
+    UINT64 Address;
+    UINT64 TimeStamp;
     UINT64 Count;
 } TSC_HIT, *PTSC_HIT;
 
 typedef struct _TSC_ENTRY {
-	TSC_HIT  Before;
-	TSC_HIT  After;
+    TSC_HIT  Before;
+    TSC_HIT  After;
     ULONG    Skips;
     UINT64   Difference;
     UINT_PTR Process;

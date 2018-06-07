@@ -1,15 +1,70 @@
-#include "tests.h"
+/*++
+
+Copyright (c) ByteHeed. All Rights Reserved.
+
+Module Name:
+
+    tests.c
+
+Abstract:
+
+    This file implements the test cases.
+
+Environment:
+
+--*/
+
+#include "dsdef.h"
+
+#if defined(WPP_EVENT_TRACING)
+#include "tests.tmh"
+#endif
+
 #include "tsc.h"
 #include "context.h"
 
 #pragma intrinsic(__rdtsc)
+
+PLOCAL_CONTEXT
+CreateLocalContext(
+    VOID
+    );
+
+VOID
+DestroyLocalContext(
+    _Inout_ PLOCAL_CONTEXT Context
+    );
+
+TestResult
+TestBasicTimeStampDetectionReuse(
+    VOID
+    );
+
+TestResult
+TestBasicTimeStampDetectionWithSkip(
+    VOID
+    );
+
+TestResult
+TestBasicTimeStampDetection(
+    VOID
+    );
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text(PAGE, CreateLocalContext)
+#pragma alloc_text(PAGE, DestroyLocalContext)
+#pragma alloc_text(PAGE, TestBasicTimeStampDetectionReuse)
+#pragma alloc_text(PAGE, TestBasicTimeStampDetectionWithSkip)
+#pragma alloc_text(PAGE, TestBasicTimeStampDetection)
+#pragma alloc_text(PAGE, DsCtlTestRdtscDetection)
+#endif
 
 #define LOCAL_CONTEXT_TAG 'CLSD'
 #define TSC_HITS_TAG      'HTSD'
 
 UINT64 RandomInt(
     VOID
-)
+    )
 {
     LARGE_INTEGER TimeStampA = { 0 };
     LARGE_INTEGER TimeStampB = { 0 };
@@ -28,48 +83,56 @@ CreateCR3 (
     return (ULONG_PTR)RandomInt() & 0x00000000FFFFFF00;
 }
 
-
-PLOCAL_CONTEXT CreateLocalContext(
+PLOCAL_CONTEXT 
+CreateLocalContext(
     VOID
-)
+    )
 {
     PLOCAL_CONTEXT Context = NULL;
 
-    Context = ExAllocatePoolWithTag(NonPagedPool, sizeof(LOCAL_CONTEXT), LOCAL_CONTEXT_TAG);
+    PAGED_CODE();
 
-    if ( !Context ) {
+    Context = ExAllocatePoolWithTag( NonPagedPool, 
+                                     sizeof( LOCAL_CONTEXT ),
+                                     LOCAL_CONTEXT_TAG );
+
+    if (!Context) {
         return NULL;
     }
 
-    memset(Context, 0, sizeof(LOCAL_CONTEXT));
+    RtlZeroMemory( Context, sizeof( LOCAL_CONTEXT ) );
 
-    Context->TscHits = ExAllocatePoolWithTag(NonPagedPool, sizeof(TSC_ENTRY) * MAX_TSC_HITS, TSC_HITS_TAG);
+    Context->TscHits = ExAllocatePoolWithTag( NonPagedPool, 
+                                              sizeof( TSC_ENTRY ) * MAX_TSC_HITS,
+                                              TSC_HITS_TAG);
 
 
-    if ( !Context->TscHits ) {
-        ExFreePoolWithTag(Context, LOCAL_CONTEXT_TAG);
+    if (!Context->TscHits) {
+        ExFreePoolWithTag( Context, LOCAL_CONTEXT_TAG );
         return NULL;
     }
 
-    memset(Context->TscHits, 0, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
-
+    RtlZeroMemory( Context->TscHits, sizeof( TSC_ENTRY ) * MAX_TSC_HITS );
     Context->TscOffset = 0;
 
     return Context;
 }
 
+VOID
 DestroyLocalContext(
-    PLOCAL_CONTEXT Context
-)
+    _Inout_ PLOCAL_CONTEXT Context
+    )
 {
-    NT_ASSERT(Context);
+    NT_ASSERT( Context );
 
-    if ( Context ) {
+    PAGED_CODE();
+
+    if (Context ){
         if (Context->TscHits) {
-            ExFreePoolWithTag(Context->TscHits, TSC_HITS_TAG);
+            ExFreePoolWithTag( Context->TscHits, TSC_HITS_TAG );
         }
 
-        ExFreePoolWithTag(Context, LOCAL_CONTEXT_TAG);
+        ExFreePoolWithTag( Context, LOCAL_CONTEXT_TAG );
     }
 }
 
@@ -86,14 +149,13 @@ TestReadMsr(
 #endif
 
     ASSERT( Index == IA32_TSC );
-
     return gCurrentTsc;
 }
 
 VOID
 RdtscEmulateTester(
     _In_ PLOCAL_CONTEXT Local,
-	_In_ PREGISTERS     Regs,
+    _In_ PREGISTERS     Regs,
     _In_ UINT_PTR       Process
 )
 {
@@ -133,19 +195,21 @@ AddGlobalTsc(
 //
 // Preliminar dummy test of RDTSC
 //
+#define CONSTANT_TSC 0x600
+
 TestResult
 TestBasicTimeStampDetectionReuse(
     VOID
-)
+    )
 {
-    #define CONSTANT_TSC 0x600
-
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
     UINT_PTR       Process       = 0;
 
     REGISTERS      Regs          = { 0 };
     INT            i             = 0;
+
+    PAGED_CODE();
 
     Context = CreateLocalContext();
 
@@ -154,7 +218,6 @@ TestBasicTimeStampDetectionReuse(
     }
 
     InitGlobalTsc();
-
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         // create a new CR3 per Sibling
@@ -219,9 +282,7 @@ TestBasicTimeStampDetectionReuse(
     DestroyLocalContext(Context);
 
     return TestErrorDetectionFailed;
-
 }
-
 
 //
 // Preliminar dummy test of RDTSC
@@ -229,7 +290,7 @@ TestBasicTimeStampDetectionReuse(
 TestResult
 TestBasicTimeStampDetectionWithSkip(
     VOID
-)
+    )
 {
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
@@ -238,6 +299,8 @@ TestBasicTimeStampDetectionWithSkip(
     REGISTERS      Regs          = { 0 };
     UINT32         Addition      = 0;
     INT            i             = 0;
+
+    PAGED_CODE();
 
     Context = CreateLocalContext();
 
@@ -298,11 +361,8 @@ TestBasicTimeStampDetectionWithSkip(
     }
 
     DestroyLocalContext(Context);
-
     return TestErrorDetectionFailed;
-
 }
-
 
 //
 // Preliminar dummy test of RDTSC
@@ -310,7 +370,7 @@ TestBasicTimeStampDetectionWithSkip(
 TestResult
 TestBasicTimeStampDetection(
     VOID
-)
+    )
 {
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
@@ -320,7 +380,8 @@ TestBasicTimeStampDetection(
     //UINT8          FakeMapping[17] = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;
-
+    
+    PAGED_CODE();
 
     Context = CreateLocalContext();
 
@@ -364,9 +425,7 @@ TestBasicTimeStampDetection(
     }
 
     DestroyLocalContext(Context);
-
     return TestErrorDetectionFailed;
-
 }
 
 NTSTATUS
@@ -395,12 +454,15 @@ DsCtlTestRdtscDetection(
     case TestBasicRdtscDetection:
         Request->Result = TestBasicTimeStampDetection();
         break;
+
     case TestBasicRdtscDetectionWithSkip:
         Request->Result = TestBasicTimeStampDetectionWithSkip();
         break;
+
     case TestRdtscDetectionReuse:
         Request->Result = TestBasicTimeStampDetectionReuse();
         break;
+
     default:
         Request->Result = TestErrorRequestInvalid;
         break;
