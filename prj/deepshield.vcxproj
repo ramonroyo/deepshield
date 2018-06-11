@@ -157,6 +157,7 @@
       <WppKernelMode>true</WppKernelMode>
       <WppTraceFunction>
       </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -177,6 +178,7 @@
       <WppKernelMode>true</WppKernelMode>
       <WppTraceFunction>
       </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>
@@ -195,6 +197,7 @@
       <WppKernelMode>true</WppKernelMode>
       <WppTraceFunction>
       </WppTraceFunction>
+      <WppScanConfigurationData>..\src\wpp.h</WppScanConfigurationData>
     </ClCompile>
     <DriverSign>
       <FileDigestAlgorithm>SHA256</FileDigestAlgorithm>

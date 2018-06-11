@@ -211,7 +211,7 @@ RtlPostMailboxTrace(
         if (NT_SUCCESS( Status )) {
             Status = RtlStringCbLengthA( TraceBuffer,
                                          MAILBOX_BUFFER_SIZE,
-                                         &TraceLenght );
+                                         (size_t*)&TraceLenght );
         } else {
             DbgPrint( "RtlStringCbVPrintfA failed 0x%x\n", Status );
         }
