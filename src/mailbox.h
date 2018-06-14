@@ -17,6 +17,15 @@ Module Name:
 #define MAILBOX_BUFFER_SIZE        1024
 #define MAILBOX_POOL_DEFAULT_SIZE (1024 * 256)
 
+typedef struct _MAILBOX {
+    PUCHAR PoolBuffer;
+    RING_BUFFER RingBuffer;
+    PETHREAD Thread;
+    KEVENT ShutdownEvent;
+    KSEMAPHORE QueueSemaphore;
+    PKSTART_ROUTINE WorkerThread;
+} MAILBOX, *PMAILBOX;
+
 typedef enum _MAILBOX_TYPE {
     MailboxTrace,
     MailboxNotification
@@ -53,31 +62,34 @@ typedef struct _MAILBOX_HEADER {
 } MAILBOX_HEADER, *PMAILBOX_HEADER;
 
 NTSTATUS
-RtlMailboxStartThread(
-    VOID
+RtlMailboxStartWorker(
+    _Inout_ PMAILBOX Mailbox
     );
 
 VOID
-RtlMailboxStopThread(
-    VOID
+RtlMailboxStopWorker(
+    _Inout_ PMAILBOX Mailbox
     );
 
 VOID
-RtlMailboxPollingThread(
+RtlMailboxWorkerThread(
     _In_ PVOID Context
 );
 
 NTSTATUS
 RtlMailboxInitialize(
+    _Inout_ PMAILBOX Mailbox,
     _In_ ULONG PoolSize
     );
 
 VOID
 RtlMailboxDestroy(
+    _Inout_ PMAILBOX Mailbox
     );
 
 NTSTATUS
 RtlPostMailboxTrace(
+    _Inout_ PMAILBOX Mailbox,
     _In_ ULONG Level,
     _In_ ULONG Area,
     __drv_formatString( printf ) _In_ PCSTR TraceMessage,
@@ -86,13 +98,15 @@ RtlPostMailboxTrace(
 
 NTSTATUS
 RtlPostMailboxNotification(
+    _Inout_ PMAILBOX Mailbox,
     _In_ PVOID Notification,
     _In_ SIZE_T Length
     );
 
 NTSTATUS
-RtlRetrieveMailbox(
-    _Inout_ PMAILBOX_HEADER Mailbox,
+RtlRetrieveMailboxData(
+    _Inout_ PMAILBOX Mailbox,
+    _Inout_ PMAILBOX_HEADER MailboxHeader,
     _Out_writes_bytes_( DataSize ) PCHAR Data,
     _In_ SIZE_T DataSize
     );

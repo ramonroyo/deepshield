@@ -22,91 +22,107 @@ Environment:
 #endif
 
 #ifdef ALLOC_PRAGMA
-#pragma alloc_text(PAGE, RtlMailboxStartThread)
-#pragma alloc_text(PAGE, RtlMailboxStopThread)
+#pragma alloc_text(PAGE, RtlMailboxStartWorker)
+#pragma alloc_text(PAGE, RtlMailboxStopWorker)
 #pragma alloc_text(PAGE, RtlMailboxInitialize)
 #pragma alloc_text(PAGE, RtlMailboxDestroy)
-#pragma alloc_text(PAGE, RtlMailboxPollingThread)
+#pragma alloc_text(PAGE, RtlMailboxWorkerThread)
 #endif
 
-static PUCHAR TracePool;
-static RING_BUFFER TraceRing;
-static PVOID ThreadObject;
+KSTART_ROUTINE RtlMailboxWorkerThread;
 
-static KEVENT ShutdownEvent;
-static KSEMAPHORE MailboxQueueSemaphore;
-
-KSTART_ROUTINE RtlMailboxPollingThread;
+MAILBOX gSecureMailbox;
 
 VOID
-RtlMailboxPollingThread(
+RtlMailboxWorkerThread(
     _In_ PVOID Context
 );
 
 NTSTATUS
-RtlMailboxStartThread(
-    VOID
+RtlMailboxStartWorker(
+    _Inout_ PMAILBOX Mailbox
     )
 {
     NTSTATUS Status;
-    HANDLE Thread;
+    OBJECT_ATTRIBUTES Oa = { 0 };
+    HANDLE ThreadHandle;
 
     PAGED_CODE();
 
-    KeInitializeEvent( &ShutdownEvent, NotificationEvent, FALSE );
-    KeInitializeSemaphore( &MailboxQueueSemaphore, 0, MAXLONG );
-    
-    Status = PsCreateSystemThread( &Thread, 
+    KeInitializeSemaphore( &Mailbox->QueueSemaphore, 0, MAXLONG );
+    KeInitializeEvent( &Mailbox->ShutdownEvent, NotificationEvent, FALSE );
+
+    InitializeObjectAttributes( &Oa, NULL, OBJ_KERNEL_HANDLE, NULL, NULL );
+    Status = PsCreateSystemThread( &ThreadHandle,
                                    THREAD_ALL_ACCESS, 
+                                   &Oa,
                                    NULL,
                                    NULL,
-                                   NULL,
-                                   RtlMailboxPollingThread,
-                                   NULL );
+                                   Mailbox->WorkerThread,
+                                   (PVOID)Mailbox );
 
     if (NT_SUCCESS( Status )) {
-        ObReferenceObjectByHandle( Thread,
-                                   THREAD_ALL_ACCESS,
-                                   NULL,
-                                   KernelMode, 
-                                   (PVOID*)ThreadObject,
-                                   NULL );
-        ZwClose( Thread );
+        Status = ObReferenceObjectByHandle( ThreadHandle,
+                                            THREAD_ALL_ACCESS,
+                                            *PsThreadType,
+                                            KernelMode, 
+                                            (PVOID*)Mailbox->Thread,
+                                            NULL );
+        if (NT_SUCCESS( Status ) ) {
+            ZwClose( ThreadHandle );
+
+        } else {
+            RtlMailboxStopWorker( Mailbox );
+            NT_VERIFYMSG( "ObReferenceObjectByHandle can't fail with a valid kernel handle",
+                          NT_SUCCESS( Status ) );
+        }
     }
 
     return Status;
 }
 
 VOID 
-RtlMailboxStopThread(
-    VOID
+RtlMailboxStopWorker(
+    _Inout_ PMAILBOX Mailbox
     )
 {
     PAGED_CODE();
-    KeSetEvent( &ShutdownEvent, IO_NO_INCREMENT, FALSE );
 
-    KeWaitForSingleObject( ThreadObject, Executive, KernelMode, FALSE, NULL );
-    ObDereferenceObject( ThreadObject );
+    KeSetEvent( &Mailbox->ShutdownEvent, IO_NO_INCREMENT, FALSE );
+
+    if (Mailbox->Thread) {
+        KeWaitForSingleObject( Mailbox->Thread,
+                               Executive,
+                               KernelMode,
+                               FALSE,
+                               NULL );
+
+        ObDereferenceObject( Mailbox->Thread );
+        Mailbox->Thread = NULL;
+    }
 }
 
 VOID
-RtlMailboxPollingThread(
+RtlMailboxWorkerThread(
     _In_ PVOID Context
     )
 {
     NTSTATUS Status;
-    CHAR Data[1024];
-    PVOID WaitObjects[] = { &ShutdownEvent, &MailboxQueueSemaphore };
-    MAILBOX_HEADER Mailbox;
+    CHAR Data[MAILBOX_BUFFER_SIZE];
+    PVOID WaitObjects[2];
+    PMAILBOX Mailbox = (PMAILBOX) Context;
     PDS_NOTIFICATION_MESSAGE Message;
+    MAILBOX_HEADER MailboxHeader;
 
     PAGED_CODE();
-    UNREFERENCED_PARAMETER( Context );
+
+    WaitObjects[0] = &Mailbox->ShutdownEvent;
+    WaitObjects[1] = &Mailbox->QueueSemaphore;
 
     KeSetPriorityThread( KeGetCurrentThread(), LOW_REALTIME_PRIORITY );
 
     for (;;) {
-        Status = KeWaitForMultipleObjects( 2,
+        Status = KeWaitForMultipleObjects( ARRAYSIZE( WaitObjects ),
                                            WaitObjects,
                                            WaitAny,
                                            Executive,
@@ -116,24 +132,32 @@ RtlMailboxPollingThread(
                                            NULL );
 
         if (Status == STATUS_WAIT_0) {
-            PsTerminateSystemThread( STATUS_SUCCESS );
+            break;
         }
         else if (Status == STATUS_WAIT_1) {
-            Status = RtlRetrieveMailbox( &Mailbox, Data, 1024 );
+            Status = RtlRetrieveMailboxData( Mailbox,
+                                             &MailboxHeader,
+                                             Data,
+                                             MAILBOX_BUFFER_SIZE );
 
             if (!NT_SUCCESS( Status )) {
-                NT_ASSERT( FALSE );
+                NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
+                              NT_SUCCESS( Status ) );
             }
 
-            if (Mailbox.Type == MailboxTrace) {
-                if (Mailbox.Trace.Area == TRACE_IOA_ROOT) {
-                    TraceEvents( TRACE_LEVEL_INFORMATION,
-                                 TRACE_IOA,
+            if ( MailboxHeader.Type == MailboxTrace) {
+                //
+                //  The end result of a mailbox trace is just to generate a
+                //  trace event for debugging purposes.
+                //
+
+                if (MailboxHeader.Trace.Area == TRACE_IOA_ROOT) {
+                    TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
                                  "%s\n",
                                  Data );
                 }
             }
-            else if (Mailbox.Type == MailboxNotification) {
+            else if (MailboxHeader.Type == MailboxNotification) {
                 Message = (PDS_NOTIFICATION_MESSAGE) Data;
 
                 Status = DsSendNotificationMessage( gChannel,
@@ -141,33 +165,47 @@ RtlMailboxPollingThread(
                                                     Message->ThreadId,
                                                     Message->Type,
                                                     &Message->Action );
+            } else {
+                NT_ASSERT( FALSE );
+                TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
+                             "Unrecognized mailbox data type (Type: %d)\n",
+                             MailboxHeader.Type );
             }
         }
+        else {
+            NT_VERIFYMSG( "Unexpected wait result in Mailbox thread", FALSE );
+        }
+
+        TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MAILBOX,
+                     "Mailbox worker thread is about to terminate\n" );
+
+        PsTerminateSystemThread( STATUS_SUCCESS );
     }
 }
 
 NTSTATUS
 RtlMailboxInitialize(
+    _Inout_ PMAILBOX Mailbox,
     _In_ ULONG PoolSize
     )
 {
     NTSTATUS Status = STATUS_INSUFFICIENT_RESOURCES;
-
     PAGED_CODE();
 
-    TracePool = DsAllocatePoolWithTag( NonPagedPool, PoolSize, 'pTsD' );
+    RtlZeroMemory( Mailbox, sizeof( MAILBOX ) );
 
-    if ( TracePool ) {
-        RtlRingBufferInitialize( &TraceRing, TracePool, PoolSize );
-        Status = STATUS_SUCCESS;
-    }
+    Mailbox->WorkerThread = RtlMailboxWorkerThread;
+    Mailbox->PoolBuffer = DsAllocatePoolWithTag( NonPagedPool, PoolSize, 'pMsD' );
 
-    if (NT_SUCCESS( Status )) {
-        Status = RtlMailboxStartThread();
+    if (Mailbox->PoolBuffer) {
+        RtlRingBufferInitialize( &Mailbox->RingBuffer, 
+                                 Mailbox->PoolBuffer,
+                                 PoolSize );
 
-        if  (!NT_SUCCESS( Status )) {
-            RtlRingBufferDestroy( &TraceRing );
-            DsFreePoolWithTag( TracePool, 'pTsD' );
+        Status = RtlMailboxStartWorker( Mailbox );
+
+        if (!NT_SUCCESS( Status )) {
+            RtlMailboxDestroy( Mailbox );
         }
     }
 
@@ -176,18 +214,20 @@ RtlMailboxInitialize(
 
 VOID
 RtlMailboxDestroy(
+    _Inout_ PMAILBOX Mailbox
     )
 {
     PAGED_CODE();
 
-    RtlMailboxStopThread();
+    RtlMailboxStopWorker( Mailbox );
+    RtlRingBufferDestroy( &Mailbox->RingBuffer );
 
-    RtlRingBufferDestroy( &TraceRing );
-    DsFreePoolWithTag( TracePool, 'pTsD' );
+    DsFreePoolWithTag( Mailbox->PoolBuffer, 'pMsD' );
 }
 
 NTSTATUS
 RtlPostMailboxTrace(
+    _Inout_ PMAILBOX Mailbox,
     _In_ ULONG Level,
     _In_ ULONG Area,
     __drv_formatString( printf ) _In_ PCSTR TraceMessage,
@@ -197,7 +237,7 @@ RtlPostMailboxTrace(
     NTSTATUS Status = STATUS_INVALID_PARAMETER;
     CHAR TraceBuffer[MAILBOX_BUFFER_SIZE];
     va_list ArgumentList;
-    MAILBOX_HEADER Mailbox;
+    MAILBOX_HEADER MailboxHeader;
     SIZE_T TraceLenght = 0;
     SIZE_T BytesRead;
 
@@ -220,30 +260,35 @@ RtlPostMailboxTrace(
     }
 
     if (!NT_SUCCESS( Status )) {
-        NT_ASSERTMSG( "RtlPostMailboxTrace failed\n", FALSE );
+        TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
+                     "Unexpected result formatting mailbox trace (Status: %!STATUS!)\n",
+                     Status );
+
         return Status;
     }
 
-    Mailbox.Type = MailboxTrace;
-    Mailbox.Size = TraceLenght;
-    Mailbox.Trace.Level = Level;
-    Mailbox.Trace.Area = Area;
+    MailboxHeader.Type = MailboxTrace;
+    MailboxHeader.Size = TraceLenght;
+    MailboxHeader.Trace.Level = Level;
+    MailboxHeader.Trace.Area = Area;
 
-    Status = RtlRingBufferWrite( &TraceRing, 
-                                 (PCHAR)&Mailbox,
+    Status = RtlRingBufferWrite( &Mailbox->RingBuffer,
+                                 (PCHAR)&MailboxHeader,
                                  sizeof( MAILBOX_HEADER ) );
 
     if (NT_SUCCESS( Status )) {
-        Status = RtlRingBufferWrite( &TraceRing, TraceBuffer, TraceLenght );
+        Status = RtlRingBufferWrite( &Mailbox->RingBuffer, 
+                                     TraceBuffer,
+                                     TraceLenght );
 
         if (NT_SUCCESS( Status )) {
-            KeReleaseSemaphore( &MailboxQueueSemaphore,
+            KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
                                 FALSE );
         } else {
-            RtlRingBufferRead( &TraceRing,
-                               (PCHAR)&Mailbox,
+            RtlRingBufferRead( &Mailbox->RingBuffer,
+                               (PCHAR)&MailboxHeader,
                                sizeof( MAILBOX_HEADER ),
                                &BytesRead );
         }
@@ -254,34 +299,34 @@ RtlPostMailboxTrace(
 
 NTSTATUS
 RtlPostMailboxNotification(
+    _Inout_ PMAILBOX Mailbox,
     _In_ PVOID Notification,
     _In_ SIZE_T Length
     )
 {
     NTSTATUS Status;
-    MAILBOX_HEADER Mailbox;
+    MAILBOX_HEADER MailboxHeader;
     SIZE_T BytesRead;
 
-    Mailbox.Type = MailboxNotification;
-    Mailbox.Size = Length;
+    MailboxHeader.Type = MailboxNotification;
+    MailboxHeader.Size = Length;
+    MailboxHeader.Notification.Reserved = 0;
 
-    Mailbox.Notification.Reserved = 0;
-
-    Status = RtlRingBufferWrite( &TraceRing, 
-                                 (PCHAR)&Mailbox,
+    Status = RtlRingBufferWrite( &Mailbox->RingBuffer,
+                                 (PCHAR)&MailboxHeader,
                                  sizeof( MAILBOX_HEADER ) );
 
     if (NT_SUCCESS( Status )) {
-        Status = RtlRingBufferWrite( &TraceRing, Notification, Length );
+        Status = RtlRingBufferWrite( &Mailbox->RingBuffer, Notification, Length );
 
         if (NT_SUCCESS( Status )) {
-            KeReleaseSemaphore( &MailboxQueueSemaphore,
+            KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
                                 FALSE );
         } else {
-            RtlRingBufferRead( &TraceRing,
-                               (PCHAR)&Mailbox,
+            RtlRingBufferRead( &Mailbox->RingBuffer,
+                               (PCHAR)&MailboxHeader,
                                sizeof( MAILBOX_HEADER ),
                                &BytesRead );
         }
@@ -291,8 +336,9 @@ RtlPostMailboxNotification(
 }
 
 NTSTATUS
-RtlRetrieveMailbox(
-    _Inout_ PMAILBOX_HEADER Mailbox,
+RtlRetrieveMailboxData(
+    _Inout_ PMAILBOX Mailbox,
+    _Inout_ PMAILBOX_HEADER MailboxHeader,
     _Out_writes_bytes_( DataSize ) PCHAR Data,
     _In_ SIZE_T DataSize
     )
@@ -301,17 +347,17 @@ RtlRetrieveMailbox(
     SIZE_T BytesRead;
     BOOLEAN Restore = TRUE;
 
-    Status = RtlRingBufferRead( &TraceRing, 
-                                (PCHAR)&Mailbox,
+    Status = RtlRingBufferRead( &Mailbox->RingBuffer,
+                                (PCHAR)&MailboxHeader,
                                 sizeof( MAILBOX_HEADER ),
                                 &BytesRead );
 
     if (NT_SUCCESS( Status )) {
 
-        if (DataSize >= Mailbox->Size) {
-            Status = RtlRingBufferRead( &TraceRing, 
+        if (DataSize >= MailboxHeader->Size) {
+            Status = RtlRingBufferRead( &Mailbox->RingBuffer,
                                         (PCHAR)&Data,
-                                        Mailbox->Size,
+                                        MailboxHeader->Size,
                                         &BytesRead );
             if (NT_SUCCESS( Status )) {
                 Restore = FALSE;
@@ -319,7 +365,7 @@ RtlRetrieveMailbox(
         }
 
         if (Restore) {
-            RtlRingBufferWrite( &TraceRing,
+            RtlRingBufferWrite( &Mailbox->RingBuffer,
                                 (PCHAR)&Mailbox,
                                 sizeof( MAILBOX_HEADER ) );
         }

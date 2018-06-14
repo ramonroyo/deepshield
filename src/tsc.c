@@ -303,7 +303,8 @@ ProcessTscEvent(
     //  This will be the trigger of a detection.
     //
     if (IsTimmingAttack( Sibling )) {
-        RtlPostMailboxTrace( TRACE_LEVEL_INFORMATION,
+        RtlPostMailboxTrace( &gSecureMailbox,
+                             TRACE_LEVEL_INFORMATION,
                              TRACE_IOA_ROOT,
                              "Timing Attack Found (ProcessId = %p)\n",
                              PsGetCurrentProcessId() );
@@ -315,7 +316,9 @@ ProcessTscEvent(
         Notification.ThreadId = (UINT64)PsGetCurrentThreadId();
         Notification.Type = TimerAbuse;
 
-        RtlPostMailboxNotification( &Notification, sizeof( DS_NOTIFICATION_MESSAGE ) );
+        RtlPostMailboxNotification( &gSecureMailbox, 
+                                    &Notification,
+                                    sizeof( DS_NOTIFICATION_MESSAGE ) );
 
         return TRUE;
     }

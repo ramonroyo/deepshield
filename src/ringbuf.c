@@ -219,8 +219,7 @@ RtlRingBufferRead(
         }
     }
 
-    NT_ASSERT( RingBuffer->Head < RingBuffer->End) ;
-
+    NT_ASSERT( RingBuffer->Head < RingBuffer->End);
     KeReleaseSpinLock( &RingBuffer->Lock, OldIrql );
 
     return STATUS_SUCCESS;

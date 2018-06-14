@@ -21,6 +21,7 @@ extern ULONG gStateFlags;
 extern EX_RUNDOWN_REF gChannelRundown;
 extern PDS_CHANNEL gChannel;
 extern UNICODE_STRING gDriverKeyName;
+extern MAILBOX gSecureMailbox;
 
 #define DSH_POLICY_KEY_NAME    L"Parameters"
 #define DSH_RUN_MODE_POLICY    L"OperationMode"
