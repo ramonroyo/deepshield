@@ -135,7 +135,7 @@ DriverEntry(
         return Status;
     }
 
-    Status = RtlMailboxInitialize( MAILBOX_POOL_DEFAULT_SIZE );
+    Status = RtlMailboxInitialize( &gSecureMailbox, MAILBOX_POOL_DEFAULT_SIZE );
 
     if ( !NT_SUCCESS( Status ) ) {
         goto RoutineExit;
@@ -272,7 +272,7 @@ RoutineExit:
         }
 
         if (MailboxInitialized) {
-            RtlMailboxDestroy();
+            RtlMailboxDestroy( &gSecureMailbox );
         }
 
         DsDeleteNonPagedPoolList();
@@ -323,7 +323,7 @@ DriverUnload(
     IoDeleteDevice( DriverObject->DeviceObject );
 
     DsFreeUnicodeString( &gDriverKeyName );
-    RtlMailboxDestroy();
+    RtlMailboxDestroy( &gSecureMailbox);
 
     DsDeleteNonPagedPoolList();
     WPP_CLEANUP( DriverObject );
