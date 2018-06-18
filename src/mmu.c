@@ -5,6 +5,120 @@
 
 MMU gMmu = { 0 };
 
+typedef struct _MATCH_ITEM {
+    UCHAR Byte;
+    UCHAR Mask;
+} MATCH_ITEM, *PMATCH_ITEM;
+
+ULONG
+MatchSignature(
+    PUSHORT Signature,
+    ULONG   SignatureSize,
+    PUCHAR  Target,
+    ULONG   TargetSize
+)
+{
+
+    ULONG  SignatureOffset = 0;
+    ULONG  TargetOffset = 0;
+    ULONG  Offset = 0;
+    ULONG  Limit = 0;
+
+    PMATCH_ITEM Item;
+
+    NT_ASSERT( Signature != NULL );
+    NT_ASSERT( Target != NULL );
+
+    Limit = TargetSize - SignatureSize;
+
+    for ( TargetOffset = 0; TargetOffset < Limit; TargetOffset++ ) {
+        for ( SignatureOffset = 0; SignatureOffset < SignatureSize; SignatureOffset++ ) {
+
+            Item = (PMATCH_ITEM) &Signature[SignatureOffset];
+
+            if ( !((Target[TargetOffset + SignatureOffset] & Item->Mask) == Item->Byte) ) {
+                break;
+            }
+        }
+
+        if ( SignatureOffset == SignatureSize ) {
+            Offset = TargetOffset;
+            break;
+        }
+    }
+
+    return Offset;
+}
+
+ULONG_PTR
+HackishSearchPML4(
+    VOID
+)
+{
+
+//              MmAccessFault+2E6  48 B8 00 D0 BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBED000h
+//              MmAccessFault+2F0  48 8B C0                      mov     rax, rax
+//              MmAccessFault+2F3  4C 3B C8                      cmp     r9, rax
+//              MmAccessFault+2F6  0F 82 72 FF FF FF             jb      loc_FFFFF803FBE8E74E
+//              MmAccessFault+2FC  48 B8 FF DF BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBEDFFFh
+//              MmAccessFault+306  48 8B C0                      mov     rax, rax
+//              MmAccessFault+309  4C 3B C8                      cmp     r9, rax
+//              MmAccessFault+30C  0F 87 5C FF FF FF             ja      loc_FFFFF803FBE8E74E
+//              MmAccessFault+312  E9 36 C1 16 00                jmp     sub_FFFFF803FBFFA92D
+//              MmAccessFault+317                                ; ---------------------------------------------------------------------------
+//              MmAccessFault+317
+//              MmAccessFault+317                                loc_FFFFF803FBE8E7F7:                   ; CODE XREF: MmAccessFault+281
+//              MmAccessFault+317  48 B8 F8 D7 BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBED7F8h         // PML4 Static Address
+//              MmAccessFault+321  48 8B C0                      mov     rax, rax
+//              MmAccessFault+324  4C 3B C8                      cmp     r9, rax
+//              MmAccessFault+327  0F 87 5A FF FF FF             ja      loc_FFFFF803FBE8E767
+//              MmAccessFault+32D  E9 4B C1 16 00                jmp     sub_FFFFF803FBFFA95D
+//              MmAccessFault+332                                ; ----------------------------------------------------
+//
+//              Python> dump_bytes(0xFFFFF803FBE8E7C6, 0xFFFFF803FBE8E7F2-0xFFFFF803FBE8E7C6)
+//
+//              48 b8 00 d0 be 7d fb f6 ff ff 48 8b c0 4c 3b c8 0f 82 72 ff ff ff 48 b8 ff df be 7d fb f6 ff ff 48 8b c0 4c 3b c8 0f 87 5c ff ff ff
+
+    PUCHAR    Routine = NULL;
+    ULONG_PTR Return  = 0;
+
+    USHORT PML4Instructions[] = { 0xff48, 0xffb8, 0x0000, 0x0000,
+                                  0x0000, 0x0000, 0x0000, 0x0000,
+                                  0x0000, 0x0000, 0xff48, 0xff8b,
+                                  0xffc0, 0xff4c, 0xff3b, 0xffc8,
+                                  0xff0f, 0xff82, 0xff72, 0xffff,
+                                  0xffff, 0xffff, 0xff48, 0xffb8,
+                                  0xffff, 0x0000, 0x0000, 0x0000,
+                                  0x0000, 0x0000, 0x0000, 0x0000,
+                                  0xff48, 0xff8b, 0xffc0, 0xff4c,
+                                  0xff3b, 0xffc8, 0xff0f, 0xff87,
+                                  0xff5c, 0xffff, 0xffff, 0xffff };
+
+    UNICODE_STRING FunctionName = { 0 };
+
+    RtlInitUnicodeString(&FunctionName, L"MmProbeAndLockPages");
+
+    Routine = (PUCHAR)MmGetSystemRoutineAddress(&FunctionName);
+
+    Routine += 0x3a1c;
+
+    if ( Routine ) {
+        ULONG Offset = MatchSignature(PML4Instructions, sizeof(PML4Instructions) / sizeof(USHORT), Routine, 0x500);
+
+        if ( Offset > 0 ) {
+
+            Return = *(PULONG_PTR)&Routine[Offset + 51];
+
+            // Add some verifications to retrieved offset
+            // NT_ASSERT(Return & 0xFFFFFF0000000000 = 0xFFFFFF00000000);
+
+            return Return;
+        }
+    }
+
+    return Return;
+}
+
 _Success_(return)
 BOOLEAN
 MmupLocateAutoEntryIndex(
@@ -15,6 +129,7 @@ MmupLocateAutoEntryIndex(
     PHYSICAL_ADDRESS cr3Pa = { 0 };
     PVOID            cr3Va = 0;
     BOOLEAN          found = FALSE;
+    BOOLEAN          Hackish = FALSE;
     
     cr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
     cr3Pa.QuadPart = cr3;
@@ -31,6 +146,11 @@ MmupLocateAutoEntryIndex(
                                   PAGE_READWRITE | PAGE_NOCACHE );
     }
 #endif
+
+    if ( !cr3Va ) {
+        cr3Va = (PVOID) HackishSearchPML4();
+        Hackish = TRUE;
+    }
 
     if (cr3Va)
     {
@@ -49,7 +169,9 @@ MmupLocateAutoEntryIndex(
             }
         }
 
-        MmUnmapIoSpace(cr3Va, PAGE_SIZE);
+        if ( !Hackish ) {
+            MmUnmapIoSpace(cr3Va, PAGE_SIZE);
+        }
     }
    
     return found;
