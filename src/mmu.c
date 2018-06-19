@@ -2,6 +2,7 @@
 #include "mmu.h"
 #include "smp.h"
 #include "mem.h"
+#include "os.h"
 
 MMU gMmu = { 0 };
 
@@ -119,18 +120,45 @@ HackishSearchPML4(
     return Return;
 }
 
+//
+//  Sanity check routine.
+//
+NTSTATUS 
+MmuLocatePageTables(
+    _Inout_ PULONG_PTR PdeBase,
+    _Inout_ PULONG_PTR PteBase
+    )
+{
+    UNICODE_STRING RoutineName = RTL_CONSTANT_STRING( L"ExFreePoolWithTag" );
+    PUCHAR RoutineAddress = MmGetSystemRoutineAddress( &RoutineName );
+
+    if ( RoutineAddress ) {
+
+        *PdeBase = *(PULONG_PTR)(RoutineAddress + 0x32D + 2);
+        *PteBase = *(PULONG_PTR)(RoutineAddress + 0x6A9 + 2);
+
+        return STATUS_SUCCESS;
+    }
+
+    return STATUS_NOT_FOUND;
+}
+
 _Success_(return)
 BOOLEAN
 MmupLocateAutoEntryIndex(
     _Out_ PUINT64 autoEntryIndex
 )
 {
-    UINT64           cr3   = 0;
+    UINT64 cr3   = 0;
     PHYSICAL_ADDRESS cr3Pa = { 0 };
-    PVOID            cr3Va = 0;
-    BOOLEAN          found = FALSE;
-    BOOLEAN          Hackish = FALSE;
-    
+    PVOID cr3Va = 0;
+    BOOLEAN found = FALSE;
+    BOOLEAN Hackish = FALSE;
+    NTSTATUS Status;
+    PKD_DEBUGGER_DATA_BLOCK DebuggerData;
+    ULONG_PTR PdeBase;
+    ULONG_PTR PteBase;
+
     cr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
     cr3Pa.QuadPart = cr3;
 
@@ -146,6 +174,12 @@ MmupLocateAutoEntryIndex(
                                   PAGE_READWRITE | PAGE_NOCACHE );
     }
 #endif
+
+    Status = MmuLocatePageTables( &PdeBase, &PteBase );
+    NT_ASSERT( Status );
+
+    Status = OsGetDebuggerDataBlock( &DebuggerData );
+    NT_ASSERT( Status );
 
     if ( !cr3Va ) {
         cr3Va = (PVOID) HackishSearchPML4();
