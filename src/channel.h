@@ -74,7 +74,7 @@ typedef struct _DS_BUCKET_CLIENT {
     UCHAR Data[240];
 } DS_BUCKET_CLIENT, *PDS_BUCKET_CLIENT;
 
-typedef struct _SE_CHANNEL {
+typedef struct _DS_CHANNEL {
     ULONG ChannelId;
     PMDL Mdl;
     PVOID UserVa;

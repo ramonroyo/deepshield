@@ -66,7 +66,7 @@ RtlMailboxStartWorker(
                                             THREAD_ALL_ACCESS,
                                             *PsThreadType,
                                             KernelMode, 
-                                            (PVOID*)Mailbox->Thread,
+                                            (PVOID*)&Mailbox->Thread,
                                             NULL );
         if (NT_SUCCESS( Status ) ) {
             ZwClose( ThreadHandle );
