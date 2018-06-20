@@ -286,11 +286,14 @@ MmuInit(
     ULONG_PTR PdeBase;
     ULONG_PTR PteBase;
 
+#if (NTDDI_VERSION >= NTDDI_VISTA)
     if (gSecuredPageTables) {
 
 #if DBG
-        Status = MmuLocatePageTables( &PdeBase, &PteBase );
-        NT_ASSERT( NT_SUCCESS( Status ) );
+        if (OsVerifyBuildNumber( DS_WINVER_10_RS4 )) {
+            Status = MmuLocatePageTables( &PdeBase, &PteBase );
+            NT_ASSERT( NT_SUCCESS( Status ) );
+        }
 #endif
 
         Status = OsGetDebuggerDataBlock( &DebuggerData );
@@ -302,6 +305,7 @@ MmuInit(
         gMmu.upperBound = (gMmu.lowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
 
     } else {
+#endif
         //
         //  Find processor page structures in memory as now they are ASLR'd
         //
@@ -311,8 +315,10 @@ MmuInit(
 
         gMmu.lowerBound =  (((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39);
         gMmu.upperBound = (gMmu.lowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+#if (NTDDI_VERSION >= NTDDI_VISTA)
     }
-#else
+#endif
+#else // !WIN64
     ULONG_PTR cr4 = 0;
 
     cr4 = __readcr4();
