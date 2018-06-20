@@ -153,11 +153,6 @@ MmupLocateAutoEntryIndex(
     PHYSICAL_ADDRESS cr3Pa = { 0 };
     PVOID cr3Va = 0;
     BOOLEAN found = FALSE;
-    BOOLEAN Hackish = FALSE;
-    NTSTATUS Status;
-    PKD_DEBUGGER_DATA_BLOCK DebuggerData;
-    ULONG_PTR PdeBase;
-    ULONG_PTR PteBase;
 
     cr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
     cr3Pa.QuadPart = cr3;
@@ -174,17 +169,6 @@ MmupLocateAutoEntryIndex(
                                   PAGE_READWRITE | PAGE_NOCACHE );
     }
 #endif
-
-    Status = MmuLocatePageTables( &PdeBase, &PteBase );
-    NT_ASSERT( Status );
-
-    Status = OsGetDebuggerDataBlock( &DebuggerData );
-    NT_ASSERT( Status );
-
-    if ( !cr3Va ) {
-        cr3Va = (PVOID) HackishSearchPML4();
-        Hackish = TRUE;
-    }
 
     if (cr3Va)
     {
@@ -203,9 +187,7 @@ MmupLocateAutoEntryIndex(
             }
         }
 
-        if ( !Hackish ) {
-            MmUnmapIoSpace(cr3Va, PAGE_SIZE);
-        }
+        MmUnmapIoSpace( cr3Va, PAGE_SIZE );
     }
    
     return found;
@@ -297,17 +279,39 @@ MmuInit(
     VOID
 )
 {
-    UINT32   i, j;
-
+    UINT32 i, j;
 #ifdef _WIN64
-    //
-    // Find processor page structures in memory as now they are ASLR'd
-    //
-    if(!MmupLocateAutoEntryIndex(&gMmu.autoEntryIndex))
-        return STATUS_UNSUCCESSFUL;
+    NTSTATUS Status;
+    PKD_DEBUGGER_DATA_BLOCK DebuggerData;
+    ULONG_PTR PdeBase;
+    ULONG_PTR PteBase;
 
-    gMmu.lowerBound =  (((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39);
-    gMmu.upperBound = ((((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39) + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+    if (gSecuredPageTables) {
+
+#if DBG
+        Status = MmuLocatePageTables( &PdeBase, &PteBase );
+        NT_ASSERT( NT_SUCCESS( Status ) );
+#endif
+
+        Status = OsGetDebuggerDataBlock( &DebuggerData );
+        if (!NT_SUCCESS( Status )) {
+            return Status;
+        }
+
+        gMmu.lowerBound = DebuggerData->PteBase;
+        gMmu.upperBound = (gMmu.lowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+
+    } else {
+        //
+        //  Find processor page structures in memory as now they are ASLR'd
+        //
+        if (!MmupLocateAutoEntryIndex( &gMmu.autoEntryIndex )) {
+            return STATUS_UNSUCCESSFUL;
+        }
+
+        gMmu.lowerBound =  (((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39);
+        gMmu.upperBound = (gMmu.lowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+    }
 #else
     ULONG_PTR cr4 = 0;
 

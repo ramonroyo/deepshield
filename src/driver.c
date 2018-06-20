@@ -59,6 +59,11 @@ DsTimerDPC(
     _In_opt_ PVOID SystemArgument2
     );
 
+BOOLEAN
+DsVerifyBuildNumber(
+    _In_ ULONG BuildNumber
+    );
+
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
@@ -67,6 +72,7 @@ DsTimerDPC(
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 #pragma alloc_text(PAGE, DsCheckHvciCompliance)
 #endif
+#pragma alloc_text(PAGE, DsVerifyBuildNumber)
 #endif
 
 #ifdef DBG
@@ -76,12 +82,12 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
-UNICODE_STRING gDriverKeyName;
-static BOOLEAN gShutdownCalled;
+BOOLEAN gSecuredPageTables;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
-
+UNICODE_STRING gDriverKeyName;
+static BOOLEAN gShutdownCalled;
 
 KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
@@ -120,6 +126,12 @@ DriverEntry(
         RtlInitUnicodeString( &FunctionName, L"MmMapIoSpaceEx" );
         DsMmMapIoSpaceEx = (PMM_MAP_IO_SPACE_EX)
                       MmGetSystemRoutineAddress( &FunctionName );
+        
+        //
+        //  Somehow the page tables address space for RS4 is restricted so it
+        //  cannot be mapped freely even for kernel mode.
+        //
+        gSecuredPageTables = DsVerifyBuildNumber( DS_WINVER_10_RS4 );
 
     } else {
         DsMmMapIoSpaceEx = NULL;
@@ -644,3 +656,46 @@ Return Value:
 #endif
 }
 #endif
+
+BOOLEAN
+DsVerifyBuildNumber(
+    _In_ ULONG BuildNumber
+    )
+/*++
+Routine Description:
+
+    This routine verify the presence of an OS version that matches or it is
+    higher than a given build number.
+
+Arguments:
+    
+    BuildNumber - input build number to verify.
+    
+Return value:
+
+    TRUE if result is positive, FALSE otherwise.
+
+--*/
+{
+
+    NTSTATUS Status;
+    RTL_OSVERSIONINFOEXW VersionInfo = {0};
+    ULONGLONG ConditionMask = 0;
+
+    PAGED_CODE();
+   
+    VersionInfo.dwOSVersionInfoSize = sizeof(VersionInfo);
+    VersionInfo.dwBuildNumber = BuildNumber;
+
+    VER_SET_CONDITION( ConditionMask, VER_BUILDNUMBER, VER_GREATER_EQUAL );
+
+    Status = RtlVerifyVersionInfo( &VersionInfo, 
+                                   VER_BUILDNUMBER,
+                                   ConditionMask );
+
+    if (NT_SUCCESS ( Status )) {
+        return TRUE;
+    }
+
+    return FALSE;
+}

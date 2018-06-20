@@ -17,6 +17,7 @@
 #include "mem.h"
 #include "smp.h"
 
+extern BOOLEAN gSecuredPageTables;
 extern ULONG gStateFlags;
 extern EX_RUNDOWN_REF gChannelRundown;
 extern PDS_CHANNEL gChannel;
@@ -25,6 +26,8 @@ extern MAILBOX gSecureMailbox;
 
 #define DSH_POLICY_KEY_NAME    L"Parameters"
 #define DSH_RUN_MODE_POLICY    L"OperationMode"
+
+#define DS_WINVER_10_RS4       (17134UL)
 
 //
 //  Preserve the state of the protection between driver instances.
