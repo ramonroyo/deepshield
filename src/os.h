@@ -465,17 +465,6 @@ typedef KD_DEBUGGER_DATA_BLOCK *PKD_DEBUGGER_DATA_BLOCK;
 #define DMP_RESERVED_2_SIZE              (16)
 #define DMP_RESERVED_3_SIZE              (56)
 
-typedef struct _PHYSICAL_MEMORY_RUN {
-    ULONG BasePage;
-    ULONG PageCount;
-} PHYSICAL_MEMORY_RUN, *PPHYSICAL_MEMORY_RUN;
-
-typedef struct _PHYSICAL_MEMORY_DESCRIPTOR {
-    ULONG NumberOfRuns;
-    ULONG NumberOfPages;
-    PHYSICAL_MEMORY_RUN Run[1];
-} PHYSICAL_MEMORY_DESCRIPTOR, *PPHYSICAL_MEMORY_DESCRIPTOR;
-
 typedef struct _DUMP_HEADER {
     ULONG Signature;
     ULONG ValidDump;
@@ -527,11 +516,6 @@ typedef struct _DUMP_HEADER {
 
 #pragma warning(default:4201 4214)
 
-NTSTATUS
-OsGetDebuggerDataBlock(
-    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
-);
-
 #pragma pack(push, 1)
 typedef struct _OS_VERSION
 {
@@ -553,7 +537,18 @@ typedef struct _OS_VERSION
 NTSTATUS
 OsVersion(
     _Out_ POS_VERSION osVersion
-);
+    );
 
+BOOLEAN
+OsVerifyBuildNumber(
+    _In_ ULONG BuildNumber
+    );
+
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+NTSTATUS
+OsGetDebuggerDataBlock(
+    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
+    );
+#endif
 
 #endif

@@ -16,6 +16,7 @@
 #include "tests.h"
 #include "mem.h"
 #include "smp.h"
+#include "os.h"
 
 extern BOOLEAN gSecuredPageTables;
 extern ULONG gStateFlags;

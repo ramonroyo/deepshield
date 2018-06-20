@@ -28,6 +28,7 @@ SOURCES = channel.c \
           mailbox.c \
           mem.c \
           mmu.c \
+          os.c \
           policy.c \
           ringbuf.c \
           shield.c \

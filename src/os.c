@@ -1,3 +1,4 @@
+#include "wdk7.h"
 #include "os.h"
 
 NTSTATUS
@@ -26,6 +27,50 @@ OsVersion(
 
 }
 
+BOOLEAN
+OsVerifyBuildNumber(
+    _In_ ULONG BuildNumber
+    )
+/*++
+Routine Description:
+
+    This routine verify the presence of an OS version that matches or it is
+    higher than a given build number.
+
+Arguments:
+    
+    BuildNumber - input build number to verify.
+    
+Return value:
+
+    TRUE if result is positive, FALSE otherwise.
+
+--*/
+{
+
+    NTSTATUS Status;
+    RTL_OSVERSIONINFOEXW VersionInfo = {0};
+    ULONGLONG ConditionMask = 0;
+
+    PAGED_CODE();
+   
+    VersionInfo.dwOSVersionInfoSize = sizeof(VersionInfo);
+    VersionInfo.dwBuildNumber = BuildNumber;
+
+    VER_SET_CONDITION( ConditionMask, VER_BUILDNUMBER, VER_GREATER_EQUAL );
+
+    Status = RtlVerifyVersionInfo( &VersionInfo, 
+                                   VER_BUILDNUMBER,
+                                   ConditionMask );
+
+    if (NT_SUCCESS ( Status )) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+#if (NTDDI_VERSION >= NTDDI_VISTA)
 NTSTATUS
 OsGetDebuggerDataBlock(
     _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
@@ -61,3 +106,4 @@ OsGetDebuggerDataBlock(
     ExFreePoolWithTag( Buffer, 'hDgM' );
     return Status;
 }
+#endif
