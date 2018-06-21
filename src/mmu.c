@@ -281,12 +281,12 @@ MmuInit(
 {
     UINT32 i, j;
 #ifdef _WIN64
+#if (NTDDI_VERSION >= NTDDI_VISTA)
     NTSTATUS Status;
     PKD_DEBUGGER_DATA_BLOCK DebuggerData;
     ULONG_PTR PdeBase;
     ULONG_PTR PteBase;
-
-#if (NTDDI_VERSION >= NTDDI_VISTA)
+    
     if (gSecuredPageTables) {
 
 #if DBG
