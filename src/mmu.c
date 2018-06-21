@@ -284,12 +284,12 @@ MmuInit(
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     NTSTATUS Status;
     PKD_DEBUGGER_DATA_BLOCK DebuggerData;
-    ULONG_PTR PdeBase;
-    ULONG_PTR PteBase;
     
     if (gSecuredPageTables) {
-
 #if DBG
+        ULONG_PTR PdeBase;
+        ULONG_PTR PteBase;
+
         if (OsVerifyBuildNumber( DS_WINVER_10_RS4 )) {
             Status = MmuLocatePageTables( &PdeBase, &PteBase );
             NT_ASSERT( NT_SUCCESS( Status ) );
