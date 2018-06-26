@@ -348,7 +348,7 @@ RtlRetrieveMailboxData(
     BOOLEAN Restore = TRUE;
 
     Status = RtlRingBufferRead( &Mailbox->RingBuffer,
-                                (PCHAR)&MailboxHeader,
+                                (PCHAR)MailboxHeader,
                                 sizeof( MAILBOX_HEADER ),
                                 &BytesRead );
 
@@ -356,7 +356,7 @@ RtlRetrieveMailboxData(
 
         if (DataSize >= MailboxHeader->Size) {
             Status = RtlRingBufferRead( &Mailbox->RingBuffer,
-                                        (PCHAR)&Data,
+                                        (PCHAR)Data,
                                         MailboxHeader->Size,
                                         &BytesRead );
             if (NT_SUCCESS( Status )) {
@@ -366,7 +366,7 @@ RtlRetrieveMailboxData(
 
         if (Restore) {
             RtlRingBufferWrite( &Mailbox->RingBuffer,
-                                (PCHAR)&Mailbox,
+                                (PCHAR)MailboxHeader,
                                 sizeof( MAILBOX_HEADER ) );
         }
     }
