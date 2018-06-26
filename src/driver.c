@@ -1,7 +1,6 @@
 #include <ntifs.h>
 #include <wdmsec.h>
 #include "dsdef.h"
-#include "tests.h"
 
 #if defined(WPP_EVENT_TRACING)
 #include "driver.tmh"
@@ -59,6 +58,11 @@ DsTimerDPC(
     _In_opt_ PVOID SystemArgument2
     );
 
+BOOLEAN
+DsVerifyBuildNumber(
+    _In_ ULONG BuildNumber
+    );
+
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
@@ -67,6 +71,7 @@ DsTimerDPC(
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 #pragma alloc_text(PAGE, DsCheckHvciCompliance)
 #endif
+#pragma alloc_text(PAGE, DsVerifyBuildNumber)
 #endif
 
 #ifdef DBG
@@ -76,12 +81,12 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
-UNICODE_STRING gDriverKeyName;
-static BOOLEAN gShutdownCalled;
+BOOLEAN gSecuredPageTables;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
-
+UNICODE_STRING gDriverKeyName;
+static BOOLEAN gShutdownCalled;
 
 KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
@@ -105,6 +110,7 @@ DriverEntry(
     BOOLEAN MailboxInitialized = FALSE;
 
     gShutdownCalled = FALSE;
+    gSecuredPageTables = FALSE;
     gStateFlags = 0;
 
     WPP_INIT_TRACING( DriverObject, RegistryPath );
@@ -120,6 +126,13 @@ DriverEntry(
         RtlInitUnicodeString( &FunctionName, L"MmMapIoSpaceEx" );
         DsMmMapIoSpaceEx = (PMM_MAP_IO_SPACE_EX)
                       MmGetSystemRoutineAddress( &FunctionName );
+#ifdef _WIN64
+        //
+        //  Somehow the page tables address space for RS4 is restricted so it
+        //  cannot be mapped freely even for kernel mode.
+        //
+        gSecuredPageTables = OsVerifyBuildNumber( DS_WINVER_10_RS4 );
+#endif
 
     } else {
         DsMmMapIoSpaceEx = NULL;

@@ -272,6 +272,7 @@
     <ClCompile Include="..\src\hvds.c" />
     <ClCompile Include="..\src\ioctl.c" />
     <ClCompile Include="..\src\mailbox.c" />
+    <ClCompile Include="..\src\os.c" />
     <ClCompile Include="..\src\policy.c" />
     <ClCompile Include="..\src\ringbuf.c" />
     <ClCompile Include="..\src\shield.c" />
@@ -299,6 +300,7 @@
     <ClInclude Include="..\src\dsdef.h" />
     <ClInclude Include="..\src\hvds.h" />
     <ClInclude Include="..\src\mailbox.h" />
+    <ClInclude Include="..\src\os.h" />
     <ClInclude Include="..\src\policy.h" />
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />

@@ -121,6 +121,9 @@
     <ClCompile Include="..\src\policy.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\os.c">
+      <Filter>src\rtl</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -190,6 +193,9 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\policy.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\os.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
