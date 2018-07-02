@@ -9,7 +9,7 @@ Class                  = "Unknown"
 ClassGuid              = {4d36e97e-e325-11ce-bfc1-08002be10318}
 Provider               = %ManufacturerName%
 DriverPackageType      = KernelService
-DriverVer	       = 07/01/2018,16.46.13.689
+DriverVer	       = 07/02/2018,04.58.17.155
 CatalogFile            = xpshield.cat
 
 [DestinationDirs]
