@@ -145,7 +145,7 @@ RtlMailboxWorkerThread(
                               NT_SUCCESS( Status ) );
             }
 
-            if ( MailboxHeader.Type == MailboxTrace) {
+            if (MailboxHeader.Type == MailboxTrace) {
                 //
                 //  The end result of a mailbox trace is just to generate a
                 //  trace event for debugging purposes.
@@ -175,12 +175,12 @@ RtlMailboxWorkerThread(
         else {
             NT_VERIFYMSG( "Unexpected wait result in Mailbox thread", FALSE );
         }
-
-        TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MAILBOX,
-                     "Mailbox worker thread is about to terminate\n" );
-
-        PsTerminateSystemThread( STATUS_SUCCESS );
     }
+
+    TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MAILBOX,
+                 "Mailbox worker thread is about to terminate\n" );
+    PsTerminateSystemThread( STATUS_SUCCESS );
+
 }
 
 NTSTATUS
