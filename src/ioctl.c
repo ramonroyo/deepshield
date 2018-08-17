@@ -218,7 +218,7 @@ DsCtlShieldChannelTeardown(
     _In_ PIO_STACK_LOCATION IrpStack
     )
 {
-    NTSTATUS Status = STATUS_INVALID_DEVICE_REQUEST;
+    NTSTATUS Status = STATUS_SUCCESS;
     PSHIELD_CHANNEL_ID ChannelId;
     ULONG InputLength;
     ULONG OutputLength;
