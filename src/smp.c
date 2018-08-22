@@ -76,10 +76,10 @@ SmpExecuteOnAllCores(
 
         DpcRoutine(0, &info, 0, 0);
 
-        KeLowerIrql(savedIrql);
-
         while (InterlockedCompareExchange(&info.sync, 0, numberOfCores))
             YieldProcessor();
+
+        KeLowerIrql( savedIrql );
 
         status = info.error;
     }
@@ -98,7 +98,7 @@ SmpExecuteOnAllCores(
 UINT32
 SmpNumberOfCores(
     VOID
-)
+    )
 {
     static UINT32 numberOfProcessors = 0;
 

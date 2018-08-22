@@ -114,11 +114,11 @@ VmcsConfigureCommonGuest(
 
 VOID
 VmcsConfigureCommonHost(
-    VOID
-)
+    _In_ UINT_PTR SystemCr3
+    )
 {
     VmxVmcsWritePlatform(HOST_CR0,                                     ((__readcr0() & LOW32(__readmsr(IA32_VMX_CR0_FIXED1))) | LOW32(__readmsr(IA32_VMX_CR0_FIXED0))));
-    VmxVmcsWritePlatform(HOST_CR3,                                     __readcr3());
+    VmxVmcsWritePlatform(HOST_CR3,                                     SystemCr3);
     VmxVmcsWritePlatform(HOST_CR4,                                     ((__readcr4() & LOW32(__readmsr(IA32_VMX_CR4_FIXED1))) | LOW32(__readmsr(IA32_VMX_CR4_FIXED0))));
     //VmxVmcsWritePlatform(HOST_RSP,                                     X);
     //VmxVmcsWritePlatform(HOST_RIP,                                     X);

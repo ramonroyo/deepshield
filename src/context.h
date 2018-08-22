@@ -11,7 +11,9 @@ typedef struct _LOCAL_CONTEXT
 
 typedef struct _GLOBAL_CONTEXT
 {
-    PUCHAR   msrBitmap;
+    UINT64 Cr3;
+    PUCHAR msrBitmap;
+
 } GLOBAL_CONTEXT, *PGLOBAL_CONTEXT;
 
 BOOLEAN

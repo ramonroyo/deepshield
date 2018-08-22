@@ -216,6 +216,7 @@ VmxAllowed(
             UINT64    caps;
             UINT32    def0;
             UINT32    def1;
+            UINT32    ctrl = (UINT32)-1;
 
             //
             // Use TRUE controls if supported
@@ -227,7 +228,8 @@ VmxAllowed(
             caps = __readmsr(control);
             def0 = LOW32(caps);
             def1 = HIGH32(caps);
-            return def0 ^ def1;
+
+            return ((ctrl & def1) | def0);
         }
     }
 

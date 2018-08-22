@@ -9,7 +9,7 @@
 #include "mmu.h"
 #include "smp.h"
 
-#define DEEPSHIELD_STACK_PAGES 2
+#define DS_STACK_PAGES 2
 
 extern PGLOBAL_CONTEXT gGlobalContext;
 extern PLOCAL_CONTEXT  gLocalContexts;
@@ -55,7 +55,7 @@ DsConfigureHvds(
     // Common configuration
     //
     VmcsConfigureCommonGuest();
-    VmcsConfigureCommonHost();
+    VmcsConfigureCommonHost( (UINT_PTR)globalContext->Cr3 );
     VmcsConfigureCommonControl();
 
     //
@@ -92,19 +92,19 @@ DsConfigureHvds(
         PHYSICAL_ADDRESS msrBitmap;
         VMX_PROC_PRIMARY_CTLS procPrimaryControls;
 
+        msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
+        VmxVmcsWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
+
         procPrimaryControls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_PRIMARY);
         procPrimaryControls.u.f.useMsrBitmaps = 1;
         VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
-
-        msrBitmap = MmuGetPhysicalAddress(0, globalContext->msrBitmap);
-        VmxVmcsWrite64(MSR_BITMAP_ADDRESS, msrBitmap.QuadPart);
     }
 
     //
-    // Activate #GP following
+    // Activate #GP and #UD.
     //
     {
-        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << 13));
+        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << TRAP_GP_FAULT) | (1 << TRAP_INVALID_OPCODE) );
     }
 }
 
@@ -159,35 +159,32 @@ DsInitializeHvds(
     DsResetHvds();
 
     gGlobalContext = MemAlloc(sizeof(GLOBAL_CONTEXT));
-    if (!gGlobalContext)
+    if (!gGlobalContext) {
         goto failure;
+    }
 
     gLocalContexts = MemAllocArray(SmpNumberOfCores(), sizeof(LOCAL_CONTEXT));
-    if (!gLocalContexts)
+    if (!gLocalContexts) {
         goto failure;
+    }
 
-    Status = HvmInit( DEEPSHIELD_STACK_PAGES,
-                      DsHvdsExitHandler,
-                      DsConfigureHvds );
+    Status = HvmInit( DS_STACK_PAGES, DsHvdsExitHandler, DsConfigureHvds );
 
-    if (!NT_SUCCESS( Status ))
+    if (!NT_SUCCESS( Status )) {
         goto failure;
+    }
 
-    //
-    // Configure
-    //
-    if (!GlobalContextConfigure(gGlobalContext))
+    if (!GlobalContextConfigure( gGlobalContext )) {
         goto failure;
+    }
 
-    if(!NT_SUCCESS(SmpExecuteOnAllCores(LocalContextConfigureOnCore, 0)))
+    if(!NT_SUCCESS( SmpExecuteOnAllCores( LocalContextConfigureOnCore, 0 ))) {
         goto failure;
+    }
 
-    //
-    // Link
-    //
-    HvmGlobalContextSet(gGlobalContext);
-    for (i = 0; i < SmpNumberOfCores(); i++)
-    {
+    HvmGlobalContextSet( gGlobalContext );
+
+    for (i = 0; i < SmpNumberOfCores(); i++) {
         HvmLocalContextSet(i, &gLocalContexts[i]);
     }
 

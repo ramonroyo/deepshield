@@ -311,11 +311,32 @@
 ///////////////
 //CONFIG MSRS//
 ///////////////
-//Basic VMX Support
-#define IA32_VMX_BASIC 0x480
+
+#define IA32_VMX_BASIC         0x480
+#define IA32_VMX_CTRL_PIN      0x481
+#define IA32_VMX_CTRL_CPU0     0x482
+#define IA32_VMX_CTRL_EXIT     0x483
+#define IA32_VMX_CTRL_ENTRY    0x484
+#define IA32_VMX_CTRL_MISC     0x485
+#define IA32_VMX_CR0_FIXED0    0x486
+#define IA32_VMX_CR0_FIXED1    0x487
+#define IA32_VMX_CR4_FIXED0    0x488
+#define IA32_VMX_CR4_FIXED1    0x489
+#define IA32_VMX_VMCS_ENUM     0x48a
+#define IA32_VMX_CTRL_CPU1     0x48b
+#define IA32_VMX_EPT_VPID      0x48c
+#define IA32_VMX_TRUE_PIN      0x48d
+#define IA32_VMX_TRUE_CPU0     0x48e
+#define IA32_VMX_TRUE_EXIT     0x48f
+#define IA32_VMX_TRUE_ENTRY    0x490
 
 #define MEMORY_TYPE_UNCACHEABLE 0    //!< Uncacheable memory. See field BASIC_MEMORY_TYPE.
 #define MEMORY_TYPE_WRITEBACK   6    //!< Writeback memory.   See field BASIC_MEMORY_TYPE.
+
+//Exception vectors
+#define TRAP_INVALID_OPCODE                6
+#define TRAP_GP_FAULT                     13
+#define INTR_INFO_VECTOR_MASK           0x1F
 
 typedef struct _VMX_BASIC
 {

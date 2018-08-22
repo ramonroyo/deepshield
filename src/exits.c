@@ -36,6 +36,48 @@ CrAccessEmulate(
 }
 */
 
+#define EXCEPTION_ERROR_CODE_VALID  8
+#define VMX_INT_TYPE_HW_EXP	3
+
+static const UINT16 ExceptionType[32] = {
+	[0] = VMX_INT_TYPE_HW_EXP,
+	[1] = VMX_INT_TYPE_HW_EXP,
+	[2] = VMX_INT_TYPE_HW_EXP,
+	[3] = VMX_INT_TYPE_HW_EXP,
+	[4] = VMX_INT_TYPE_HW_EXP,
+	[5] = VMX_INT_TYPE_HW_EXP,
+	[6] = VMX_INT_TYPE_HW_EXP,
+	[7] = VMX_INT_TYPE_HW_EXP,
+	[8] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[9] = VMX_INT_TYPE_HW_EXP,
+	[10] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[11] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[12] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[13] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[14] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[15] = VMX_INT_TYPE_HW_EXP,
+	[16] = VMX_INT_TYPE_HW_EXP,
+	[17] = VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+	[18] = VMX_INT_TYPE_HW_EXP,
+	[19] = VMX_INT_TYPE_HW_EXP,
+	[20] = VMX_INT_TYPE_HW_EXP,
+	[21] = VMX_INT_TYPE_HW_EXP,
+	[22] = VMX_INT_TYPE_HW_EXP,
+	[23] = VMX_INT_TYPE_HW_EXP,
+	[24] = VMX_INT_TYPE_HW_EXP,
+	[25] = VMX_INT_TYPE_HW_EXP,
+	[26] = VMX_INT_TYPE_HW_EXP,
+	[27] = VMX_INT_TYPE_HW_EXP,
+	[28] = VMX_INT_TYPE_HW_EXP,
+	[29] = VMX_INT_TYPE_HW_EXP,
+	[30] = VMX_INT_TYPE_HW_EXP,
+	[31] = VMX_INT_TYPE_HW_EXP
+};
+
+/* VMX entry/exit Interrupt info */
+#define VMX_INT_INFO_ERR_CODE_VALID	(1U<<11)
+#define VMX_INT_INFO_VALID		    (1U<<31)
+
 VOID
 Cr4AccessEmulate(
     _In_ PHVM_CORE  core,
@@ -177,71 +219,81 @@ PageFaultEmulate(
 VOID
 GeneralProtectionFaultEmulate(
     _In_ PVOID Local,
-    _In_ PREGISTERS Regs
+    _In_ PREGISTERS Regs,
+    _In_ UINT32 ExceptionVector
 )
 {
     PHYSICAL_ADDRESS PhysicalAddress = { 0 };
     UINT_PTR Process = 0;
-    PUINT8 Mapping = NULL;
-    //UINT32 InstructionLength = 0;
-    BOOLEAN isRdtsc  = FALSE;
-    BOOLEAN isRdtscp = FALSE;
+    PUINT8 MappedVa = NULL;
+    UINT32 InsLenght;
+    BOOLEAN IsRdtsc  = FALSE;
+    BOOLEAN IsRdtscp = FALSE;
 
     //
-    // Only interested in #GP's from user
+    // Only interested in exceptions from user-mode.
     //
-    if (!MmuIsUserModeAddress((PVOID)Regs->rip))
+    if (!MmuIsUserModeAddress((PVOID)Regs->rip)) {
         goto Inject;
-
-    //
-    // Map (could be avoided if KvaShadow is not enabled and hypervisor follows CR3)
-    //
-    Process = VmxVmcsReadPlatform(GUEST_CR3);
-
-    PhysicalAddress = MmuGetPhysicalAddress(Process, (PVOID)Regs->rip);
-    if (!PhysicalAddress.QuadPart)
-        goto Inject;
-
-    Mapping = (PUINT8)MmuMap(PhysicalAddress);
-    if (!Mapping)
-        goto Inject;
-
-    //
-    // Check if offending instruction is RDTSC/RDTSCP
-    //
-    isRdtsc  = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x31);
-    isRdtscp = (Mapping[BYTE_OFFSET(Regs->rip)] == 0x0F && Mapping[BYTE_OFFSET(Regs->rip) + 1] == 0x01 && Mapping[BYTE_OFFSET(Regs->rip) + 2] == 0xF9);
-
-    //
-    // Check to emulate
-    //
-    if (isRdtsc) {
-        //
-        // Emulate RDTSC
-        //
-        RdtscEmulate(Local, Regs, Process, Mapping);
-        goto Unmap;
-    }
-    
-    if (isRdtscp) {
-        //
-        // Emulate RDTSCP
-        //
-        RdtscpEmulate(Local, Regs, Process, Mapping);
-        goto Unmap;
-
     }
 
+    InsLenght = VmxVmcsRead32( EXIT_INSTRUCTION_LENGTH );
+    if (InsLenght != 2 && InsLenght != 3 ) {
+        goto Inject;
+    }
 
     //
-    // Reinject exception
+    //  Map (avoidable if KVAS was not enabled and hypervisor follow CR3)
     //
+    Process = VmxVmcsReadPlatform( GUEST_CR3 );
+    PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Regs->rip );
+    if (!PhysicalAddress.QuadPart) {
+        goto Inject;
+    }
+
+    MappedVa = (PUINT8)MmuMap( PhysicalAddress );
+    if (!MappedVa) {
+        goto Inject;
+    }
+
+    //
+    //  Check if offending instruction is RDTSC / RDTSCP.
+    //
+    if (InsLenght == 2) {
+        IsRdtsc = (MappedVa[BYTE_OFFSET(Regs->rip)] == 0x0F
+                && MappedVa[BYTE_OFFSET(Regs->rip) + 1] == 0x31);
+
+        if (IsRdtsc) {
+            RdtscEmulate( Local, Regs, Process, MappedVa );
+            goto Unmap;
+        }
+
+    } else {
+        IsRdtscp = (MappedVa[BYTE_OFFSET(Regs->rip)] == 0x0F
+                 && MappedVa[BYTE_OFFSET(Regs->rip) + 1] == 0x01
+                 && MappedVa[BYTE_OFFSET(Regs->rip) + 2] == 0xF9);
+
+        if (IsRdtscp) {
+            RdtscpEmulate(Local, Regs, Process, MappedVa );
+            goto Unmap;
+
+        }
+    }
+
 Inject:
-    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
-    VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
+
+    if (ExceptionType[ExceptionVector] & EXCEPTION_ERROR_CODE_VALID) {
+        VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE,
+                        VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+    }
+
+    VmxVmcsWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
+                    VMX_INT_INFO_VALID
+                    | (ExceptionType[ExceptionVector] << 8) 
+                    | (ExceptionVector & INTR_INFO_VECTOR_MASK) );
 Unmap:
-    if ( Mapping ) {
-        MmuUnmap(Mapping);
+    if (MappedVa) {
+        MmuUnmap( MappedVa );
     }
 }
 
@@ -290,9 +342,50 @@ DsHvdsExitHandler(
         }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-            GeneralProtectionFaultEmulate(core->localContext, regs);
+            UINT32 InterruptInfo = VmxVmcsRead32( EXIT_INTERRUPTION_INFORMATION );
+            UINT32 ExceptionVector = InterruptInfo & INTR_INFO_VECTOR_MASK;
+            UINT32 ErrorCode;
+            UINT32 Dpl;
+            BOOLEAN InjectEvent = TRUE;
+
+            if (ExceptionVector == TRAP_GP_FAULT || 
+                ExceptionVector == TRAP_INVALID_OPCODE) {
+
+                if ((InterruptInfo & VMX_INT_INFO_VALID) &&
+                    (InterruptInfo & VMX_INT_INFO_ERR_CODE_VALID)) {
+
+                    ErrorCode = VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE );
+                    NT_ASSERT( TRAP_GP_FAULT == ExceptionVector );
+                }
+
+                //
+                //  Get current privilege level for the descriptor.
+                //
+                Dpl = VmxVmcsRead32( GUEST_CS_ACCESS_RIGHTS );
+                Dpl = (Dpl >> 5) & 3;
+
+                if (Dpl == 3) {
+                    GeneralProtectionFaultEmulate( core->localContext, 
+                                                   regs, 
+                                                   ExceptionVector );
+                    InjectEvent = FALSE;
+                }
+            }
+            
+            if (InjectEvent) {
+                if (ExceptionType[ExceptionVector] & EXCEPTION_ERROR_CODE_VALID) {
+                    VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
+                                    VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+                }
+
+                VmxVmcsWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
+                                VMX_INT_INFO_VALID
+                                | (ExceptionType[ExceptionVector] << 8) 
+                                | (ExceptionVector & INTR_INFO_VECTOR_MASK) );
+            }
             break;
         }
+
         case EXIT_REASON_CR_ACCESS:
         {
             Cr4AccessEmulate(core, regs);

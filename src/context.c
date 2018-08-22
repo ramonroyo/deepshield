@@ -14,6 +14,7 @@ GlobalContextConfigure(
 )
 {
     memset(global, 0, sizeof(GLOBAL_CONTEXT));
+    global->Cr3 = __readcr3();
 
     //
     // msr

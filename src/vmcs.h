@@ -20,7 +20,7 @@ VmcsConfigureCommonGuest(
 
 VOID
 VmcsConfigureCommonHost(
-    VOID
+    _In_ UINT_PTR SystemCr3
 );
 
 VOID
