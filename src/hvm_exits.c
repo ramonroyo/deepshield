@@ -96,7 +96,6 @@ HvmHandleService(
         default:
         {
             regs->rax = (UINT32)STATUS_UNSUCCESSFUL;
-
             regs->rflags.u.f.cf = 1;
 
             break;
@@ -115,6 +114,8 @@ HvmpExitHandler(
 )
 {
     UINT32 exitReason;
+
+    NT_ASSERT( &core->guestRegisters == regs );
 
     //
     // Gather minimal exit information

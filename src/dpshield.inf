@@ -86,7 +86,7 @@ HKR,,TypesSupported,0x10001,7
 [Strings]
 ManufacturerName        = "ByteHeed"
 DiskId                  = "DeepShield Driver Installation Disk"
-ServiceDescription      = "ByteHeed DeepShield Driver for Meltdown protection"
+ServiceDescription      = "ByteHeed DeepShield Driver for Timing-Attacks Protection"
 ServiceName             = "DeepShield"
 EventName               = "DeepShield Protection"
 DriverName              = "dpshield"

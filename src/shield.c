@@ -8,29 +8,15 @@
 #include "hvds.h"
 #include "smp.h"
 
+extern UINT_PTR gSystemPageDirectoryTable;
+
 NTSTATUS
 DsInitializeShield(
     VOID
     )
 {
-    NTSTATUS Status;
-
-    Status = DsIsHvdsSupported();
-    if (!NT_SUCCESS( Status )) {
-        return Status;
-    }
-
-    Status = MmuInit();
-    if (!NT_SUCCESS( Status )) {
-        return Status;
-    }
-
-    Status = DsInitializeHvds();
-    if (!NT_SUCCESS( Status )) {
-        return Status;
-    }
-
-    return Status;
+    gSystemPageDirectoryTable = __readcr3();
+    return MmuInitialize();
 }
 
 VOID
@@ -38,8 +24,7 @@ DsFinalizeShield(
     VOID
     )
 {
-    DsFinalizeHvds();
-    MmuDone();
+    MmuFinalize();
 }
 
 NTSTATUS
@@ -47,17 +32,7 @@ DsStartShield(
     VOID
     )
 {
-    NTSTATUS Status;
-
-    Status = DsStartHvds();
-
-    if (!NT_SUCCESS( Status )) {
-
-        DsStopHvds();
-        return Status;
-    }
-
-    return Status;
+    return DsLoadHvds();
 }
 
 NTSTATUS
@@ -65,7 +40,7 @@ DsStopShield(
     VOID
     )
 {
-    return DsStopHvds();
+    return DsUnloadHvds();
 }
 
 BOOLEAN

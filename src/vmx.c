@@ -5,8 +5,6 @@
 #define HIGH32(v64) ((UINT32)((v64) >> 32))
 #define LOW32(v64)  ((UINT32) (v64)       )
 
-#define IA32_FEATURE_CONTROL    0x3A
-
 /**
 * Intel VMX config read in a given core.
 * Used to compare capabilities across diferent cores.
@@ -120,10 +118,6 @@ VmxIsSupported(
 {
     VMX_SUPPORT support;
     VMX_BASIC   vmxBasic;
-
-
-    if (!VmxIsIntel())
-        return STATUS_VMX_NOT_SUPPORTED;
 
     //
     // Prepare revision and capabilities

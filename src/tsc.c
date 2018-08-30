@@ -409,7 +409,7 @@ RdtscEmulate(
     Regs->rdx = TimeStamp.HighPart;
     Regs->rax = TimeStamp.LowPart;
 
-    if ( ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
+    if (ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
         InjectTerminateProcess(Mapping, Regs);
         return;
     }
@@ -438,7 +438,7 @@ RdtscpEmulate(
     Regs->rax = TimeStamp.LowPart;
     Regs->rcx = Processor.LowPart;
 
-    if ( ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
+    if (ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
         InjectTerminateProcess(Mapping, Regs);
         return;
     }

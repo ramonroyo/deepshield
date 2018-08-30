@@ -19,9 +19,6 @@ DRIVER_UNLOAD DriverUnload;
 _Dispatch_type_(IRP_MJ_DEVICE_CONTROL)
 DRIVER_DISPATCH DriverDeviceControl;
 
-_Dispatch_type_(IRP_MJ_SHUTDOWN)
-DRIVER_DISPATCH DriverShutdown;
-
 _Dispatch_type_(IRP_MJ_CREATE)
 _Dispatch_type_(IRP_MJ_CLOSE)
 DRIVER_DISPATCH DriverDeviceCreateClose;
@@ -50,18 +47,10 @@ DsCheckHvciCompliance(
     );
 #endif
 
-VOID
-DsTimerDPC(
-    _In_ struct _KDPC *Dpc,
-    _In_opt_ PVOID DeferredContext,
-    _In_opt_ PVOID SystemArgument1,
-    _In_opt_ PVOID SystemArgument2
-    );
-
-BOOLEAN
-DsVerifyBuildNumber(
-    _In_ ULONG BuildNumber
-    );
+NTSTATUS
+DsVerifyVmxState(
+    _Inout_ PDS_VMX_STATE VmxState
+);
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
@@ -71,7 +60,7 @@ DsVerifyBuildNumber(
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 #pragma alloc_text(PAGE, DsCheckHvciCompliance)
 #endif
-#pragma alloc_text(PAGE, DsVerifyBuildNumber)
+#pragma alloc_text(PAGE, DsVerifyVmxState)
 #endif
 
 #ifdef DBG
@@ -81,18 +70,19 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
+#define DS_VMX_DISABLED(v)    \
+    ((BOOLEAN)(((PDS_VMX_STATE)(v))->Flags.AllFlags != 0))
+
+PVOID gPowerRegistration;
 BOOLEAN gSecuredPageTables;
+UINT_PTR gSystemPageDirectoryTable;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
 UNICODE_STRING gDriverKeyName;
-static BOOLEAN gShutdownCalled;
 
-KDPC ExposeDpc;
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
-KTIMER ExposeTimer;
-PCHAR LeakBuffer;
-extern PCHAR LeakData;
+DS_VMX_STATE gVmxState;
 
 NTSTATUS
 DriverEntry(
@@ -104,12 +94,9 @@ DriverEntry(
     PDEVICE_OBJECT DeviceObject = NULL;
     PCUNICODE_STRING DeviceSecurityString;
     UNICODE_STRING FunctionName;
-    ULONG LoadMode = 0;
-    BOOLEAN ShutdownCallback = FALSE;
-    BOOLEAN SymbolicLink = FALSE;
     BOOLEAN MailboxInitialized = FALSE;
+    BOOLEAN SymbolicLink = FALSE;
 
-    gShutdownCalled = FALSE;
     gSecuredPageTables = FALSE;
     gStateFlags = 0;
 
@@ -190,16 +177,7 @@ DriverEntry(
     DriverObject->MajorFunction[IRP_MJ_CREATE] = DriverDeviceCreateClose;
     DriverObject->MajorFunction[IRP_MJ_CLOSE] = DriverDeviceCreateClose;
     DriverObject->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DriverDeviceControl;
-    DriverObject->MajorFunction[IRP_MJ_SHUTDOWN] = DriverShutdown;
     DriverObject->DriverUnload = DriverUnload;
-
-    Status = IoRegisterShutdownNotification( DriverObject->DeviceObject );
-
-    if (!NT_SUCCESS( Status )) {
-        goto RoutineExit;
-    }
-
-    ShutdownCallback = TRUE;
 
     Status = IoCreateSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName, 
                                    (PUNICODE_STRING) &DsDeviceName );
@@ -209,58 +187,57 @@ DriverEntry(
     }
 
     SymbolicLink = TRUE;
-    
-    //
-    //  The shield must be initialized under System context.
-    //
-    Status = DsInitializeShield();
 
-    if (!NT_SUCCESS( Status )) {
-        //
-        //  TODO: log reason and continue.
-        //
-        Status = STATUS_SUCCESS;
+    Status = DsVerifyVmxState( &gVmxState );
+
+    if (!NT_SUCCESS( Status ) || DS_VMX_DISABLED( &gVmxState ) ){
         goto RoutineExit;
     }
 
+    //
+    //  Register the power change callback to load / unload VMM on
+    //  sleep (S1/S2/S3) and hibernate (S4) state changes.
+    //
+
+    gPowerRegistration = 
+        DsRegisterPowerChangeCallback( DsPowerChangeCallback, NULL, 0 );
+
+    if (gPowerRegistration) {
+        SetFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
+    }
+
+    Status = DsInitializeShield();
+
+    if (!NT_SUCCESS( Status )) {
+        Status = STATUS_SUCCESS;
+        goto RoutineExit;
+    }
+    
     SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
 
-    KeInitializeDpc( &ExposeDpc, DsTimerDPC, NULL );
-    KeSetTargetProcessorDpc( &ExposeDpc, 0 );
-    KeInitializeTimer( &ExposeTimer );
-
+    /*
     Status = DsQueryLoadModePolicy( &LoadMode );
-
     if (NT_SUCCESS( Status ) && LoadMode == DSH_RUN_MODE_AUTO_START) {
 
-#if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
-        if (FALSE == DsCheckHvciCompliance()) {
-            //
-            //  TODO: log reason and continue.
-            //
-            Status = STATUS_SUCCESS;
-            goto RoutineExit;
-        }
-#endif
-
         Status = DsStartShield();
-
         if (!NT_SUCCESS( Status )) {
-            //
-            //  TODO: log reason and continue.
-            //
+
             Status = STATUS_SUCCESS;
             goto RoutineExit;
         }
 
         SetFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-    }
+    }*/
 
 RoutineExit:
 
     if (!NT_SUCCESS( Status )) {
 
-        KeCancelTimer( &ExposeTimer );
+        if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {
+
+            ClearFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
+            DsDeregisterPowerChangeCallback( gPowerRegistration );
+        }
 
         if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
 
@@ -270,10 +247,6 @@ RoutineExit:
 
         if (SymbolicLink) {
             IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
-        }
-
-        if (ShutdownCallback) {
-            IoUnregisterShutdownNotification( DriverObject->DeviceObject );
         }
 
         if (DeviceObject) {
@@ -300,27 +273,17 @@ DriverUnload(
     _In_ PDRIVER_OBJECT DriverObject
     )
  {
-    IoUnregisterShutdownNotification( DriverObject->DeviceObject );
-    KeCancelTimer( &ExposeTimer );
+    if (DsIsShieldRunning()) {
+        NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ));
 
-    if (LeakBuffer) {
-        ExFreePoolWithTag( LeakBuffer, 'dMsD');
+        ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
+        DsStopShield();
     }
 
-    if (FALSE == gShutdownCalled) {
+    if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
 
-        if (DsIsShieldRunning()) {
-            NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ));
-
-            ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-            DsStopShield();
-        }
-
-        if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
-
-            ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
-            DsFinalizeShield();
-        }
+        ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
+        DsFinalizeShield();
     }
 
     if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
@@ -340,36 +303,6 @@ DriverUnload(
 
     DsDeleteNonPagedPoolList();
     WPP_CLEANUP( DriverObject );
-}
-
-NTSTATUS
-DriverShutdown(
-    _In_ PDEVICE_OBJECT DeviceObject,
-    _Inout_ PIRP Irp
-    )
-{
-    UNREFERENCED_PARAMETER( DeviceObject );
-
-    gShutdownCalled = TRUE;
-    
-    if (DsIsShieldRunning()) {
-        NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ));
-
-        ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-        DsStopShield();
-    }
-
-    if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
-
-        ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
-        DsFinalizeShield();
-    }
-
-    Irp->IoStatus.Status = STATUS_SUCCESS;
-    Irp->IoStatus.Information = 0;
-
-    IoCompleteRequest( Irp, IO_NO_INCREMENT );
-    return STATUS_SUCCESS;
 }
 
 NTSTATUS
@@ -447,16 +380,9 @@ DriverDeviceControl(
             break;
         }
 
-        case IOCTL_MELTDOWN_EXPOSE:
-        {
-            Status = DsCtlMeltdownExpose( Irp, IrpStack );
-            break;
-        }
-
 //
 // TODO: Enable only-debug when tests are finished.
-//
-// #ifdef DEBUG
+// #ifdef DBG
 //
         case IOCTL_TEST_RDTSC:
         {
@@ -533,6 +459,78 @@ DsCloneUnicodeString(
     return Status;
 }
 
+typedef struct _CPU_INFO {
+    INT32 Data[ 4 ];
+} CPU_INFO;
+
+#define CPUID_VALUE_EAX(c) ((UINT32)((c).Data[0]))
+#define CPUID_VALUE_EBX(c) ((UINT32)((c).Data[1]))
+#define CPUID_VALUE_ECX(c) ((UINT32)((c).Data[2]))
+#define CPUID_VALUE_EDX(c) ((UINT32)((c).Data[3]))
+
+BOOLEAN
+DsCheckCpuFamilyIntel(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    //
+    //  Just run for GenuineIntel.
+    //
+    __cpuid( &CpuInfo, 0 );
+
+    return CPUID_VALUE_ECX( CpuInfo ) == 'letn' &&
+           CPUID_VALUE_EDX( CpuInfo ) == 'Ieni' &&
+           CPUID_VALUE_EBX( CpuInfo ) == 'uneG';
+}
+
+//
+//  VMX capabilities are declared in bit 5 of ECX retured from CPUID
+//
+#define IA32_CPUID_ECX_VMX                  0x20
+
+BOOLEAN
+DsCheckCpuVmxCapable(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    //
+    //  Check whether hypervisor support is present.
+    //
+    __cpuid( &CpuInfo, 1 );
+
+    if (0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX )) {
+       return FALSE;
+    }
+
+    return TRUE;
+}
+
+BOOLEAN
+DsCheckVmxFirmwareState(
+    VOID
+    )
+{
+    UINT64 RequiredFeature = 
+        IA32_FEATURE_CONTROL_LOCK | IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX;
+
+    //
+    //  Strictly we need IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX. If the
+    //  IA32_FEATURE_CONTROL_LOCK bit isn't set, we're free to write to the MSR.
+    //  System BIOS uses this bit to provide a setup option for BIOS to disable
+    //  support for VMX.
+    //
+
+    if ((__readmsr( IA32_FEATURE_CONTROL ) & RequiredFeature) != RequiredFeature) {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 BOOLEAN
 DsCheckHvciCompliance(
@@ -574,26 +572,46 @@ DsCheckHvciCompliance(
 }
 #endif
 
-#define _DS_MM_HINT_T0  1
-
-VOID 
-DsTimerDPC(
-    _In_ struct _KDPC *Dpc,
-    _In_opt_ PVOID DeferredContext,
-    _In_opt_ PVOID SystemArgument1,
-    _In_opt_ PVOID SystemArgument2
+NTSTATUS
+DsVerifyVmxState(
+    _Inout_ PDS_VMX_STATE VmxState
     )
 {
-    INT Idx = 0;
+    PAGED_CODE();
 
-    UNREFERENCED_PARAMETER( Dpc );
-    UNREFERENCED_PARAMETER( DeferredContext );
-    UNREFERENCED_PARAMETER( SystemArgument1 );
-    UNREFERENCED_PARAMETER( SystemArgument2 );
+    RtlZeroMemory( VmxState, sizeof( DS_VMX_STATE ) );
 
-    for (; Idx < 64; Idx += 32) {
-        _mm_prefetch( LeakBuffer + Idx, _DS_MM_HINT_T0 );
+    if (FALSE == DsCheckCpuFamilyIntel() ) {
+        VmxState->Flags.NoIntelCpu = TRUE;
+        goto Exit;
     }
+
+#if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
+
+    if (FALSE == DsCheckHvciCompliance() ) {
+        VmxState->Flags.HvciEnabled = TRUE;
+
+        //
+        //  Nothing else to check. In this situation a simple rdmsr might
+        //  cause a privileged instruction exception.
+        //
+        goto Exit;
+    }
+#endif
+
+    if (FALSE == DsCheckCpuVmxCapable() ) {
+        VmxState->Flags.NoVtxExtension = TRUE;
+        goto Exit;
+    } 
+
+    if (FALSE == DsCheckVmxFirmwareState() ) {
+        VmxState->Flags.FirmwareDisabled = TRUE;
+        goto Exit;
+    }
+
+Exit:
+
+    return STATUS_SUCCESS;
 }
 
 #if !defined(WPP_EVENT_TRACING)

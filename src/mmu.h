@@ -43,7 +43,7 @@ typedef struct _MMU
 * @return Error if unable to complete the operation. Success otherwise.
 */
 NTSTATUS
-MmuInit(
+MmuInitialize(
     VOID
 );
 
@@ -51,7 +51,7 @@ MmuInit(
 * Releases all allocated resources related with the logical MMU.
 */
 VOID
-MmuDone(
+MmuFinalize(
     VOID
 );
 

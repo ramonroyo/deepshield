@@ -4,7 +4,7 @@
 #include "hvm.h"
 
 PUINT_PTR
-RegsGpr(
+LookupGpr(
     _In_ PREGISTERS regs,
     _In_ UINT8      gpr
 );

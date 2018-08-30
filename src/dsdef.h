@@ -10,6 +10,7 @@
 #include "ringbuf.h"
 #include "mailbox.h"
 #include "channel.h"
+#include "power.h"
 #include "shield.h"
 #include "policy.h"
 #include "ioctl.h"
@@ -17,6 +18,9 @@
 #include "mem.h"
 #include "smp.h"
 #include "os.h"
+#include "vmx.h"
+
+#pragma warning(disable:4201)   // nameless struct/union
 
 extern BOOLEAN gSecuredPageTables;
 extern ULONG gStateFlags;
@@ -42,6 +46,7 @@ extern MAILBOX gSecureMailbox;
 #define DSH_GFL_SHIELD_INITIALIZED  0x00000001
 #define DSH_GFL_SHIELD_STARTED      0x00000002
 #define DSH_GFL_CHANNEL_SETUP       0x00000004
+#define DSH_GFL_POWER_REGISTERED    0x00000008
 
 //
 //  These macros are used to test, set and clear flags respectivly
@@ -84,6 +89,24 @@ PVOID
     );
 
 extern PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
+
+typedef struct _DS_VMX_STATE {
+
+    ULONG Length;
+
+    union {
+        struct {
+            ULONG NoIntelCpu : 1;
+            ULONG HvciEnabled : 1;
+            ULONG NoVtxExtension : 1;
+            ULONG FirmwareDisabled : 1;
+            ULONG Spare : 28;
+        };
+
+        ULONG AllFlags;
+    } Flags;
+
+} DS_VMX_STATE, *PDS_VMX_STATE;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 
@@ -269,8 +292,8 @@ typedef enum _SYSTEM_INFORMATION_CLASS {
     MaxSystemInfoClass = 177,
 } SYSTEM_INFORMATION_CLASS;
 
-#define CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED                0x0400
-#define    CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED    0x0800
+#define CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED              0x0400
+#define CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED    0x0800
 #define CODEINTEGRITY_OPTION_HVCI_KMCI_STRICTMODE_ENABLED   0x1000
 #define CODEINTEGRITY_OPTION_HVCI_IUM_ENABLED               0x2000
 

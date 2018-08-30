@@ -9,10 +9,15 @@
 #include "mmu.h"
 #include "smp.h"
 
-#define DS_STACK_PAGES 2
+#define DS_VMM_STACK_PAGES 3
 
 extern PGLOBAL_CONTEXT gGlobalContext;
 extern PLOCAL_CONTEXT  gLocalContexts;
+
+NTSTATUS
+DspFinalizeHvds(
+    VOID
+    );
 
 NTSTATUS __stdcall
 LocalContextResetOnCore(
@@ -66,6 +71,7 @@ DsConfigureHvds(
 
         cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
         cr4.u.f.tsd = 1;
+
         VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
         VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
         VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
@@ -108,38 +114,6 @@ DsConfigureHvds(
     }
 }
 
-VOID
-DsResetHvds(
-    VOID
-    )
-{
-    if (HvmLaunched())
-    {
-        HvmStop();
-    }
-
-    if (HvmInitialized())
-    {
-        HvmDone();
-    }
-
-    if (gLocalContexts)
-    {
-        SmpExecuteOnAllCores(LocalContextResetOnCore, 0);
-
-        MemFree(gLocalContexts);
-        gLocalContexts = 0;
-    }
-
-    if(gGlobalContext)
-    {
-        GlobalContextReset(gGlobalContext);
-
-        MemFree(gGlobalContext);
-        gGlobalContext = 0;
-    }
-}
-
 NTSTATUS
 DsIsHvdsSupported(
     VOID
@@ -149,14 +123,12 @@ DsIsHvdsSupported(
 }
 
 NTSTATUS
-DsInitializeHvds(
+DspInitializeHvds(
     VOID
     )
 {
     NTSTATUS Status;
     UINT32 i;
-
-    DsResetHvds();
 
     gGlobalContext = MemAlloc(sizeof(GLOBAL_CONTEXT));
     if (!gGlobalContext) {
@@ -168,7 +140,9 @@ DsInitializeHvds(
         goto failure;
     }
 
-    Status = HvmInit( DS_STACK_PAGES, DsHvdsExitHandler, DsConfigureHvds );
+    Status = HvmInitialize( DS_VMM_STACK_PAGES, 
+                            DsHvdsExitHandler, 
+                            DsConfigureHvds );
 
     if (!NT_SUCCESS( Status )) {
         goto failure;
@@ -191,33 +165,79 @@ DsInitializeHvds(
     return STATUS_SUCCESS;
 
 failure:
-    DsResetHvds();
+    DspFinalizeHvds();
     return STATUS_UNSUCCESSFUL;
 }
 
 NTSTATUS
-DsFinalizeHvds(
+DspFinalizeHvds(
     VOID
-)
+    )
 {
-    DsResetHvds();
+    if (HvmInitialized()) {
+        HvmFinalize();
+    }
+
+    if (gLocalContexts) {
+        SmpExecuteOnAllCores(LocalContextResetOnCore, 0);
+
+        MemFree(gLocalContexts);
+        gLocalContexts = 0;
+    }
+
+    if(gGlobalContext) {
+        GlobalContextReset(gGlobalContext);
+
+        MemFree(gGlobalContext);
+        gGlobalContext = 0;
+    }
+
     return STATUS_SUCCESS;
 }
 
 NTSTATUS
-DsStartHvds(
+DsLoadHvds(
     VOID
-)
+    )
 {
-    return HvmStart();
+    NTSTATUS Status = DspInitializeHvds();
+
+    if (NT_SUCCESS( Status )) {
+
+        //
+        //  Start the virtual machine.
+        //
+        Status = HvmStart();
+
+        if (!NT_SUCCESS( Status ) ) {
+
+            //
+            //  Cleanup on partial start.
+            //
+            HvmStop();
+
+            //
+            //  Deallocate resources.
+            //
+            DspFinalizeHvds();
+        }
+    }
+
+    return Status;
 }
 
 NTSTATUS
-DsStopHvds(
+DsUnloadHvds(
     VOID
-)
+    )
 {
-    return HvmStop();
+    NTSTATUS Status = HvmStop();
+
+    if (NT_SUCCESS( Status )) {
+        DspFinalizeHvds();
+    }
+
+    return Status;
 }
 
 BOOLEAN

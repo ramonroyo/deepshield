@@ -4,6 +4,7 @@
 #include "x86.h"
 #include "sync.h"
 
+/*
 typedef struct _REGISTERS
 {
 #ifdef _WIN64
@@ -33,6 +34,39 @@ typedef struct _REGISTERS
     UINT8 fxarea[512];
 #endif
 #endif
+} REGISTERS, *PREGISTERS;*/
+
+typedef struct DECLSPEC_ALIGN(16) _REGISTERS
+{
+    UINT_PTR rax;
+    UINT_PTR rcx;
+    UINT_PTR rdx;
+    UINT_PTR rbx;
+    UINT_PTR rsp;
+    UINT_PTR rbp;
+    UINT_PTR rsi;
+    UINT_PTR rdi;
+
+#ifdef _WIN64
+    UINT_PTR r8;
+    UINT_PTR r9;
+    UINT_PTR r10;
+    UINT_PTR r11;
+    UINT_PTR r12;
+    UINT_PTR r13;
+    UINT_PTR r14;
+    UINT_PTR r15;
+#endif
+
+#if defined(_WIN64)
+    M128A XmmRegisters[16];
+#else
+    M128A XmmRegisters[8];
+#endif
+
+    UINT_PTR rip;
+    FLAGS_REGISTER rflags;
+
 } REGISTERS, *PREGISTERS;
 
 typedef struct _DESCRIPTOR_TABLE_REGISTER
@@ -114,9 +148,12 @@ typedef struct _HVM HVM, *PHVM;
 
 typedef struct _HVM_CORE
 {
+    //
+    //  This field must be the first.
+    //
+    REGISTERS guestRegisters;
     UINT32   index;
     PHVM     hvm;
-
     HOST_SAVED_STATE savedState;
     PVOID            vmxOn;
     PVOID            vmcs;
@@ -151,7 +188,7 @@ HvmLaunched(
 
 
 NTSTATUS
-HvmInit(
+HvmInitialize(
     _In_  UINT32           stackPages,
     _In_  HVM_EXIT_HANDLER handler,
     _In_  HVM_CONFIGURE    configure
@@ -189,7 +226,7 @@ HvmStop(
 );
 
 NTSTATUS
-HvmDone(
+HvmFinalize(
     VOID
 );
 

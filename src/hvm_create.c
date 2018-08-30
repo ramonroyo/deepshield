@@ -6,15 +6,32 @@
 
 PHVM gHvm = 0;
 
-VOID
-HvmpReset(
+BOOLEAN
+HvmInitialized(
     VOID
-)
+    )
+{
+    return gHvm != 0;
+}
+
+BOOLEAN
+HvmLaunched(
+    VOID
+    )
+{
+    return HvmInitialized() && AtomicRead(&gHvm->launched);
+}
+
+VOID
+HvmDestroy(
+    VOID
+    )
 {
     UINT32 i;
 
-    if(!gHvm)
+    if (!gHvm) {
         return;
+    }
 
     if (gHvm->cores)
     {
@@ -37,28 +54,14 @@ HvmpReset(
     gHvm = 0;
 }
 
-BOOLEAN
-HvmInitialized(
-    VOID
-)
-{
-    return gHvm != 0;
-}
-
-BOOLEAN
-HvmLaunched(
-    VOID
-)
-{
-    return HvmInitialized() && AtomicRead(&gHvm->launched);
-}
+#define XMM_REGISTER_ALIGNMENT_SIZE 16
 
 NTSTATUS
-HvmInit(
-    _In_  UINT32           stackPages,
+HvmInitialize(
+    _In_  UINT32 stackPages,
     _In_  HVM_EXIT_HANDLER handler,
-    _In_  HVM_CONFIGURE    configure
-)
+    _In_  HVM_CONFIGURE configure
+    )
 {
     UINT32 i;
 
@@ -71,10 +74,7 @@ HvmInit(
             return STATUS_UNSUCCESSFUL;
         }
 
-        //
-        //  Restart.
-        //
-        HvmpReset();
+        HvmDestroy();
     }
 
     gHvm = MemAlloc(sizeof( HVM ) );
@@ -82,16 +82,18 @@ HvmInit(
         return STATUS_UNSUCCESSFUL;
     }
 
-    memset( gHvm, 0, sizeof( HVM ) );
+    RtlZeroMemory( gHvm, sizeof( HVM ) );
 
-    gHvm->cores = MemAllocArray( SmpNumberOfCores(), sizeof( HVM_CORE ));
+    gHvm->cores = MemAllocAligned( SmpNumberOfCores() * sizeof( HVM_CORE ),
+                                   XMM_REGISTER_ALIGNMENT_SIZE );
     if (gHvm->cores == NULL)
     {
         MemFree(gHvm);
         gHvm = 0;
         return STATUS_UNSUCCESSFUL;
     }
-    memset( gHvm->cores, 0, SmpNumberOfCores() * sizeof( HVM_CORE ) );
+
+    RtlZeroMemory( gHvm->cores, SmpNumberOfCores() * sizeof( HVM_CORE ) );
 
     for (i = 0; i < SmpNumberOfCores(); i++)
     {
@@ -116,10 +118,19 @@ HvmInit(
         }
 
         hvmCoreStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->cores[i].stack 
-                            + stackPages * PAGE_SIZE - sizeof(UINT_PTR));
+                            + (stackPages * PAGE_SIZE) - sizeof(UINT_PTR));
+        
+        //
+        //  Store the HvmCore at the end of the stack.
+        //
         *hvmCoreStackPointer = (UINT_PTR)&gHvm->cores[i];
+
+        //
+        //  Keep it aligned to 64 bytes.
+        //
         gHvm->cores[i].rsp = ((UINT_PTR)gHvm->cores[i].stack
-                           + stackPages * PAGE_SIZE - 0x10);
+                           + (stackPages * PAGE_SIZE) - 0x40);
+
         gHvm->cores[i].handler   = handler;
         gHvm->cores[i].configure = configure;
         
@@ -129,12 +140,13 @@ HvmInit(
     return STATUS_SUCCESS;
 
 failure:
-    HvmpReset();
+
+    HvmDestroy();
     return STATUS_UNSUCCESSFUL;
 }
 
 NTSTATUS
-HvmDone(
+HvmFinalize(
     VOID
     )
 {
@@ -142,6 +154,6 @@ HvmDone(
         return STATUS_UNSUCCESSFUL;
     }
 
-    HvmpReset();
+    HvmDestroy();
     return STATUS_SUCCESS;
 }

@@ -9,22 +9,12 @@ DsIsHvdsSupported(
     );
 
 NTSTATUS
-DsInitializeHvds(
+DsLoadHvds(
     VOID
     );
 
 NTSTATUS
-DsFinalizeHvds(
-    VOID
-    );
-
-NTSTATUS
-DsStartHvds(
-    VOID
-    );
-
-NTSTATUS
-DsStopHvds(
+DsUnloadHvds(
     VOID
     );
 

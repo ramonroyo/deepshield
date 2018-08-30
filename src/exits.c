@@ -28,7 +28,7 @@ CrAccessEmulate(
     //
     // Follow CR3
     //
-    gpr = RegsGpr(regs, (UINT8)data.u.f.gpr);
+    gpr = LookupGpr(regs, (UINT8)data.u.f.gpr);
 
     VmxVmcsWritePlatform(HOST_CR3, *gpr);
 
@@ -37,79 +37,119 @@ CrAccessEmulate(
 */
 
 #define EXCEPTION_ERROR_CODE_VALID  8
-#define VMX_INT_TYPE_HW_EXP	3
+#define VMX_INT_TYPE_HW_EXP    3
 
 static const UINT16 ExceptionType[32] = {
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP,
-	VMX_INT_TYPE_HW_EXP
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP,
+    VMX_INT_TYPE_HW_EXP
 };
 
 /* VMX entry/exit Interrupt info */
-#define VMX_INT_INFO_ERR_CODE_VALID	(1U<<11)
-#define VMX_INT_INFO_VALID		    (1U<<31)
+#define VMX_INT_INFO_ERR_CODE_VALID    (1U<<11)
+#define VMX_INT_INFO_VALID            (1U<<31)
+
+typedef enum _IA32_CONTROL_REGISTERS {
+    IA32_CTRL_CR0 = 0,
+    IA32_CTRL_CR2,
+    IA32_CTRL_CR3,
+    IA32_CTRL_CR4,
+    IA32_CTRL_CR8,
+    IA32_CTRL_COUNT
+} IA32_CONTROL_REGISTERS;
+
+#define UNSUPPORTED_CR   IA32_CTRL_COUNT
+
+static IA32_CONTROL_REGISTERS LookupCr[] = {
+    IA32_CTRL_CR0,
+    UNSUPPORTED_CR,
+    UNSUPPORTED_CR,
+    IA32_CTRL_CR3,
+    IA32_CTRL_CR4,
+    UNSUPPORTED_CR,
+    UNSUPPORTED_CR,
+    UNSUPPORTED_CR,
+    IA32_CTRL_CR8
+};
 
 VOID
 Cr4AccessEmulate(
-    _In_ PHVM_CORE  core,
-    _In_ PREGISTERS regs
+    _In_ PHVM_CORE Core,
+    _In_ PREGISTERS Registers
 )
 {
-    EXIT_QUALIFICATION_CR data;
-    CR4_REGISTER          cr4;
+    EXIT_QUALIFICATION_CR Qualification;
+    IA32_CONTROL_REGISTERS CrId;
+    CR4_REGISTER Cr4;
+    UINT_PTR Cr4Mask;
+    BOOLEAN Cr4Load = FALSE;
 
-    data.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
+    Qualification.u.raw = VmxVmcsReadPlatform( EXIT_QUALIFICATION );
+    CrId = LookupCr[Qualification.u.cr.number];
 
-    //
-    // Read new CR4
-    //
-    cr4.u.raw = *RegsGpr(regs, (UINT8)data.u.f.gpr);
+    if (CR_ACCESS_TYPE_MOV_TO_CR == Qualification.u.cr.accessType) {
+        switch (CrId) {
 
-    //
-    // Save to host "as is"
-    //
-    VmxVmcsWritePlatform(HOST_CR4, cr4.u.raw);
-    core->savedState.cr4 = cr4;
+            case IA32_CTRL_CR4: 
+                Cr4Load = TRUE; 
+                break;
 
-    //
-    // Save to guest enabling and hiding tsd
-    //
-    cr4.u.f.tsd = 1;
-    VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+            default: break;
+        }
+    }
 
     //
-    // Done
+    //  Check that we are not monitoring other operations accidentally
     //
-    InstrRipAdvance(regs);
+    NT_ASSERT( Cr4Load );
+
+    if (Cr4Load) {
+        Cr4.u.raw = *LookupGpr( Registers, (UINT8)Qualification.u.cr.moveGpr );
+
+        //
+        //  Capture CR4 changes into the HVM core although is not being used.
+        //
+        Core->savedState.cr4 = Cr4;
+
+        //
+        //  Remove masked CR4 bits.
+        // 
+        Cr4Mask = VmxVmcsReadPlatform( CR4_GUEST_HOST_MASK );
+
+        Cr4.u.raw &= ~Cr4Mask;
+        VmxVmcsWritePlatform( GUEST_CR4, Cr4.u.raw );
+    }
+
+    InstrRipAdvance( Registers );
 }
 
 VOID
@@ -243,9 +283,14 @@ GeneralProtectionFaultEmulate(
     }
 
     //
-    //  Map (avoidable if KVAS was not enabled and hypervisor follow CR3)
+    //  Map (avoidable if KVAS is not enabled and hypervisor follows CR3)
+    //
+    //  Check: the process CR3 for kernel has the whole address space mapped,
+    //  so it might be convenient to change the host CR3 to opportunistically
+    //  exit with the most frequently used CR3 to call RDTSC/P.
     //
     Process = VmxVmcsReadPlatform( GUEST_CR3 );
+
     PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Regs->rip );
     if (!PhysicalAddress.QuadPart) {
         goto Inject;
@@ -297,6 +342,13 @@ Unmap:
     }
 }
 
+//
+//  IRQL requirements don't mean much when running in VMM context. For all
+//  intents and purposes, even if you enter at PASSIVE_LEVEL, you are 
+//  technically at HIGH_LEVEL, as interrupts are disabled. So you should be
+//  calling almost zero Windows APIs, except if they are documented to run
+//  at HIGH_LEVEL
+//
 VOID 
 DsHvdsExitHandler(
     _In_ UINT32 exitReason,
@@ -305,7 +357,8 @@ DsHvdsExitHandler(
     )
 {
     //
-    // Handle exit reasons
+    //  I thought at first that you had done something clever, but I see that
+    //  there was nothing in it, after all.
     //
     switch (exitReason)
     {
@@ -374,6 +427,7 @@ DsHvdsExitHandler(
             
             if (InjectEvent) {
                 if (ExceptionType[ExceptionVector] & EXCEPTION_ERROR_CODE_VALID) {
+                    NT_ASSERT( InterruptInfo & VMX_INT_INFO_ERR_CODE_VALID );
                     VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
                                     VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
                 }

@@ -270,12 +270,12 @@ MmupMap(
 }
 
 VOID
-MmuDone(
+MmuFinalize(
     VOID
 );
 
 NTSTATUS
-MmuInit(
+MmuInitialize(
     VOID
 )
 {
@@ -339,8 +339,10 @@ MmuInit(
     // Allocate one MMU per core
     //
     gMmu.cores = MemAllocArray(SmpNumberOfCores(), sizeof(MMU_CORE));
-    if(!gMmu.cores)
+    
+    if(!gMmu.cores) {
         return STATUS_INSUFFICIENT_RESOURCES;
+    }
 
     memset(gMmu.cores, 0, SmpNumberOfCores() * sizeof(MMU_CORE));
 
@@ -355,9 +357,6 @@ MmuInit(
             if (slot == NULL)
                 goto failure;
 
-            //
-            // Initialize
-            //
             gMmu.cores[i].mappings[j].used     = FALSE;
             gMmu.cores[i].mappings[j].page     = slot;
             gMmu.cores[i].mappings[j].pte      = MmuGetPxeAddress(slot);
@@ -369,16 +368,16 @@ MmuInit(
     return STATUS_SUCCESS;
 
 failure:
-    MmuDone();
+    MmuFinalize();
 
     return STATUS_UNSUCCESSFUL;
 }
 
 
 VOID
-MmuDone(
+MmuFinalize(
     VOID
-)
+    )
 {
     UINT32 i, j;
 
@@ -549,7 +548,7 @@ MmuGetPhysicalAddress(
     cr3        = cr3         & 0xFFFFFFFFFFFFF000;
     currentCr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
 
-    if(cr3 == 0 || cr3 == currentCr3)
+    if (cr3 == 0 || cr3 == currentCr3)
     {
         //
         // Mapped page tables corresponds to process
@@ -562,7 +561,7 @@ MmuGetPhysicalAddress(
         // We need to traverse cr3 mapping pages
         //
         PHYSICAL_ADDRESS pa    = { 0 };
-        UINT8            level = MmuGetPagingLevels();
+        UINT8 level = MmuGetPagingLevels();
 
         result.QuadPart = 0;
         pa.QuadPart = cr3;
@@ -573,7 +572,7 @@ MmuGetPhysicalAddress(
             UINT16  index;
             UINT64  entry;
 
-            pml   = MmuMapUncached(pa);
+            pml = MmuMapUncached(pa);
 
             //
             // We went out of cached slots, exit
@@ -589,6 +588,13 @@ MmuGetPhysicalAddress(
 
             if(entry & 1)
             {
+                if (entry & 8) {
+                    //
+                    //   Check what happens with a 2-MB page.
+                    //
+                    NT_ASSERT( FALSE );
+                }
+
                 if (level == 1)
                 {
                     result.QuadPart = entry & 0xFFFFFFFFFFFFF000 | (((UINT_PTR)address) & 0xFFF);

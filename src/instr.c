@@ -8,17 +8,18 @@
 #define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
 
 PUINT_PTR
-RegsGpr(
+LookupGpr(
     _In_ PREGISTERS regs,
     _In_ UINT8      gpr
 )
 {
-#ifdef _WIN64
-    gpr = 15 - gpr;
-#else
+#ifndef _WIN64
     gpr = 7 - gpr;
 #endif
 
+    //
+    //  TODO: use new REGISTERS for 32-bits build.
+    //
     return (PUINT_PTR)regs + gpr;
 }
 
@@ -103,28 +104,28 @@ InstrCrEmulate(
 
     data.u.raw = exitQualification;
 
-    gpr = RegsGpr(regs, (UINT8)data.u.f.gpr);
+    gpr = LookupGpr(regs, (UINT8)data.u.cr.moveGpr);
 
-    if (data.u.f.accessType == CR_ACCESS_TYPE_MOV_FROM_CR)
+    if (data.u.cr.accessType == CR_ACCESS_TYPE_MOV_FROM_CR)
     {
-        switch(data.u.f.cr)
+        switch(data.u.cr.number)
         {
             case 3: *gpr = VmxVmcsReadPlatform(GUEST_CR3); break;
-            case 8: *gpr = readcr(data.u.f.cr);            break;
+            case 8: *gpr = readcr(data.u.cr.number);       break;
         }
     }
-    else if (data.u.f.accessType == CR_ACCESS_TYPE_MOV_TO_CR)
+    else if (data.u.cr.accessType == CR_ACCESS_TYPE_MOV_TO_CR)
     {
-        switch(data.u.f.cr)
+        switch(data.u.cr.number)
         {
             case 3: VmxVmcsWritePlatform(GUEST_CR3, *gpr); break;
-            case 8: writecr(data.u.f.cr, *gpr);            break;
+            case 8: writecr(data.u.cr.number, *gpr);       break;
         }
     }
 
 #ifndef _WIN64
-    if ((data.u.f.accessType == CR_ACCESS_TYPE_MOV_TO_CR) &&
-        (data.u.f.cr == 3)                                &&
+    if ((data.u.cr.accessType == CR_ACCESS_TYPE_MOV_TO_CR) &&
+        (data.u.cr.number == 3)                            &&
         (VmxVmcsReadPlatform(GUEST_CR4) & CR4_PAE_ENABLED)
     )
     {
@@ -168,7 +169,7 @@ InstrDrEmulate(
 
     data.u.raw = exitQualification;
 
-    gpr = RegsGpr(regs, (UINT8)data.u.f.gpr);
+    gpr = LookupGpr(regs, (UINT8)data.u.f.gpr);
 
     if (data.u.f.accessType == DR_ACCESS_TYPE_MOV_FROM_DR)
     {
@@ -205,7 +206,7 @@ InstrXdtEmulate(
     //
     if (!instrInfo.u.f.baseInvalid)
     {
-        PUINT_PTR reg = RegsGpr(regs, (UINT8)instrInfo.u.f.base);
+        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.base);
         base = *reg;
     }
 
@@ -214,7 +215,7 @@ InstrXdtEmulate(
     //
     if (!instrInfo.u.f.indexInvalid)
     {
-        PUINT_PTR reg = RegsGpr(regs, (UINT8)instrInfo.u.f.index);
+        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.index);
         index = *reg;
         switch (instrInfo.u.f.scaling)
         {
@@ -301,7 +302,7 @@ InstrXtrEmulate(
         //
         // Register access
         //
-        PUINT_PTR reg = RegsGpr(regs, (UINT8)instrInfo.u.f.reg1);
+        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.reg1);
         address = reg;
     }
     else
@@ -315,7 +316,7 @@ InstrXtrEmulate(
         //
         if (!instrInfo.u.f.baseInvalid)
         {
-            PUINT_PTR reg = RegsGpr(regs, (UINT8)instrInfo.u.f.base);
+            PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.base);
             base = *reg;
         }
 
@@ -324,7 +325,7 @@ InstrXtrEmulate(
         //
         if (!instrInfo.u.f.indexInvalid)
         {
-            PUINT_PTR reg = RegsGpr(regs, (UINT8)instrInfo.u.f.index);
+            PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.index);
             index = *reg;
             switch (instrInfo.u.f.scaling)
             {

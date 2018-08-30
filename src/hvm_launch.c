@@ -8,7 +8,7 @@
 
 extern PHVM gHvm;
 
-typedef struct _IRET_FRAME
+typedef struct DECLSPEC_ALIGN( 16 ) _IRET_FRAME
 {
     UINT_PTR rip;
     UINT_PTR cs;
@@ -16,19 +16,22 @@ typedef struct _IRET_FRAME
 #ifdef _WIN64
     UINT_PTR rsp;
     UINT_PTR ss;
+    UINT_PTR align;
 #endif
 } IRET_FRAME, *PIRET_FRAME;
 
-typedef struct _HVM_STOP_STACK_LAYOUT
-{
-    REGISTERS  regs;
 #ifdef _WIN64
+typedef struct DECLSPEC_ALIGN(16) _HVM_STOP_STACK_LAYOUT {
+    REGISTERS  regs;
     IRET_FRAME iret;
-    UINT_PTR   alignment;
-#else
-    PIRET_FRAME iret;
-#endif
 } HVM_STOP_STACK_LAYOUT, *PHVM_STOP_STACK_LAYOUT;
+#else
+typedef struct _HVM_STOP_STACK_LAYOUT {
+    REGISTERS  regs;
+    PIRET_FRAME iret;
+} HVM_STOP_STACK_LAYOUT, *PHVM_STOP_STACK_LAYOUT;
+#endif
+
 
 #define HVM_INTERNAL_SERVICE_STOP   0
 
@@ -45,7 +48,8 @@ HvmpStartAsm(
 
 extern VOID __stdcall
 HvmpStopAsm(
-    _In_ UINT_PTR stack
+    _In_ UINT_PTR iret,
+    _In_ UINT_PTR regs
 );
 
 extern VOID
@@ -243,12 +247,10 @@ HvmpFailure(
 
     UNREFERENCED_PARAMETER(core);
 
-    if (valid)
-    {
+    if (valid) {
         status = VMX_STATUS(VmxVmcsRead32(VM_INSTRUCTION_ERROR));
     }
-    else
-    {
+    else {
         status = STATUS_UNSUCCESSFUL;
     }
 
@@ -259,14 +261,12 @@ NTSTATUS __stdcall
 HvmpStartFailure(
     _In_ PHVM_CORE core,
     _In_ BOOLEAN   valid
-)
+    )
 {
     NTSTATUS status;
 
     AtomicWrite(&core->launched, FALSE);
-
     status = HvmpFailure(core, valid);
-
     VmxpDisable();
 
     return status;
@@ -276,7 +276,7 @@ NTSTATUS __stdcall
 HvmpStopCore(
     _In_ UINT32 core,
     _In_ PVOID  context
-)
+    )
 {
     UNREFERENCED_PARAMETER(core);
     UNREFERENCED_PARAMETER(context);
@@ -285,64 +285,87 @@ HvmpStopCore(
 }
 
 VOID
-HvmpStop(
-    _In_ PHVM_CORE  core,
-    _In_ PREGISTERS regs
-)
+HvmpRestore(
+    _In_ PHVM_CORE core
+    )
 {
+    CR4_REGISTER cr4 = { 0 };
+
+    //
+    //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
+    //
+
+    __writeds( core->savedState.ds.u.raw );
+    __writees( core->savedState.es.u.raw );
+    __writefs( core->savedState.fs.u.raw );
 #ifndef _WIN64
-    HVM_STOP_STACK_LAYOUT stack;
+    __writess( core->savedState.ss.u.raw );
+    __writegs( core->savedState.gs.u.raw );
+#endif
 
-    memcpy(&stack.regs, regs, sizeof(REGISTERS));
+    lgdt( core->savedState.gdt.base, core->savedState.gdt.limit );
+    lidt( core->savedState.idt.base, core->savedState.idt.limit );
 
+    //
+    //  Disable TSD monitoring.
+    //
+    cr4.u.raw = VmxVmcsReadPlatform( GUEST_CR4 );
+    cr4.u.f.tsd = 0;
+    __writecr4( cr4.u.raw );
+
+    //
+    //  To allow the stop routine being invoked in any process context the CR3
+    //  should be set to the guest CR3.
+    //
+    __writecr3( VmxVmcsReadPlatform( GUEST_CR3 ) );
+}
+
+VOID
+HvmpStop(
+    _In_ PHVM_CORE core,
+    _In_ PREGISTERS regs
+    )
+{
+    //HVM_STOP_STACK_LAYOUT stack;
+    REGISTERS  CopyRegs;
+    IRET_FRAME iret;
+
+    RtlCopyMemory( &CopyRegs, regs, sizeof( REGISTERS ) );
+
+#ifndef _WIN64
     stack.iret = (PIRET_FRAME)((PUINT_PTR)VmxVmcsReadPlatform(GUEST_RSP) - (sizeof(IRET_FRAME) / sizeof(UINT_PTR)));
 
     stack.iret->rip    = regs->rip;
     stack.iret->cs     = core->savedState.cs.u.raw;
     stack.iret->rflags = regs->rflags.u.raw;
 #else
-    UINT8 arena[sizeof(HVM_STOP_STACK_LAYOUT) + sizeof(UINT_PTR)] = { 0 };
-    PHVM_STOP_STACK_LAYOUT stack;
-
-    stack = (PHVM_STOP_STACK_LAYOUT)(((UINT_PTR)&arena + sizeof(UINT_PTR)) & (~0xF));
-
-    memcpy(&stack->regs, regs, sizeof(REGISTERS));
-
-    stack->iret.rip    = regs->rip;
-    stack->iret.cs     = core->savedState.cs.u.raw;
-    stack->iret.rflags = regs->rflags.u.raw;
-    stack->iret.rsp    = regs->rsp;
-    stack->iret.ss     = core->savedState.ss.u.raw;
+    iret.rip    = regs->rip;
+    iret.cs     = core->savedState.cs.u.raw;
+    iret.rflags = regs->rflags.u.raw;
+    iret.rsp    = regs->rsp;
+    iret.ss     = core->savedState.ss.u.raw;
 #endif
 
     //
-    // Restore (TODO: Restore FULL state (CR0, CR4, fsBase, tr, sysenterCs, etc...)
+    //  Restore segments, IDT and GDT from the saved state.
     //
-    __writeds(core->savedState.ds.u.raw);
-    __writees(core->savedState.es.u.raw);
-    __writefs(core->savedState.fs.u.raw);
-#ifndef _WIN64
-    __writess(core->savedState.ss.u.raw);
-    __writegs(core->savedState.gs.u.raw);
-#endif
-    lgdt(core->savedState.gdt.base, core->savedState.gdt.limit);
-    lidt(core->savedState.idt.base, core->savedState.idt.limit);
-    __writecr3(VmxVmcsReadPlatform(GUEST_CR3));
+    HvmpRestore( core );
 
+    //
+    //  This deactivates VMX operation in the processor.
+    //
     VmxpDisable();
-   
-#ifndef _WIN64
-    HvmpStopAsm((UINT_PTR)&stack);
-#else
-    HvmpStopAsm((UINT_PTR)stack);
-#endif
-}
 
+    //
+    //  Restore registers and return from the interrupt.
+    //
+    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) &CopyRegs );
+}
 
 NTSTATUS
 HvmStart(
     VOID
-)
+    )
 {
     NTSTATUS status;
 
@@ -356,9 +379,6 @@ HvmStart(
         return status;
     }
 
-    //
-    // Start virtualization
-    //
     status = SmpExecuteOnAllCores( HvmpStartCore, gHvm );
 
     if (NT_SUCCESS( status )) {
@@ -371,7 +391,7 @@ HvmStart(
 NTSTATUS
 HvmStop(
     VOID
-)
+    )
 {
     NTSTATUS status;
 
@@ -385,9 +405,6 @@ HvmStop(
         return status;
     }
 
-    //
-    // Stop virtualization
-    //
     status = SmpExecuteOnAllCores( HvmpStopCore, 0 );
 
     if (NT_SUCCESS( status )) {

@@ -308,6 +308,11 @@
 //END VMCS//
 ////////////
 
+// FEATURE CONTROL MSR
+#define IA32_FEATURE_CONTROL                            0x3a
+#define IA32_FEATURE_CONTROL_LOCK                     0x0001
+#define IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX 0x0004
+
 ///////////////
 //CONFIG MSRS//
 ///////////////
@@ -336,7 +341,7 @@
 //Exception vectors
 #define TRAP_INVALID_OPCODE                6
 #define TRAP_GP_FAULT                     13
-#define INTR_INFO_VECTOR_MASK           0x1F
+#define INTR_INFO_VECTOR_MASK           0xFF
 
 typedef struct _VMX_BASIC
 {
@@ -697,17 +702,17 @@ typedef struct _EXIT_QUALIFICATION_CR
 
         struct
         {
-            unsigned cr              : 4;  // 0 - 3
+            unsigned number          : 4;  // 0 - 3
             unsigned accessType      : 2;  // 4 - 5
             unsigned lmswOperandType : 1;  // 6 
             unsigned _reserved0      : 1;  // 7 
-            unsigned gpr             : 4;  // 8 - 11
+            unsigned moveGpr         : 4;  // 8 - 11
             unsigned _reserved1      : 4;  // 12 - 15
             unsigned lmswSourceData  : 16; // 16 - 31
 #ifdef _WIN64
             unsigned _reserved2      : 32; // 32 - 63
 #endif
-        } f;
+        } cr;
     } u;
 } EXIT_QUALIFICATION_CR, *PEXIT_QUALIFICATION_CR;
 

@@ -149,13 +149,13 @@ HvmCoreHandleCommonExits(
         //
         // Routine VM exits
         //
-        case EXIT_REASON_CR_ACCESS:
+        /*case EXIT_REASON_CR_ACCESS:
         {
             EXIT_QUALIFICATION_CR cr;
             UINT_PTR              gpr;
 
             cr.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
-            gpr = *RegsGpr(regs, (UINT8)cr.u.f.gpr);
+            gpr = *LookupGpr(regs, (UINT8)cr.u.f.gpr);
 
             InstrCrEmulate(cr.u.raw, regs);
 
@@ -166,7 +166,7 @@ HvmCoreHandleCommonExits(
 
             InstrRipAdvance(regs);
             return TRUE;
-        }
+        }*/
 
         case EXIT_REASON_MSR_READ:
         {
@@ -180,12 +180,13 @@ HvmCoreHandleCommonExits(
             InstrRipAdvance(regs);
             return TRUE;
         }
+        /*
         case EXIT_REASON_CPUID:
         {
             InstrCpuidEmulate(regs);
             InstrRipAdvance(regs);
             return TRUE;
-        }
+        }*/
     }
 
     return FALSE;
