@@ -24,7 +24,6 @@ Environment:
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(PAGE, DsRegisterPowerChangeCallback)
 #pragma alloc_text(PAGE, DsDeregisterPowerChangeCallback)
-#pragma alloc_text(PAGE, DsPowerChangeCallback)
 #endif
 
 _IRQL_requires_same_
@@ -103,6 +102,7 @@ DsRegisterPowerChangeCallback(
     PVOID CallbackHandle = NULL;
     OBJECT_ATTRIBUTES Oa;
 
+    PAGED_CODE();
     UNREFERENCED_PARAMETER( Flags );
 
     RtlInitUnicodeString( &PowerName, L"\\Callback\\PowerState" );
@@ -134,6 +134,8 @@ DsDeregisterPowerChangeCallback(
     _In_ PVOID CallbackHandle
     )
 {
+    PAGED_CODE();
+
     if (CallbackHandle) {
         ExUnregisterCallback( CallbackHandle );
     }

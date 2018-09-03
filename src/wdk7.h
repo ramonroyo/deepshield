@@ -19,6 +19,7 @@
 #define _Out_writes_bytes_to_(s, b)
 #define _IRQL_requires_same_
 #define _IRQL_requires_max_(i)
+#define _Function_class_( c )
 
 #define MdlMappingNoExecute     0x40000000
 

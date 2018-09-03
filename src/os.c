@@ -1,32 +1,39 @@
 #include "wdk7.h"
 #include "os.h"
 
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text(PAGE, OsVersion)
+#pragma alloc_text(PAGE, OsVerifyBuildNumber)
+#endif
+
+_IRQL_requires_max_( PASSIVE_LEVEL )
 NTSTATUS
 OsVersion(
     _Out_ POS_VERSION osVersion
 )
 {
-    NTSTATUS             status = STATUS_SUCCESS;
+    NTSTATUS Status = STATUS_SUCCESS;
     RTL_OSVERSIONINFOEXW verInfo = { 0 };
 
-    //
-    // Retrieve OS version infomation
-    //
+    PAGED_CODE();
     verInfo.dwOSVersionInfoSize = sizeof(verInfo);
 
-    status = RtlGetVersion((PRTL_OSVERSIONINFOW)&verInfo);
-    if (!NT_SUCCESS(status))
-        return status;
+    Status = RtlGetVersion((PRTL_OSVERSIONINFOW)&verInfo);
+    
+    if (!NT_SUCCESS( Status )) {
+        return Status;
+    }
 
     osVersion->u.f.major       = (UINT8)  verInfo.dwMajorVersion;
     osVersion->u.f.minor       = (UINT8)  verInfo.dwMinorVersion;
     osVersion->u.f.servicePack = (UINT16) verInfo.wServicePackMajor;
     osVersion->u.f.buildNumber =          verInfo.dwBuildNumber;
 
-    return status;
-
+    return Status;
 }
 
+_IRQL_requires_max_( PASSIVE_LEVEL )
 BOOLEAN
 OsVerifyBuildNumber(
     _In_ ULONG BuildNumber
