@@ -326,26 +326,27 @@ HvmpStop(
     _In_ PREGISTERS regs
     )
 {
-    //HVM_STOP_STACK_LAYOUT stack;
-    REGISTERS  CopyRegs;
+#ifdef _WIN64
     IRET_FRAME iret;
 
-    RtlCopyMemory( &CopyRegs, regs, sizeof( REGISTERS ) );
-
-#ifndef _WIN64
-    stack.iret = (PIRET_FRAME)((PUINT_PTR)VmxVmcsReadPlatform(GUEST_RSP) - (sizeof(IRET_FRAME) / sizeof(UINT_PTR)));
-
-    stack.iret->rip    = regs->rip;
-    stack.iret->cs     = core->savedState.cs.u.raw;
-    stack.iret->rflags = regs->rflags.u.raw;
-#else
-    iret.rip    = regs->rip;
-    iret.cs     = core->savedState.cs.u.raw;
+    iret.rip = regs->rip;
+    iret.cs = core->savedState.cs.u.raw;
     iret.rflags = regs->rflags.u.raw;
-    iret.rsp    = regs->rsp;
-    iret.ss     = core->savedState.ss.u.raw;
-#endif
+    iret.rsp = regs->rsp;
+    iret.ss = core->savedState.ss.u.raw;
+#else
 
+    PIRET_FRAME iretx86;
+
+    iretx86 = (PIRET_FRAME) 
+        ((PUINT_PTR) VmxVmcsReadPlatform( GUEST_RSP )
+                     - (sizeof( IRET_FRAME ) / sizeof( UINT_PTR )));
+
+    iretx86->rip = regs->rip;
+    iretx86->cs = core->savedState.cs.u.raw;
+    iretx86->rflags = regs->rflags.u.raw;
+#endif
+    
     //
     //  Restore segments, IDT and GDT from the saved state.
     //
@@ -359,7 +360,12 @@ HvmpStop(
     //
     //  Restore registers and return from the interrupt.
     //
-    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) &CopyRegs );
+#ifdef _WIN64
+    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) regs );
+#else
+    HvmpStopAsm( (UINT_PTR)&iretx86, (UINT_PTR) regs );
+#endif
+
 }
 
 NTSTATUS

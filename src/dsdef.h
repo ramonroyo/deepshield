@@ -45,8 +45,9 @@ extern MAILBOX gSecureMailbox;
 //
 #define DSH_GFL_SHIELD_INITIALIZED  0x00000001
 #define DSH_GFL_SHIELD_STARTED      0x00000002
-#define DSH_GFL_CHANNEL_SETUP       0x00000004
-#define DSH_GFL_POWER_REGISTERED    0x00000008
+#define DSH_GFL_SHIELD_SUSPENDED    0x00000004
+#define DSH_GFL_CHANNEL_SETUP       0x00000008
+#define DSH_GFL_POWER_REGISTERED    0x00000010
 
 //
 //  These macros are used to test, set and clear flags respectivly

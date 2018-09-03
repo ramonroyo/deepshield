@@ -57,12 +57,12 @@ DsPowerChangeCallback(
         //  We have reentered S0 (note that we may have never left S0).
         //  Load the hypervisor.
         //
-        if (FALSE == DsIsShieldRunning()) {
-            NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
+        if (FALSE == DsIsShieldRunning() 
+            && FlagOn ( gStateFlags, DSH_GFL_SHIELD_SUSPENDED )) {
 
-			//
-			//  TODO: check if was running before suspend / hybernate.
-			//
+            NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
+            ClearFlag( gStateFlags, DSH_GFL_SHIELD_SUSPENDED );
+
             Status = DsStartShield();
 
             if (NT_SUCCESS( Status )) {
@@ -79,8 +79,12 @@ DsPowerChangeCallback(
         if (DsIsShieldRunning()) {
             NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
 
-            ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-            DsStopShield();
+            Status = DsStopShield();
+
+            if (NT_SUCCESS( Status) ) {
+                ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
+                SetFlag( gStateFlags, DSH_GFL_SHIELD_SUSPENDED );
+            }
         }
     }
 }

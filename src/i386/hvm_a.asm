@@ -1,4 +1,5 @@
-.686p
+.686P
+.XMM
 .MODEL flat, C
 
 extern HvmpStart@16:PROC
@@ -9,19 +10,82 @@ extern KeBugCheck@4:PROC
 
 .CONST
 
-HVM_ADDITIONAL_REGS_SIZE   EQU  (2 * 4)
-HvM_CALL_MAGIC             EQU  0CAFEBABEh
+HVM_CALL_MAGIC             EQU  0CAFEBABEh
+
+; Offset definitions for GP.
+EAX_SAVE EQU 00000H
+ECX_SAVE EQU 00004H
+EDX_SAVE EQU 00008H
+EBX_SAVE EQU 0000CH
+ESP_SAVE EQU 00010H
+EBP_SAVE EQU 00014H
+ESI_SAVE EQU 00018H
+EDI_SAVE EQU 0001CH
+
+; Offset definition for XMM.
+XMM0_SAVE  EQU 00020H
+XMM1_SAVE  EQU 00030H
+XMM2_SAVE  EQU 00040H
+XMM3_SAVE  EQU 00050H
+XMM4_SAVE  EQU 00060H
+XMM5_SAVE  EQU 00070H
+XMM6_SAVE  EQU 00080H
+XMM7_SAVE  EQU 00090H
 
 ; Saves all general purpose registers to the stack
-PUSHALL MACRO
-    sub esp, HVM_ADDITIONAL_REGS_SIZE
-    pushad
+CPU_SAVE_REGS MACRO
+    ; preserve rbx
+    push ebx
+
+    ; load guest registers save area
+    lea ebx, [esp+3Ch+4h]
+    mov ebx, [ebx]
+
+    ; save eax and then ebx
+    mov EAX_SAVE[ebx], eax
+    pop eax
+    mov EBX_SAVE[ebx], eax
+
+    ; save all GP except esp, eip & eflags
+    mov ECX_SAVE[ebx], ecx
+    mov EDX_SAVE[ebx], edx
+    mov EBP_SAVE[ebx], ebp
+    mov ESI_SAVE[ebx], esi
+    mov EDI_SAVE[ebx], edi
+
+    ; save all XMM by last
+    movdqa XMM0_SAVE[ebx], xmm0
+    movdqa XMM1_SAVE[ebx], xmm1
+    movdqa XMM2_SAVE[ebx], xmm2
+    movdqa XMM3_SAVE[ebx], xmm3
+    movdqa XMM4_SAVE[ebx], xmm4
+    movdqa XMM5_SAVE[ebx], xmm5
+    movdqa XMM6_SAVE[ebx], xmm6
+    movdqa XMM7_SAVE[ebx], xmm7
 ENDM
 
 ; Loads all general purpose registers from the stack
-POPALL MACRO
-    popad
-    add esp, HVM_ADDITIONAL_REGS_SIZE
+CPU_RESTORE_REGS MACRO
+    ; restore all XMM first
+    movdqa  xmm0, XMM0_SAVE[ebx]
+    movdqa  xmm1, XMM1_SAVE[ebx]
+    movdqa  xmm2, XMM2_SAVE[ebx]
+    movdqa  xmm3, XMM3_SAVE[ebx]
+    movdqa  xmm4, XMM4_SAVE[ebx]
+    movdqa  xmm5, XMM5_SAVE[ebx]
+    movdqa  xmm6, XMM6_SAVE[ebx]
+    movdqa  xmm7, XMM7_SAVE[ebx]
+
+    ; restore all GP except rcx
+    mov eax, EAX_SAVE[ebx]
+    mov ecx, ECX_SAVE[ebx]
+    mov edx, EDX_SAVE[ebx]
+    mov ebp, EBP_SAVE[ebx]
+    mov esi, ESI_SAVE[ebx]
+    mov edi, EDI_SAVE[ebx]
+    
+    ; by last restore rbx
+    mov ebx, EBX_SAVE[ebx]
 ENDM
 
 
@@ -103,15 +167,14 @@ HvmpStartAsm@4 ENDP
 
 
 ;
-; VOID __stdcall HvmpStopAsm( _In_ UINT_PTR stack);
+; VOID __stdcall HvmpStopAsm(_In_ UINT_PTR iret, _In_ UINT_PTR regs);
 ;
-HvmpStopAsm@4 PROC
+HvmpStopAsm@8 PROC
     mov esp, [esp + 4]
-    POPALL
-    pop esp
+    mov ebx, [esp + 8]
+    CPU_RESTORE_REGS
     iretd
-HvmpStopAsm@4 ENDP
-
+HvmpStopAsm@8 ENDP
 
 ;
 ; VOID HvmpExitHandlerAsm(VOID);
@@ -120,13 +183,13 @@ HvmpExitHandlerAsm@0 PROC
     ;
     ; Save all registers
     ;
-    PUSHALL
+    CPU_SAVE_REGS
 
     ;
     ; Second parameter = registers
     ;
-    mov eax, esp
-    push esp
+    mov eax, ebx
+    push ebx
 
     ;
     ; First parameter = hvm_core
@@ -139,7 +202,7 @@ HvmpExitHandlerAsm@0 PROC
     ;
     ; Restore (possibly modified) registers
     ;
-    POPALL
+    CPU_RESTORE_REGS
 
     ;
     ; Resume

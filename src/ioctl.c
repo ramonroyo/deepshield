@@ -119,22 +119,8 @@ DsCtlShieldControl(
             Status = DsStopShield();
 
             if (NT_SUCCESS( Status )) {
-
                 ClearFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
                 DsSetLoadModePolicy( DSH_RUN_MODE_DISABLED );
-
-                if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
-                    //
-                    //  Close the gate and wait for any ongoing channel
-                    //  reference.
-                    //
-                    ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
-
-                    ExWaitForRundownProtectionRelease( &gChannelRundown );
-                    ExRundownCompleted( &gChannelRundown );
-
-                    DsDestroyChannel( gChannel, StopShieldReason );
-                }
             }
 
             break;
@@ -173,8 +159,7 @@ DsCtlShieldChannelSetup(
         return STATUS_BUFFER_TOO_SMALL;
     }
 
-    if (FALSE == DsIsShieldRunning() 
-        || FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
+    if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
         return STATUS_INVALID_PARAMETER;
     }
 
