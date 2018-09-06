@@ -338,10 +338,50 @@
 #define MEMORY_TYPE_UNCACHEABLE 0    //!< Uncacheable memory. See field BASIC_MEMORY_TYPE.
 #define MEMORY_TYPE_WRITEBACK   6    //!< Writeback memory.   See field BASIC_MEMORY_TYPE.
 
-//Exception vectors
-#define TRAP_INVALID_OPCODE                6
-#define TRAP_GP_FAULT                     13
-#define INTR_INFO_VECTOR_MASK           0xFF
+#define EXCEPTION_ERROR_CODE_VALID  8
+
+typedef enum _INTERRUPT_TYPE
+{
+    INTERRUPT_EXTERNAL             = 0,
+    INTERRUPT_NMI                  = 2,
+    INTERRUPT_HARDWARE_EXCEPTION   = 3,
+    INTERRUPT_SOFTWARE             = 4,
+    INTERRUPT_PRIVILIGED_EXCEPTION = 5,
+    INTERRUPT_SOFTWARE_EXCEPTION   = 6,
+    INTERRUPT_OTHER_EVENT          = 7
+} INTERRUPT_TYPE;
+
+/* VMX entry/exit Interrupt info */
+#define VMX_INT_INFO_VALID             (1U<<31)
+
+//
+//  Exception vectors.
+//
+typedef enum _VECTOR_EXCEPTION
+{
+    VECTOR_DIVIDE_ERROR_EXCEPTION          = 0,
+    VECTOR_DEBUG_EXCEPTION                 = 1,
+    VECTOR_NMI_INTERRUPT                   = 2,
+    VECTOR_BREAKPOINT_EXCEPTION            = 3,
+    VECTOR_OVERFLOW_EXCEPTION              = 4,
+    VECTOR_BOUND_EXCEPTION                 = 5,
+    VECTOR_INVALID_OPCODE_EXCEPTION        = 6,
+    VECTOR_DEVICE_NOT_AVAILABLE_EXCEPTION  = 7,
+    VECTOR_DOUBLE_FAULT_EXCEPTION          = 8,
+    VECTOR_COPROCESSOR_SEGMENT_OVERRUN     = 9,
+    VECTOR_INVALID_TSS_EXCEPTION           = 10,
+    VECTOR_SEGMENT_NOT_PRESENT             = 11,
+    VECTOR_STACK_FAULT_EXCEPTION           = 12,
+    VECTOR_GENERAL_PROTECTION_EXCEPTION    = 13,
+    VECTOR_PAGE_FAULT_EXCEPTION            = 14,
+    VECTOR_X87_FLOATING_POINT_ERROR        = 16,
+    VECTOR_ALIGNMENT_CHECK_EXCEPTION       = 17,
+    VECTOR_MACHINE_CHECK_EXCEPTION         = 18,
+    VECTOR_SIMD_FLOATING_POINT_EXCEPTION   = 19,
+    VECTOR_VIRTUALIZATION_EXCEPTION        = 20
+} VECTOR_EXCEPTION;
+
+#define INTR_INFO_VECTOR_MASK           0x4F
 
 typedef struct _VMX_BASIC
 {
@@ -833,7 +873,7 @@ typedef struct _INTERRUPT_INFORMATION
         {
             unsigned vector        : 8;  // 0 - 7
             unsigned type          : 3;  // 8 - 10
-            unsigned hasError      : 1;  // 11
+            unsigned deliverCode   : 1;  // 11
             unsigned nmiUnblocking : 1;  // 12
             unsigned _reserved0    : 18; // 13 - 30
             unsigned valid         : 1;  // 31
@@ -1182,6 +1222,21 @@ typedef struct _VE_INFO_AREA
 //  END EPT STRUCTURES    //
 ////////////////////////////
 
+typedef enum _INVPID_TYPE
+{
+    INV_INDIV_ADDR = 0,                     // Invalidate a specific page
+    INV_SINGLE_CONTEXT = 1,                 // Invalidate one context (specific VPID)
+    INV_ALL_CONTEXTS = 2,                   // Invalidate all contexts (all VPIDs)
+    INV_SINGLE_CONTEXT_RETAIN_GLOBALS = 3   // Invalidate a single VPID context retaining global mappings
+} IVVPID_TYPE;
+
+typedef struct _VPID_CTX
+{
+    ULONG64 VPID     : 16;      // VPID to effect
+    ULONG64 Reserved : 48;      // Reserved
+    ULONG64 Address  : 64;      // Linear address
+} VPID_CTX, *PVPID_CTX;
+
 /**
 * Indicates if current processor supports VMX operation mode.
 */
@@ -1322,8 +1377,19 @@ UINT8 __stdcall VmxInvEpt (UINT_PTR type, PVOID eptPointer);
 #define VmxVmPtrSt  __vmx_vmptrst
 #define VmxVmRead   __vmx_vmread
 #define VmxVmWrite  __vmx_vmwrite
-UINT8   VmxInvEpt(_In_ UINT_PTR type, _In_ PVOID eptPointer);
+UINT8 VmxInvEpt(_In_ UINT_PTR type, _In_ PVOID eptPointer);
+VOID __invvpid( _In_ IVVPID_TYPE Type, _In_ PVPID_CTX Context );
 
 #endif
+
+VOID
+InjectUndefinedOpcodeException(
+    VOID
+    );
+
+VOID
+InjectHardwareException(
+    _In_ INTERRUPT_INFORMATION InterruptInfo
+    );
 
 #endif

@@ -20,6 +20,11 @@ InstrXsetbvEmulate(
 );
 
 VOID
+InstrInvVpidEmulate(
+    _In_ PREGISTERS regs
+);
+
+VOID
 InstrCpuidEmulate(
     _In_ PREGISTERS regs
 );
@@ -60,34 +65,10 @@ InstrDrEmulate(
 );
 */
 
-/*
-//
-// Need to be refinated further, not tested and can be refatored the index and base parts to generic functions
-//
-VOID
-InstrXdtEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
-);
-
-VOID
-InstrXtrEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
-);
-*/
-
 VOID
 InstrIoEmulate(
     _In_ UINT_PTR   exitQualification,
     _In_ PREGISTERS regs
-);
-
-VOID
-InterruptEmulate(
-    _In_ UINT32   interruptInformation,
-    _In_ UINT32   errorCode,
-    _In_ UINT_PTR exitQualification
 );
 
 VOID

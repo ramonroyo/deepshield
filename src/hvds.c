@@ -50,8 +50,11 @@ DsConfigureHvds(
     _In_ PHVM_CORE core
     )
 {
+    CR4_REGISTER cr4 = { 0 };
+    PHYSICAL_ADDRESS msrBitmap;
+    VMX_PROC_PRIMARY_CTLS procPrimaryControls;
     PGLOBAL_CONTEXT globalContext;
-    PLOCAL_CONTEXT  localContext;
+    PLOCAL_CONTEXT localContext;
 
     globalContext = (PGLOBAL_CONTEXT) HvmCoreGlobalContext(core);
     localContext  = (PLOCAL_CONTEXT)  HvmCoreLocalContext(core);
@@ -64,54 +67,31 @@ DsConfigureHvds(
     VmcsConfigureCommonControl();
 
     //
-    // Unprivilege TSD
+    //  Unprivilege TSD.
     //
-    {
-        CR4_REGISTER cr4 = { 0 };
+    cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
+    cr4.u.f.tsd = 1;
 
-        cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
-        cr4.u.f.tsd = 1;
-
-        VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
-        VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
-        VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
-    }
-
-    /*
-    //
-    // Follow CR3
-    //
-    {
-        VMX_PROC_PRIMARY_CTLS procPrimaryControls;
-
-        procPrimaryControls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_PRIMARY);
-        procPrimaryControls.u.f.cr3LoadExiting = 1;
-        VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
-    }
-    */
-
+    VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
+    VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
+    VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
 
     //
-    // Minimize msr exits
+    //  Minimize MSR exits.
     //
-    {
-        PHYSICAL_ADDRESS msrBitmap;
-        VMX_PROC_PRIMARY_CTLS procPrimaryControls;
 
-        msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
-        VmxVmcsWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
+    msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
+    VmxVmcsWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
 
-        procPrimaryControls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_PRIMARY);
-        procPrimaryControls.u.f.useMsrBitmaps = 1;
-        VmxVmcsWrite32(VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
-    }
+    procPrimaryControls.u.raw = VmxVmcsRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
+    procPrimaryControls.u.f.useMsrBitmaps = 1;
+    VmxVmcsWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw );
 
     //
-    // Activate #GP and #UD.
+    //  Activate #GP and #UD.
     //
-    {
-        VmxVmcsWrite32(EXCEPTION_BITMAP, (1 << TRAP_GP_FAULT) | (1 << TRAP_INVALID_OPCODE) );
-    }
+    VmxVmcsWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
+                                    | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
 }
 
 NTSTATUS

@@ -26,17 +26,16 @@ LookupGpr(
 VOID
 InstrInvdEmulate(
     _In_ PREGISTERS regs
-)
+    )
 {
     UNREFERENCED_PARAMETER(regs);
-
     __wbinvd();
 }
 
 VOID
 InstrXsetbvEmulate(
     _In_ PREGISTERS regs
-)
+    )
 {
 #ifdef _WIN64
     __xsetbv((UINT32)regs->rcx, regs->rdx << 32 | (UINT32)regs->rax);
@@ -46,13 +45,25 @@ InstrXsetbvEmulate(
 }
 
 VOID
+InstrInvVpidEmulate(
+    _In_ PREGISTERS regs
+    )
+{
+    VPID_CTX ctx = { 0 };
+
+    UNREFERENCED_PARAMETER(regs);
+    __invvpid( INV_ALL_CONTEXTS, &ctx );
+}
+
+VOID
 InstrCpuidEmulate(
     _In_ PREGISTERS regs
 )
 {
     int cpuRegs[4] = { 0 };
 
-    __cpuid(cpuRegs, (int)regs->rax);
+    //__cpuid(cpuRegs, (int)regs->rax);
+    __cpuidex( (int*)cpuRegs, (int) regs->rax, (int) regs->rcx );
 
     regs->rax = (UINT_PTR) cpuRegs[0];
     regs->rbx = (UINT_PTR) cpuRegs[1];
@@ -182,210 +193,6 @@ InstrDrEmulate(
 }
 */
 
-/*
-VOID
-InstrXdtEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
-)
-{
-    INSTRUCTION_INFORMATION_XDT instrInfo;
-
-    UINT_PTR base         = 0;
-    UINT_PTR index        = 0;
-    UINT_PTR displacement = 0;
-    UINT_PTR address      = 0;
-
-    PUINT16   tableLimit;
-    PUINT_PTR tableBase;
-
-    instrInfo.u.raw = VmxVmcsRead32(EXIT_INSTRUCTION_INFORMATION);
-
-    //
-    // Base
-    //
-    if (!instrInfo.u.f.baseInvalid)
-    {
-        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.base);
-        base = *reg;
-    }
-
-    //
-    // Index
-    //
-    if (!instrInfo.u.f.indexInvalid)
-    {
-        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.index);
-        index = *reg;
-        switch (instrInfo.u.f.scaling)
-        {
-            case 0:             break;
-            case 1: index *= 2; break;
-            case 2: index *= 4; break;
-            case 3: index *= 8; break;
-            default: break;
-        }
-    }
-
-    //
-    // Displacement
-    //
-    displacement = exitQualification;
-
-    //
-    // Address
-    //
-    address = base + index + displacement;
-    if (instrInfo.u.f.addressSize == 1)
-    {
-        //
-        // 32-bit case
-        //
-        address &= MAXULONG;
-    }
-
-    //
-    // Emulate
-    //
-    tableLimit = (PUINT16)   address;
-    tableBase  = (PUINT_PTR)(address + sizeof(UINT16));
-
-    switch (instrInfo.u.f.instruction)
-    {
-        case INSTRUCTION_INFORMATION_IDENTITY_SGDT:
-        {
-            *tableBase  = VmxVmcsReadPlatform(GUEST_GDTR_BASE);
-            *tableLimit = (UINT16)VmxVmcsRead32(GUEST_GDTR_LIMIT);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_SIDT:
-        {
-            *tableBase  = VmxVmcsReadPlatform(GUEST_IDTR_BASE);
-            *tableLimit = (UINT16)VmxVmcsRead32(GUEST_IDTR_LIMIT);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_LGDT:
-        {
-            VmxVmcsWritePlatform(GUEST_GDTR_BASE,  *tableBase);
-            VmxVmcsWrite32(      GUEST_GDTR_LIMIT, *tableLimit);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_LIDT:
-        {
-            VmxVmcsWritePlatform(GUEST_IDTR_BASE,  *tableBase);
-            VmxVmcsWrite32(      GUEST_IDTR_LIMIT, *tableLimit);
-            break;
-        }
-    }
-}
-
-VOID
-InstrXtrEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
-)
-{
-    INSTRUCTION_INFORMATION_XTR instrInfo;
-
-    UINT_PTR base         = 0;
-    UINT_PTR index        = 0;
-    UINT_PTR displacement = 0;
-
-    UINT_PTR address = 0;
-
-    PUINT16 selector;
-
-    instrInfo.u.raw = VmxVmcsRead32(EXIT_INSTRUCTION_INFORMATION);
-
-    if (instrInfo.u.f.memReg)
-    {
-        //
-        // Register access
-        //
-        PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.reg1);
-        address = reg;
-    }
-    else
-    {
-        //
-        // Memory access
-        //
-
-        //
-        // Base
-        //
-        if (!instrInfo.u.f.baseInvalid)
-        {
-            PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.base);
-            base = *reg;
-        }
-
-        //
-        // Index
-        //
-        if (!instrInfo.u.f.indexInvalid)
-        {
-            PUINT_PTR reg = LookupGpr(regs, (UINT8)instrInfo.u.f.index);
-            index = *reg;
-            switch (instrInfo.u.f.scaling)
-            {
-                case 0:             break;
-                case 1: index *= 2; break;
-                case 2: index *= 4; break;
-                case 3: index *= 8; break;
-                default: break;
-            }
-        }
-
-        //
-        // Displacement
-        //
-        displacement = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
-
-        //
-        // Final address
-        //
-        address = base + index + displacement;
-    
-        if (instrInfo.u.f.addressSize == 1)
-        {
-            //
-            // 32-bit correction
-            //
-            address &= MAXULONG;
-        }
-    }
-
-    //
-    // Emulate
-    //
-    selector = (PUINT16)address;
-    switch (instrInfo.u.f.instruction)
-    {
-        case INSTRUCTION_INFORMATION_IDENTITY_SLDT:
-        {
-            *selector = VmxVmcsRead16(GUEST_LDTR_SELECTOR);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_STR:
-        {
-            *selector = VmxVmcsRead16(GUEST_TR_SELECTOR);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_LLDT:
-        {
-            VmxVmcsWrite16(GUEST_LDTR_SELECTOR, *selector);
-            break;
-        }
-        case INSTRUCTION_INFORMATION_IDENTITY_LTR:
-        {
-            VmxVmcsWrite16(GUEST_TR_SELECTOR, *selector);
-            break;
-        }
-    }
-}
-*/
-
 VOID
 InstrIoEmulate(
     _In_ UINT_PTR   exitQualification,
@@ -446,47 +253,18 @@ InstrIoEmulate(
     }
 }
 
-
-VOID
-InterruptEmulate(
-    _In_ UINT32   interruptInformation,  //VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION)
-    _In_ UINT32   errorCode,             //VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE)
-    _In_ UINT_PTR exitQualification
-)
-{
-    INTERRUPT_INFORMATION interruptInfo;
-    
-    interruptInfo.u.raw = interruptInformation;
-
-    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, interruptInformation);
-
-    if (interruptInfo.u.f.vector == 14)
-    {
-        __writecr2(exitQualification);
-    }
-
-    if (interruptInfo.u.f.hasError)
-    {
-        VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, errorCode);
-    }
-
-    if ((interruptInfo.u.f.vector == 1) || (interruptInfo.u.f.vector == 3) || (interruptInfo.u.f.vector == 4)) //Technically, vector 1 can be either a trap or a fault... should check dr6[BS] flag
-    {
-        VmxVmcsWrite32(VM_ENTRY_INSTRUCTION_LENGTH, VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH));
-    }
-}
-
 BOOLEAN 
 IsSingleStep(
     _In_ PREGISTERS Regs
-)
+    )
 {
     return Regs->rflags.u.f.tf == TRUE;
 }
 
-VOID InjectInt1(
+VOID 
+InjectInt1(
     _In_ PREGISTERS Regs
-)
+    )
 {
     INTERRUPT_INFORMATION Int1 = { 0 };
 
@@ -505,7 +283,7 @@ VOID InjectInt1(
 VOID
 InstrRipAdvance(
     _In_ PREGISTERS Regs
-)
+    )
 {
     UINT32 InstructionLength;
 
@@ -514,12 +292,12 @@ InstrRipAdvance(
     Regs->rip += InstructionLength;
 
     //
-    // Single step emulation (has TF enabled)
+    //  Single step emulation (has TF enabled).
     //
-    if ( IsSingleStep(Regs) )
+    if (IsSingleStep(Regs))
     {
         //
-        // Injects an int1 and clears trap flag
+        //  Injects an int1 and clears trap flag.
         //
         InjectInt1(Regs);
     }

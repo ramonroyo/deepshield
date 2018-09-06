@@ -8,76 +8,6 @@
 #include "smp.h"
 #include "mem.h"
 
-/*
-VOID
-CrAccessEmulate(
-    _In_ PREGISTERS regs
-)
-{
-    
-    EXIT_QUALIFICATION_CR data;
-    PUINT_PTR             gpr;
-
-    //
-    // Emulate
-    //
-    data.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
-
-    InstrCrEmulate(data.u.raw, regs);
-
-    //
-    // Follow CR3
-    //
-    gpr = LookupGpr(regs, (UINT8)data.u.f.gpr);
-
-    VmxVmcsWritePlatform(HOST_CR3, *gpr);
-
-    InstrRipAdvance(regs);
-}
-*/
-
-#define EXCEPTION_ERROR_CODE_VALID  8
-#define VMX_INT_TYPE_HW_EXP    3
-
-static const UINT16 ExceptionType[32] = {
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP | EXCEPTION_ERROR_CODE_VALID,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP,
-    VMX_INT_TYPE_HW_EXP
-};
-
-/* VMX entry/exit Interrupt info */
-#define VMX_INT_INFO_ERR_CODE_VALID    (1U<<11)
-#define VMX_INT_INFO_VALID            (1U<<31)
-
 typedef enum _IA32_CONTROL_REGISTERS {
     IA32_CTRL_CR0 = 0,
     IA32_CTRL_CR2,
@@ -87,7 +17,7 @@ typedef enum _IA32_CONTROL_REGISTERS {
     IA32_CTRL_COUNT
 } IA32_CONTROL_REGISTERS;
 
-#define UNSUPPORTED_CR   IA32_CTRL_COUNT
+#define UNSUPPORTED_CR IA32_CTRL_COUNT
 
 static IA32_CONTROL_REGISTERS LookupCr[] = {
     IA32_CTRL_CR0,
@@ -235,33 +165,14 @@ FlushCurrentTb(
     else {
         __writecr3( __readcr3() );
     }
-}
-
-VOID
-PageFaultEmulate(
-    _In_ PREGISTERS regs
-    )
-{
-    UINT_PTR exitQualification;
-
-    exitQualification = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
-
-    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, VmxVmcsRead32(EXIT_INTERRUPTION_INFORMATION));
-    VmxVmcsWrite32(VM_ENTRY_EXCEPTION_ERRORCODE, VmxVmcsRead32(EXIT_INTERRUPTION_ERRORCODE));
-    __writecr2(exitQualification);
-
-    if (MmuIsUserModeAddress((PVOID)regs->rip)) {
-        // 
-    }
-}
-*/
+}*/
 
 VOID
 GeneralProtectionFaultEmulate(
     _In_ PVOID Local,
     _In_ PREGISTERS Regs,
-    _In_ UINT32 ExceptionVector
-)
+    _In_ INTERRUPT_INFORMATION InterruptInfo
+    )
 {
     PHYSICAL_ADDRESS PhysicalAddress = { 0 };
     UINT_PTR Process = 0;
@@ -274,6 +185,15 @@ GeneralProtectionFaultEmulate(
     // Only interested in exceptions from user-mode.
     //
     if (!MmuIsUserModeAddress((PVOID)Regs->rip)) {
+
+        UINT32 Dpl;
+        //
+        //  Get current privilege level for the descriptor.
+        //
+        Dpl = VmxVmcsRead32( GUEST_CS_ACCESS_RIGHTS );
+        Dpl = (Dpl >> 5) & 3;
+
+        NT_ASSERT( Dpl == 0 );
         goto Inject;
     }
 
@@ -321,21 +241,12 @@ GeneralProtectionFaultEmulate(
         if (IsRdtscp) {
             RdtscpEmulate(Local, Regs, Process, MappedVa );
             goto Unmap;
-
         }
     }
 
 Inject:
+    InjectHardwareException( InterruptInfo );
 
-    if (ExceptionType[ExceptionVector] & EXCEPTION_ERROR_CODE_VALID) {
-        VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE,
-                        VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
-    }
-
-    VmxVmcsWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
-                    VMX_INT_INFO_VALID
-                    | (ExceptionType[ExceptionVector] << 8) 
-                    | (ExceptionVector & INTR_INFO_VECTOR_MASK) );
 Unmap:
     if (MappedVa) {
         MmuUnmap( MappedVa );
@@ -385,64 +296,34 @@ DsHvdsExitHandler(
             break;
         }
 
-        //
-        // Custom VM exits
-        //
-        case EXIT_REASON_CPUID:
-        {
-            CpuidEmulate(regs);
-            break;
-        }
         case EXIT_REASON_EXCEPTION_OR_NMI:
         {
-            UINT32 InterruptInfo = VmxVmcsRead32( EXIT_INTERRUPTION_INFORMATION );
-            UINT32 ExceptionVector = InterruptInfo & INTR_INFO_VECTOR_MASK;
-            UINT32 ErrorCode;
-            UINT32 Dpl;
-            BOOLEAN InjectEvent = TRUE;
+            INTERRUPT_INFORMATION InterruptInfo;
+            InterruptInfo.u.raw = VmxVmcsRead32( EXIT_INTERRUPTION_INFORMATION );
 
-            if (ExceptionVector == TRAP_GP_FAULT || 
-                ExceptionVector == TRAP_INVALID_OPCODE) {
+            if (InterruptInfo.u.f.vector == VECTOR_INVALID_OPCODE_EXCEPTION ||
+                InterruptInfo.u.f.vector == VECTOR_GENERAL_PROTECTION_EXCEPTION ) {
 
-                if ((InterruptInfo & VMX_INT_INFO_VALID) &&
-                    (InterruptInfo & VMX_INT_INFO_ERR_CODE_VALID)) {
-
-                    ErrorCode = VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE );
-                    NT_ASSERT( TRAP_GP_FAULT == ExceptionVector );
-                }
-
-                //
-                //  Get current privilege level for the descriptor.
-                //
-                Dpl = VmxVmcsRead32( GUEST_CS_ACCESS_RIGHTS );
-                Dpl = (Dpl >> 5) & 3;
-
-                if (Dpl == 3) {
-                    GeneralProtectionFaultEmulate( core->localContext, 
-                                                   regs, 
-                                                   ExceptionVector );
-                    InjectEvent = FALSE;
-                }
+                GeneralProtectionFaultEmulate( core->localContext, 
+                                               regs, 
+                                               InterruptInfo );
             }
-            
-            if (InjectEvent) {
-                if (ExceptionType[ExceptionVector] & EXCEPTION_ERROR_CODE_VALID) {
-                    NT_ASSERT( InterruptInfo & VMX_INT_INFO_ERR_CODE_VALID );
-                    VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
-                                    VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
-                }
-
-                VmxVmcsWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
-                                VMX_INT_INFO_VALID
-                                | (ExceptionType[ExceptionVector] << 8) 
-                                | (ExceptionVector & INTR_INFO_VECTOR_MASK) );
+            else {
+                InjectHardwareException( InterruptInfo );
             }
+
             break;
         }
 
         case EXIT_REASON_CR_ACCESS:
         {
             Cr4AccessEmulate(core, regs);
+            break;
+        }
+
+        case EXIT_REASON_CPUID:
+        {
+            CpuidEmulate(regs);
             break;
         }
 

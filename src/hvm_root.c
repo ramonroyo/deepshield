@@ -105,7 +105,7 @@ HvmCoreHandleCommonExits(
     _In_ UINT32     exitReason,
     _In_ PHVM_CORE  core,
     _In_ PREGISTERS regs
-)
+    )
 {
     UNREFERENCED_PARAMETER(core);
 
@@ -126,8 +126,16 @@ HvmCoreHandleCommonExits(
         }
 #endif
 
+        /*
+        case EXIT_REASON_INVVPID:
+        {
+            InstrInvVpidEmulate( regs );
+            InstrRipAdvance( regs );
+            return TRUE;
+        }*/
+
         //
-        // Virtualization instructions
+        //  Virtualization instructions
         //
         case EXIT_REASON_VMXON:
         case EXIT_REASON_VMXOFF:
@@ -141,32 +149,14 @@ HvmCoreHandleCommonExits(
         case EXIT_REASON_INVEPT:
         case EXIT_REASON_INVVPID:
         {
-            regs->rflags.u.f.cf = 1;
+            InjectUndefinedOpcodeException();
+
+            regs->rflags.u.f.rf = 1;
+            VmxVmcsWritePlatform( GUEST_RFLAGS, regs->rflags.u.raw );
+
             InstrRipAdvance(regs);
             return TRUE;
         }
-
-        //
-        // Routine VM exits
-        //
-        /*case EXIT_REASON_CR_ACCESS:
-        {
-            EXIT_QUALIFICATION_CR cr;
-            UINT_PTR              gpr;
-
-            cr.u.raw = VmxVmcsReadPlatform(EXIT_QUALIFICATION);
-            gpr = *LookupGpr(regs, (UINT8)cr.u.f.gpr);
-
-            InstrCrEmulate(cr.u.raw, regs);
-
-            //
-            // Make host exit CR3 follow current CR3 in guest
-            //
-            VmxVmcsWritePlatform(HOST_CR3, gpr);
-
-            InstrRipAdvance(regs);
-            return TRUE;
-        }*/
 
         case EXIT_REASON_MSR_READ:
         {
@@ -180,13 +170,6 @@ HvmCoreHandleCommonExits(
             InstrRipAdvance(regs);
             return TRUE;
         }
-        /*
-        case EXIT_REASON_CPUID:
-        {
-            InstrCpuidEmulate(regs);
-            InstrRipAdvance(regs);
-            return TRUE;
-        }*/
     }
 
     return FALSE;

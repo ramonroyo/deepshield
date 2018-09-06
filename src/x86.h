@@ -265,7 +265,6 @@ typedef struct _SEGMENT_SELECTOR
     } u;
 } SEGMENT_SELECTOR, *PSEGMENT_SELECTOR;
 
-
 typedef struct _SEGMENT_DESCRIPTOR
 {
     union

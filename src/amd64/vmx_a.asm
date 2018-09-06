@@ -19,6 +19,11 @@ failInvalid:
     ret
 VmxInvEptImpl ENDP
 
+__invvpid PROC
+    invvpid rcx, OWORD PTR [rdx]
+    ret
+__invvpid ENDP
+
 ;
 ; NTSTATUS VmxCall(_In_ UINT_PTR service, _In_ UINT_PTR data);
 ;
