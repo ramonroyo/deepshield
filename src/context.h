@@ -49,13 +49,9 @@ LocalCtx(
 
 
 PLOCAL_CONTEXT
-LocalCtxForCore(
-    _In_ UINT32 core
+LocalCtxForVcpu(
+    _In_ UINT32 VcpuId
 );
 
-PREGISTERS
-LocalRegs(
-    VOID
-);
 
 #endif

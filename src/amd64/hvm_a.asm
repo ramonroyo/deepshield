@@ -169,7 +169,7 @@ ENDM
 .CODE
 
 ;
-; NTSTATUS HvmpStartAsm(_In_ PHVM_CORE core);
+; NTSTATUS HvmpStartAsm(_In_ PHVM_VCPU Vcpu);
 ;
 HvmpStartAsm PROC
     ;
@@ -186,8 +186,8 @@ HvmpStartAsm PROC
     ;
     ;Fourth Parameter
     mov r9, rcx
-	
-	;Third parameter
+    
+    ;Third parameter
     pushfq
     pop r8
 
@@ -255,10 +255,10 @@ HvmpExitHandlerAsm PROC
     mov rdx, rbx
 
     ;
-    ; First parameter = hvm_core
+    ; First parameter = hvm_cpu
     ;
     mov rcx, rsp
-    or  rcx, 0FF8h    ; set pointer to top of page where address of hvm_core is stored
+    or  rcx, 0FF8h    ; set pointer to top of page where address of hvm_cpu is stored
     mov rcx, [rcx]    ; dereference to get the pointer
 
     CALLF HvmpExitHandler

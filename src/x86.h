@@ -16,11 +16,12 @@
 #define IA32_SYSENTER_ESP       0x175
 #define IA32_SYSENTER_EIP       0x176
 #define IA32_DEBUGCTL           0x1D9
+#define IA32_PERF_GLOBAL_CTRL   0x38F
 #define IA32_FS_BASE            0xC0000100
 #define IA32_GS_BASE            0xC0000101
 #define IA32_GS_BASE_SWAP       0xC0000102
 #define IA32_TSC_AUX            0xC0000103
-
+#define IA32_MSR_EFER           0xC0000080
 
 
 #pragma warning( disable : 4214 ) //Bit field types other than int
@@ -90,8 +91,7 @@ typedef struct _CR0_REGISTER
 #endif
         } f;
     } u;
-} CR0_REGISTER;
-
+} CR0_REGISTER, VMX_MSR_CR0;
 
 typedef struct _CR3_REGISTER
 {
@@ -152,7 +152,7 @@ typedef struct _CR4_REGISTER
 #endif
         } f;
     } u;
-} CR4_REGISTER;
+} CR4_REGISTER, VMX_MSR_CR4;
 
 
 typedef struct _DR7_REGISTER
@@ -430,7 +430,7 @@ VOID     writedr(_In_ UINT32 dr, _In_ UINT_PTR value);
 
 /**
 * cli and sti instructions instrinsics.
-* Inhibit and habilitate interrupts in the executing core.
+* Inhibit and habilitate interrupts in the executing Vcpu.
 */
 VOID __cli(VOID);
 VOID __sti(VOID);

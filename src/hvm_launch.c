@@ -43,7 +43,7 @@ HvmInternalCallAsm(
 
 extern NTSTATUS __stdcall
 HvmpStartAsm(
-    _In_ PHVM_CORE core
+    _In_ PHVM_VCPU Vcpu
 );
 
 extern VOID __stdcall
@@ -100,11 +100,11 @@ VmxpEnable(
     PVOID vmxOn
 )
 {
-    VMX_BASIC        basicVmx;
+    VMX_MSR_BASIC        basicVmx;
     CR4_REGISTER     cr4;
     PHYSICAL_ADDRESS vmxOnPhysical;
 
-    basicVmx.u.raw = VmxCapability(IA32_VMX_BASIC);
+    basicVmx.AsUint64 = VmxCapability(IA32_VMX_BASIC);
 
     //
     // Activate 13 bit (VMX enable)
@@ -117,8 +117,7 @@ VmxpEnable(
     //
     // Write revision identifier in VMXON region
     //
-    *(UINT32*)vmxOn = basicVmx.u.f.revisionId;
-
+    *(UINT32*)vmxOn = basicVmx.Bits.revisionId;
 
     //
     // Activate virtualization
@@ -140,7 +139,7 @@ VmxpEnable(
 VOID
 VmxpDisable(
     VOID
-)
+    )
 {
     CR4_REGISTER cr4;
 
@@ -153,21 +152,21 @@ VmxpDisable(
 
 
 NTSTATUS __stdcall
-HvmpStartCore(
-    _In_ UINT32 core, 
+HvmpStartVcpu(
+    _In_ UINT32 VcpuId, 
     _In_ PVOID context
-)
+    )
 {
-    PHVM      hvm;
-    PHVM_CORE hvmCore;
-    NTSTATUS  status;
+    PHVM hvm;
+    PHVM_VCPU Vcpu;
+    NTSTATUS status;
 
     hvm     = (PHVM)context;
-    hvmCore = &hvm->cores[core];
+    Vcpu = &hvm->VcpuArray[VcpuId];
 
     __cli();
 
-    status = HvmpStartAsm(hvmCore);
+    status = HvmpStartAsm( Vcpu );
 
     __sti();
 
@@ -179,27 +178,27 @@ HvmpStart(
     _In_ UINT_PTR  code,
     _In_ UINT_PTR  stack,
     _In_ UINT_PTR  flags,
-    _In_ PHVM_CORE core
-)
+    _In_ PHVM_VCPU Vcpu
+    )
 {
     NTSTATUS       status;
     FLAGS_REGISTER rflags;
     
     //
-    // Check core
+    // Check Vcpu
     //
-    if(!core)
+    if(!Vcpu)
         return STATUS_UNSUCCESSFUL;
 
     //
     // Save host state
     //
-    HvmpSaveHostState(&core->savedState);
+    HvmpSaveHostState(&Vcpu->savedState);
 
     //
-    // Enable VMX tech on this core
+    // Enable VMX tech on this Vcpu
     //
-    status = VmxpEnable(core->vmxOn);
+    status = VmxpEnable(Vcpu->vmxOn);
     
     if(!NT_SUCCESS(status))
         return status;
@@ -207,13 +206,13 @@ HvmpStart(
     //
     // Clear and load VMCS
     //
-    if(!VmcsClear(core->vmcs))
+    if(!VmcsClear(Vcpu->vmcs))
     {
         VmxpDisable();
         return STATUS_UNSUCCESSFUL;
     }
 
-    if(!VmcsLoad(core->vmcs))
+    if(!VmcsLoad(Vcpu->vmcs))
     {
         VmxpDisable();
         return STATUS_UNSUCCESSFUL;
@@ -226,26 +225,26 @@ HvmpStart(
     rflags.u.f.cf = 0;
     rflags.u.f.zf = 0;
 
-    core->configure(core);
+    Vcpu->configure(Vcpu);
 
-    VmxVmcsWritePlatform(HOST_RSP, core->rsp);
+    VmxVmcsWritePlatform(HOST_RSP, Vcpu->rsp);
     VmxVmcsWritePlatform(HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm);
     VmcsConfigureCommonEntry(code, stack, rflags);
    
-    AtomicWrite(&core->launched, TRUE);
+    AtomicWrite(&Vcpu->launched, TRUE);
     
     return STATUS_SUCCESS;
 }
 
 NTSTATUS __stdcall
 HvmpFailure(
-    _In_ PHVM_CORE core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ BOOLEAN   valid
-)
+    )
 {
     NTSTATUS status;
 
-    UNREFERENCED_PARAMETER(core);
+    UNREFERENCED_PARAMETER(Vcpu);
 
     if (valid) {
         status = VMX_STATUS(VmxVmcsRead32(VM_INSTRUCTION_ERROR));
@@ -259,26 +258,26 @@ HvmpFailure(
 
 NTSTATUS __stdcall
 HvmpStartFailure(
-    _In_ PHVM_CORE core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ BOOLEAN   valid
     )
 {
     NTSTATUS status;
 
-    AtomicWrite(&core->launched, FALSE);
-    status = HvmpFailure(core, valid);
+    AtomicWrite(&Vcpu->launched, FALSE);
+    status = HvmpFailure(Vcpu, valid);
     VmxpDisable();
 
     return status;
 }
 
 NTSTATUS __stdcall
-HvmpStopCore(
-    _In_ UINT32 core,
-    _In_ PVOID  context
+HvmpStopVcpu(
+    _In_ UINT32 VcpuId,
+    _In_ PVOID context
     )
 {
-    UNREFERENCED_PARAMETER(core);
+    UNREFERENCED_PARAMETER(VcpuId);
     UNREFERENCED_PARAMETER(context);
 
     return HvmInternalCallAsm(HVM_INTERNAL_SERVICE_STOP, 0);
@@ -286,7 +285,7 @@ HvmpStopCore(
 
 VOID
 HvmpRestore(
-    _In_ PHVM_CORE core
+    _In_ PHVM_VCPU Vcpu
     )
 {
     CR4_REGISTER cr4 = { 0 };
@@ -295,16 +294,16 @@ HvmpRestore(
     //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
     //
 
-    __writeds( core->savedState.ds.u.raw );
-    __writees( core->savedState.es.u.raw );
-    __writefs( core->savedState.fs.u.raw );
+    __writeds( Vcpu->savedState.ds.u.raw );
+    __writees( Vcpu->savedState.es.u.raw );
+    __writefs( Vcpu->savedState.fs.u.raw );
 #ifndef _WIN64
-    __writess( core->savedState.ss.u.raw );
-    __writegs( core->savedState.gs.u.raw );
+    __writess( Vcpu->savedState.ss.u.raw );
+    __writegs( Vcpu->savedState.gs.u.raw );
 #endif
 
-    lgdt( core->savedState.gdt.base, core->savedState.gdt.limit );
-    lidt( core->savedState.idt.base, core->savedState.idt.limit );
+    lgdt( Vcpu->savedState.gdt.base, Vcpu->savedState.gdt.limit );
+    lidt( Vcpu->savedState.idt.base, Vcpu->savedState.idt.limit );
 
     //
     //  Disable TSD monitoring.
@@ -322,7 +321,7 @@ HvmpRestore(
 
 VOID
 HvmpStop(
-    _In_ PHVM_CORE core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS regs
     )
 {
@@ -330,10 +329,10 @@ HvmpStop(
     IRET_FRAME iret;
 
     iret.rip = regs->rip;
-    iret.cs = core->savedState.cs.u.raw;
+    iret.cs = Vcpu->savedState.cs.u.raw;
     iret.rflags = regs->rflags.u.raw;
     iret.rsp = regs->rsp;
-    iret.ss = core->savedState.ss.u.raw;
+    iret.ss = Vcpu->savedState.ss.u.raw;
 #else
 
     PIRET_FRAME iretx86;
@@ -343,14 +342,14 @@ HvmpStop(
                      - (sizeof( IRET_FRAME ) / sizeof( UINT_PTR )));
 
     iretx86->rip = regs->rip;
-    iretx86->cs = core->savedState.cs.u.raw;
+    iretx86->cs = Vcpu->savedState.cs.u.raw;
     iretx86->rflags = regs->rflags.u.raw;
 #endif
     
     //
     //  Restore segments, IDT and GDT from the saved state.
     //
-    HvmpRestore( core );
+    HvmpRestore( Vcpu );
 
     //
     //  This deactivates VMX operation in the processor.
@@ -385,7 +384,7 @@ HvmStart(
         return status;
     }
 
-    status = SmpExecuteOnAllCores( HvmpStartCore, gHvm );
+    status = SmpExecuteOnAllProcessors( HvmpStartVcpu, gHvm );
 
     if (NT_SUCCESS( status )) {
         AtomicWrite( &gHvm->launched, TRUE );
@@ -411,7 +410,7 @@ HvmStop(
         return status;
     }
 
-    status = SmpExecuteOnAllCores( HvmpStopCore, 0 );
+    status = SmpExecuteOnAllProcessors( HvmpStopVcpu, 0 );
 
     if (NT_SUCCESS( status )) {
         AtomicWrite(&gHvm->launched, FALSE);

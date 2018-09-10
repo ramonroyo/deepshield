@@ -132,49 +132,47 @@ typedef struct _HVM_LOGGED_EVENTS
     HVM_EVENT queue[MAX_NUMBER_OF_LOGGED_EXIT_EVENTS];
 } HVM_LOGGED_EVENTS, *PHVM_LOGGED_EVENTS;
 
-typedef struct _HVM_CORE HVM_CORE, *PHVM_CORE;
+typedef struct _HVM_VCPU HVM_VCPU, *PHVM_VCPU;
 
 typedef VOID(*HVM_EXIT_HANDLER)(
     _In_ UINT32     exitReason,
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
     );
 
 typedef VOID(*HVM_CONFIGURE)(
-    _In_ PHVM_CORE core
+    _In_ PHVM_VCPU Vcpu
     );
 
 typedef struct _HVM HVM, *PHVM;
 
-typedef struct _HVM_CORE
+typedef struct _HVM_VCPU
 {
     //
     //  This field must be the first.
     //
     REGISTERS guestRegisters;
-    UINT32   index;
-    PHVM     hvm;
+    UINT32 index;
+    PHVM hvm;
     HOST_SAVED_STATE savedState;
-    PVOID            vmxOn;
-    PVOID            vmcs;
-    PVOID            stack;
-    UINT_PTR         rsp;
+    PVOID vmxOn;
+    PVOID vmcs;
+    PVOID stack;
+    UINT_PTR rsp;
     HVM_EXIT_HANDLER handler;
-    HVM_CONFIGURE    configure;
-    PVOID            localContext;
+    HVM_CONFIGURE configure;
+    PVOID localContext;
 
     ATOMIC            launched;
     HVM_LOGGED_EVENTS loggedEvents;
-} HVM_CORE, *PHVM_CORE;
+} HVM_VCPU, *PHVM_VCPU;
 
 typedef struct _HVM
 {
-    PHVM_CORE cores;
-    PVOID     globalContext;
-
-    ATOMIC    launched;
+    PHVM_VCPU VcpuArray;
+    PVOID globalContext;
+    ATOMIC launched;
 } HVM, *PHVM;
-
 
 BOOLEAN
 HvmInitialized(
@@ -206,13 +204,13 @@ HvmGlobalContextGet(
 
 VOID
 HvmLocalContextSet(
-    _In_ UINT32 core,
+    _In_ UINT32 VcpuId,
     _In_ PVOID  context
 );
 
 PVOID
 HvmLocalContextGet(
-    _In_ UINT32 core
+    _In_ UINT32 VcpuId
 );
 
 NTSTATUS
@@ -230,48 +228,36 @@ HvmFinalize(
     VOID
 );
 
-
-
-
-
-
-
-
 #define ROOT_MODE_API
 
-PHVM_CORE ROOT_MODE_API
-HvmCoreCurrent(
+PHVM_VCPU ROOT_MODE_API
+HvmGetCurrentVcpu(
     VOID
 );
 
-PREGISTERS ROOT_MODE_API
-HvmCoreRegisters(
-    _In_ PHVM_CORE core
+PVOID ROOT_MODE_API
+HvmGetVcpuLocalContext(
+    _In_ PHVM_VCPU Vcpu
 );
 
 PVOID ROOT_MODE_API
-HvmCoreLocalContext(
-    _In_ PHVM_CORE core
-);
-
-PVOID ROOT_MODE_API
-HvmCoreGlobalContext(
-    _In_ PHVM_CORE core
+HvmGetVcpuGlobalContext(
+    _In_ PHVM_VCPU Vcpu
 );
 
 UINT32 ROOT_MODE_API
-HvmCoreIndex(
-    _In_ PHVM_CORE core
+HvmGetVcpuId(
+    _In_ PHVM_VCPU Vcpu
 );
 
 PHVM ROOT_MODE_API
-HvmCoreHvm(
-    _In_ PHVM_CORE core
+HvmGetVcpuHvm(
+    _In_ PHVM_VCPU Vcpu
 );
 
 PHOST_SAVED_STATE ROOT_MODE_API
-HvmCoreSavedState(
-    _In_ PHVM_CORE core
+HvmGetVcpuSavedState(
+    _In_ PHVM_VCPU Vcpu
 );
 
 
@@ -296,9 +282,9 @@ HvmCoreSavedState(
 *   EXIT_REASON_CPUID
 */
 BOOLEAN ROOT_MODE_API
-HvmCoreHandleCommonExits(
+HvmVcpuCommonExitsHandler(
     _In_ UINT32     exitReason,
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
 );
 

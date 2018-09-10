@@ -30,7 +30,7 @@ HvmpExitEventLogVmcsInfo(
 
 VOID
 HvmpExitEventLog(
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
 )
 {
@@ -39,31 +39,31 @@ HvmpExitEventLog(
     //
     // Calculate new index
     //
-    index = core->loggedEvents.numberOfEvents % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
+    index = Vcpu->loggedEvents.numberOfEvents % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
     
     //
     // Log exit data
     //
-    HvmpExitEventLogVmcsInfo(&core->loggedEvents.queue[index].info);
-    core->loggedEvents.queue[index].regs = *regs;
+    HvmpExitEventLogVmcsInfo(&Vcpu->loggedEvents.queue[index].info);
+    Vcpu->loggedEvents.queue[index].regs = *regs;
 
     //
     // Increase number of events serviced
     //
-    core->loggedEvents.numberOfEvents++;
+    Vcpu->loggedEvents.numberOfEvents++;
 }
 
 
 extern VOID
 HvmpStop(
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
 );
 
 
 VOID
 HvmHandleService(
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
 )
 {
@@ -85,7 +85,7 @@ HvmHandleService(
         {
             regs->rax = (UINT_PTR)STATUS_SUCCESS;
 
-            HvmpStop(core, regs);
+            HvmpStop(Vcpu, regs);
 
             //
             // Never reached
@@ -109,13 +109,13 @@ HvmHandleService(
 // 
 VOID __stdcall
 HvmpExitHandler(
-    _In_ PHVM_CORE  core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS regs
-)
+    )
 {
     UINT32 exitReason;
 
-    NT_ASSERT( &core->guestRegisters == regs );
+    NT_ASSERT( &Vcpu->guestRegisters == regs );
 
     //
     // Gather minimal exit information
@@ -132,24 +132,22 @@ HvmpExitHandler(
     //
     // Log event
     //
-    HvmpExitEventLog(core, regs);
+    HvmpExitEventLog(Vcpu, regs);
 
     //
     // Processing
     //
-    if(exitReason == EXIT_REASON_VMCALL && regs->rax == HVM_CALL_MAGIC)
-    {
+    if (exitReason == EXIT_REASON_VMCALL && regs->rax == HVM_CALL_MAGIC) {
         //
         // Invoke Internal Services Handler
         //
-        HvmHandleService(core, regs);
+        HvmHandleService(Vcpu, regs);
     }
-    else
-    {
+    else {
         //
         // Invoke HVM Handler
         //
-        core->handler(exitReason, core, regs);
+        Vcpu->handler(exitReason, Vcpu, regs);
     }
 
     //

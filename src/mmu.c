@@ -240,29 +240,27 @@ PVOID
 MmupMap(
     _In_ PHYSICAL_ADDRESS address,
     _In_ UINT64           flags
-)
+    )
 {
     UINT32 i;
-    UINT32 core;
+    PMMU_PROCESSOR MmuVcpu;
 
-    core = SmpCurrentCore();
+    MmuVcpu = &gMmu.Processors[SmpGetCurrentProcessor()];
 
     //
-    // Find an empty slot in this core
+    // Find an empty slot in this Vcpu
     //
     for (i = 0; i < MAX_MAPPING_SLOTS; i++)
     {
-        if (!gMmu.cores[core].mappings[i].used)
-        {
-            gMmu.cores[core].mappings[i].used = TRUE;
+        if (0 == InterlockedCompareExchange( &MmuVcpu->mappings[i].MapInUse, 1, 0 ) ) {
 
             //
             // Write adequate PTE in paging structures so 
             // physical address becomes accesible at this slot
             //
-            MmupChangeMapping(&gMmu.cores[core].mappings[i], MmupCreatePte(address, flags));
-
-            return gMmu.cores[core].mappings[i].page;
+            MmupChangeMapping( &MmuVcpu->mappings[i],
+                               MmupCreatePte( address, flags ));
+            return MmuVcpu->mappings[i].page;
         }
     }
 
@@ -277,7 +275,7 @@ MmuFinalize(
 NTSTATUS
 MmuInitialize(
     VOID
-)
+    )
 {
     UINT32 i, j;
 #ifdef _WIN64
@@ -336,17 +334,17 @@ MmuInitialize(
     gMmu.pxeBase = (UINT_PTR)MmuGetPxeAddress(0);
 
     //
-    // Allocate one MMU per core
+    //  Allocate one MMU per Vcpu.
     //
-    gMmu.cores = MemAllocArray(SmpNumberOfCores(), sizeof(MMU_CORE));
+    gMmu.Processors = MemAllocArray(SmpActiveProcessorCount(), sizeof(MMU_PROCESSOR));
     
-    if(!gMmu.cores) {
+    if(!gMmu.Processors) {
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    memset(gMmu.cores, 0, SmpNumberOfCores() * sizeof(MMU_CORE));
+    RtlZeroMemory(gMmu.Processors, SmpActiveProcessorCount() * sizeof(MMU_PROCESSOR));
 
-    for (i = 0; i < SmpNumberOfCores(); i++)
+    for (i = 0; i < SmpActiveProcessorCount(); i++)
     {
         for (j = 0; j < MAX_MAPPING_SLOTS; j++)
         {
@@ -357,11 +355,11 @@ MmuInitialize(
             if (slot == NULL)
                 goto failure;
 
-            gMmu.cores[i].mappings[j].used     = FALSE;
-            gMmu.cores[i].mappings[j].page     = slot;
-            gMmu.cores[i].mappings[j].pte      = MmuGetPxeAddress(slot);
+            gMmu.Processors[i].mappings[j].MapInUse = FALSE;
+            gMmu.Processors[i].mappings[j].page     = slot;
+            gMmu.Processors[i].mappings[j].pte      = MmuGetPxeAddress(slot);
 
-            MmupChangeMapping(&gMmu.cores[i].mappings[j], 0);
+            MmupChangeMapping(&gMmu.Processors[i].mappings[j], 0);
         }
     }
 
@@ -381,22 +379,22 @@ MmuFinalize(
 {
     UINT32 i, j;
 
-    for (i = 0; i < SmpNumberOfCores(); i++)
+    for (i = 0; i < SmpActiveProcessorCount(); i++)
     {
         for (j = 0; j < MAX_MAPPING_SLOTS; j++)
         {
             //
             // Free mapping slot
             //
-            if(gMmu.cores[i].mappings[j].page)
+            if(gMmu.Processors[i].mappings[j].page)
             {
-                MmFreeMappingAddress(gMmu.cores[i].mappings[j].page, 'MMAP');
+                MmFreeMappingAddress(gMmu.Processors[i].mappings[j].page, 'MMAP');
             }
         }
     }
 
-    MemFree(gMmu.cores);
-    gMmu.cores = 0;
+    MemFree(gMmu.Processors);
+    gMmu.Processors = 0;
 
 #ifdef _WIN64
     gMmu.lowerBound = 0;
@@ -411,7 +409,7 @@ MmuFinalize(
 PVOID
 MmuMap(
     _In_ PHYSICAL_ADDRESS address
-)
+    )
 {
     //
     // Map with usual (present, etc) flags
@@ -422,7 +420,7 @@ MmuMap(
 PVOID
 MmuMapUncached(
     _In_ PHYSICAL_ADDRESS address
-)
+    )
 {
     //
     // Map with no cache memory flags
@@ -433,12 +431,12 @@ MmuMapUncached(
 VOID
 MmuUnmap(
     _In_ PVOID address
-)
+    )
 {
     UINT32 i;
-    UINT32 core;
+    PMMU_PROCESSOR MmuVcpu;
 
-    core = SmpCurrentCore();
+    MmuVcpu = &gMmu.Processors[SmpGetCurrentProcessor()];
     
     //
     // Search address
@@ -448,16 +446,17 @@ MmuUnmap(
         //
         // Entry is used and address match
         //
-        if (gMmu.cores[core].mappings[i].used && 
-            gMmu.cores[core].mappings[i].page == address)
-        {
-            gMmu.cores[core].mappings[i].used = FALSE;
+        if (MmuVcpu->mappings[i].MapInUse &&
+            MmuVcpu->mappings[i].page == address) {
+
+            InterlockedCompareExchange( &MmuVcpu->mappings[i].MapInUse, 0, 1 );
 
             //
-            // Set PTE to 0
+            //  Set PTE to 0.
+            //  TODO: is this arquitecturally valid (NXE)?.
             //
-            MmupChangeMapping(&gMmu.cores[core].mappings[i], 0);
 
+            MmupChangeMapping( &MmuVcpu->mappings[i], 0 );
             break;
         }
     }
@@ -466,7 +465,7 @@ MmuUnmap(
 PVOID
 MmuGetPxeAddress(
     _In_opt_ PVOID address
-)
+    )
 {
 #ifdef _WIN64
     UINT64 result = 0;

@@ -38,6 +38,7 @@ SOURCES = channel.c \
           tests.c \
           tsc.c \
           vmcs.c \
+          vmcsinit.c \
           vmx.c \
           x86.c \
           hvm_a.asm \

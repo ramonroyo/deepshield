@@ -28,29 +28,33 @@ HvmGlobalContextGet(
 
 VOID
 HvmLocalContextSet(
-    _In_ UINT32 core,
-    _In_ PVOID  context
-)
+    _In_ UINT32 VcpuId,
+    _In_ PVOID context
+   )
 {
-    if(!gHvm)
+    if (!gHvm) {
         return;
+    }
 
-    if(core >= SmpNumberOfCores())
+    if (VcpuId >= SmpActiveProcessorCount()) {
         return;
+    }
 
-    InterlockedExchangePointer(&gHvm->cores[core].localContext, context);
+    InterlockedExchangePointer(&gHvm->VcpuArray[VcpuId].localContext, context);
 }
 
 PVOID
 HvmLocalContextGet(
-    _In_ UINT32 core
-)
+    _In_ UINT32 VcpuId
+   )
 {
-    if(!gHvm)
+    if (!gHvm) {
         return 0;
+    }
 
-    if(core >= SmpNumberOfCores())
+    if (VcpuId >= SmpActiveProcessorCount()) {
         return 0;
+    }
 
-    return gHvm->cores[core].localContext;
+    return gHvm->VcpuArray[VcpuId].localContext;
 }

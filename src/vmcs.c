@@ -8,12 +8,12 @@ VmcsClear(
     _In_ PVOID vmcs
 )
 {
-    VMX_BASIC        basicVmx;
+    VMX_MSR_BASIC        basicVmx;
     PHYSICAL_ADDRESS vmcsPhysical;
 
-    basicVmx.u.raw = VmxCapability(IA32_VMX_BASIC);
+    basicVmx.AsUint64 = VmxCapability(IA32_VMX_BASIC);
 
-    *(PUINT32)vmcs = basicVmx.u.f.revisionId;
+    *(PUINT32)vmcs = basicVmx.Bits.revisionId;
 
     vmcsPhysical   = MmuGetPhysicalAddress(0, vmcs);
 
@@ -102,16 +102,15 @@ VmcsConfigureCommonGuest(
     VmxVmcsWrite32(      GUEST_IA32_SYSENTER_CS,                       (UINT32)  __readmsr(IA32_SYSENTER_CS));
     VmxVmcsWritePlatform(GUEST_IA32_SYSENTER_ESP,                      (UINT_PTR)__readmsr(IA32_SYSENTER_ESP));
     VmxVmcsWritePlatform(GUEST_IA32_SYSENTER_EIP,                      (UINT_PTR)__readmsr(IA32_SYSENTER_EIP));
-    
+    VmxVmcsWrite64(      GUEST_IA32_PERF_GLOBAL_CTRL,                  (UINT_PTR)__readmsr(IA32_PERF_GLOBAL_CTRL) );
+    VmxVmcsWrite64(      GUEST_IA32_EFER,                              (UINT_PTR)__readmsr( IA32_MSR_EFER ) );
 
-    //VmxVmcsWrite64(      GUEST_IA32_PERF_GLOBAL_CTRL,                  X);
     //VmxVmcsWrite64(      GUEST_IA32_PAT,                               X);
-    //VmxVmcsWrite64(      GUEST_IA32_EFER,                              X);
     //VmxVmcsWrite64(      GUEST_IA32_BNDCFGS,                           X);
     //VmxVmcsWrite32(      GUEST_SMBASE,                                 X);
     //VmxVmcsWrite32(      GUEST_ACTIVITY_STATE,                         0);
     //VmxVmcsWrite32(      GUEST_INTERRUPTIBILITY_STATE,                 0);
-    VmxVmcsWrite64(      VMCS_LINK_POINTER,                            MAXULONG64 );
+    VmxVmcsWrite64(      VMCS_LINK_POINTER,                              MAXULONG_PTR );
     //VmxVmcsWritePlatform(GUEST_PENDING_DEBUG_EXCEPTIONS,               X);
     
     //VmxVmcsWrite32(      VMX_PREEMPTION_TIMER_VALUE,                   X);
@@ -158,6 +157,7 @@ VmcsConfigureCommonHost(
     VmxVmcsWrite16(      HOST_TR_SELECTOR,                             __str() & 0xFFFC);
     VmxVmcsWritePlatform(HOST_TR_BASE,                                 DescriptorBase(__str()));
 
+    //TODO: check if this is possible.
     VmxVmcsWrite32(      HOST_IA32_SYSENTER_CS,                        (UINT32)  __readmsr(IA32_SYSENTER_CS));
     VmxVmcsWritePlatform(HOST_IA32_SYSENTER_ESP,                       (UINT_PTR)__readmsr(IA32_SYSENTER_ESP));
     VmxVmcsWritePlatform(HOST_IA32_SYSENTER_EIP,                       (UINT_PTR)__readmsr(IA32_SYSENTER_EIP));
@@ -173,23 +173,23 @@ VmcsConfigureCommonControl(
     VOID
     )
 {
-    VMX_PIN_CTLS            pinControls;
+    VMX_PIN_EXECUTION_CTLS  pinControls;
     VMX_PROC_PRIMARY_CTLS   procPrimaryControls;
     VMX_PROC_SECONDARY_CTLS procSecondaryControls;
     VMX_EXIT_CTLS           exitControls;
     VMX_ENTRY_CTLS          entryControls;
 
-    pinControls.u.raw           = 0;
-    procPrimaryControls.u.raw   = 0;
-    procSecondaryControls.u.raw = 0;
-    exitControls.u.raw          = 0;
-    entryControls.u.raw         = 0;
+    pinControls.AsUint32 = 0;
+    procPrimaryControls.AsUint32 = 0;
+    procSecondaryControls.AsUint32 = 0;
+    exitControls.AsUint32 = 0;
+    entryControls.AsUint32 = 0;
 
-    procPrimaryControls.u.f.activateSecondaryControls = 1;
+    procPrimaryControls.Bits.SecondaryControls = 1;
     
-    procSecondaryControls.u.f.enableRdtscp = 1;
-    procSecondaryControls.u.f.enableXsavesXrstors = 1;
-    procSecondaryControls.u.f.enableInvpcid = 1;
+    procSecondaryControls.Bits.enableRdtscp = 1;
+    procSecondaryControls.Bits.enableXsavesXrstors = 1;
+    procSecondaryControls.Bits.enableInvpcid = 1;
 
     //
     //  No flush of TLBs on VM entry or VM exit if VPID active. Tagged TLB
@@ -198,16 +198,16 @@ VmcsConfigureCommonControl(
     //procSecondaryControls.u.f.enableVpid = 1;
 
 #ifdef _WIN64
-    exitControls.u.f.hostAddressSpaceSize = 1;
-    entryControls.u.f.ia32eModeGuest = 1;
+    exitControls.Bits.hostAddressSpaceSize = 1;
+    entryControls.Bits.ia32eModeGuest = 1;
 #endif
 
-    VmxVmcsWrite32( VM_EXEC_CONTROLS_PIN_BASED, pinControls.u.raw);
-    VmxVmcsWrite32( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw);
-    VmxVmcsWrite32( VM_EXEC_CONTROLS_PROC_SECONDARY, procSecondaryControls.u.raw);
+    VmxVmcsWrite32( VM_EXEC_CONTROLS_PIN_BASED, pinControls.AsUint32);
+    VmxVmcsWrite32( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32);
+    VmxVmcsWrite32( VM_EXEC_CONTROLS_PROC_SECONDARY, procSecondaryControls.AsUint32 );
     //VmxVmcsWrite16( VM_VPID, HMV_VPID );
-    VmxVmcsWrite32( VM_EXIT_CONTROLS, exitControls.u.raw );
-    VmxVmcsWrite32( VM_ENTRY_CONTROLS, entryControls.u.raw );
+    VmxVmcsWrite32( VM_EXIT_CONTROLS, exitControls.AsUint32 );
+    VmxVmcsWrite32( VM_ENTRY_CONTROLS, entryControls.AsUint32 );
 
     VmxVmcsWrite32( CR3_TARGET_COUNT, 0 );
     VmxVmcsWritePlatform( CR3_TARGET_0, 0 );
@@ -282,9 +282,9 @@ VmcsConfigureCommonEntry(
     {
         VMX_PROC_SECONDARY_CTLS ctls;
 
-        ctls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
+        ctls.AsUint32 = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
 
-        if(ctls.u.f.enableEpt)
+        if(ctls.Bits.enableEpt)
         {
             PHYSICAL_ADDRESS cr3;
             PVOID            page;
@@ -307,3 +307,56 @@ VmcsConfigureCommonEntry(
     }
 #endif
 }
+
+/*
+ * IA-32 Control Register #0 (CR0)
+ */
+#define CR0_PE                    0x00000001
+#define CR0_MP                    0x00000002
+#define CR0_EM                    0x00000004
+#define CR0_TS                    0x00000008
+#define CR0_ET                    0x00000010
+#define CR0_NE                    0x00000020
+#define CR0_WP                    0x00010000
+#define CR0_AM                    0x00040000
+#define CR0_NW                    0x20000000
+#define CR0_CD                    0x40000000
+#define CR0_PG                    0x80000000
+
+#define BITMAP_CLR64(__word, __mask) ((__word) &= ~(UINT64)(__mask))
+#define BITMAP_GET64(__word, __mask) ((__word) & (UINT64)(__mask))
+
+/*
+FORCEINLINE
+VOID
+EnableFxOps(
+    VOID
+    )
+{
+    UINT_PTR cr0_value = __read_cr0();
+
+    //
+    //  Clear TS bit, since we need to operate on XMM registers.
+    //
+    BITMAP_CLR64( cr0_value, CR0_TS );
+    BITMAP_CLR64( cr0_value, CR0_MP );
+
+    __write_cr0( cr0_value );
+}*/
+
+/*
+void hmm_set_required_values_to_control_registers(void)
+{
+    hw_write_cr0(hw_read_cr0() | HMM_WP_BIT_MASK);
+    efer_msr_set_nxe();     /* Make sure EFER.NXE is set */
+/*}*/
+
+/*MON_ASSERT( vmcs_hw_is_cpu_vmx_capable() );
+
+/* init CR0/CR4 to the VMX compatible values */
+/*hw_write_cr0( vmcs_hw_make_compliant_cr0( hw_read_cr0() ) );
+if ( g_is_post_launch ) {
+    /* clear TS bit, since we need to operate on XMM registers. */
+/*    enable_fx_ops();
+    }
+hw_write_cr4( vmcs_hw_make_compliant_cr4( hw_read_cr4() ) );*/

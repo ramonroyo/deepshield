@@ -13,15 +13,15 @@
 
 typedef struct _MMU_MAPPING
 {
-    BOOLEAN  used;     //!< State oif the mapping
-    PVOID    page;     //!< Virtual Address of the mapping where we can map memory
-    PVOID    pte;      //!< Address of the pte to be able to map what we desire
+    volatile LONG MapInUse;     //!< State of the mapping
+    PVOID page;                 //!< Virtual Address of the mapping where we can map memory
+    PVOID pte;                  //!< Address of the pte to be able to map what we desire
 } MMU_MAPPING, *PMMU_MAPPING;
 
-typedef struct _MMU_CORE
+typedef struct _MMU_PROCESSOR
 {
     MMU_MAPPING mappings[MAX_MAPPING_SLOTS];
-} MMU_CORE, *PMMU_CORE;
+} MMU_PROCESSOR, *PMMU_PROCESSOR;
 
 typedef struct _MMU
 {
@@ -34,7 +34,7 @@ typedef struct _MMU
     UINT32  pxeShift;
 #endif
     UINT_PTR  pxeBase;
-    PMMU_CORE cores;
+    PMMU_PROCESSOR Processors;
 } MMU, *PMMU;
 
 /**

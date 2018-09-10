@@ -33,21 +33,21 @@ HvmDestroy(
         return;
     }
 
-    if (gHvm->cores)
+    if (gHvm->VcpuArray)
     {
-        for (i = 0; i < SmpNumberOfCores(); i++)
+        for (i = 0; i < SmpActiveProcessorCount(); i++)
         {
-            if (gHvm->cores[i].stack)
-                MemFree(gHvm->cores[i].stack);
+            if (gHvm->VcpuArray[i].stack)
+                MemFree(gHvm->VcpuArray[i].stack);
 
-            if (gHvm->cores[i].vmcs)
-                MemFree(gHvm->cores[i].vmcs);
+            if (gHvm->VcpuArray[i].vmcs)
+                MemFree(gHvm->VcpuArray[i].vmcs);
 
-            if (gHvm->cores[i].vmxOn)
-                MemFree(gHvm->cores[i].vmxOn);
+            if (gHvm->VcpuArray[i].vmxOn)
+                MemFree(gHvm->VcpuArray[i].vmxOn);
         }
 
-        MemFree(gHvm->cores);
+        MemFree(gHvm->VcpuArray);
     }
 
     MemFree(gHvm);
@@ -84,57 +84,58 @@ HvmInitialize(
 
     RtlZeroMemory( gHvm, sizeof( HVM ) );
 
-    gHvm->cores = MemAllocAligned( SmpNumberOfCores() * sizeof( HVM_CORE ),
+    gHvm->VcpuArray = MemAllocAligned( SmpActiveProcessorCount() * sizeof( HVM_VCPU ),
                                    XMM_REGISTER_ALIGNMENT_SIZE );
-    if (gHvm->cores == NULL)
+    if (gHvm->VcpuArray == NULL)
     {
         MemFree(gHvm);
         gHvm = 0;
         return STATUS_UNSUCCESSFUL;
     }
 
-    RtlZeroMemory( gHvm->cores, SmpNumberOfCores() * sizeof( HVM_CORE ) );
+    RtlZeroMemory( gHvm->VcpuArray, SmpActiveProcessorCount() * sizeof( HVM_VCPU ) );
 
-    for (i = 0; i < SmpNumberOfCores(); i++)
+    for (i = 0; i < SmpActiveProcessorCount(); i++)
     {
-        PUINT_PTR hvmCoreStackPointer;
+        PUINT_PTR VcpuStackPointer;
 
-        gHvm->cores[i].index = i;
-        gHvm->cores[i].hvm   = gHvm;
+        gHvm->VcpuArray[i].index = i;
+        gHvm->VcpuArray[i].hvm   = gHvm;
 
-        gHvm->cores[i].vmxOn = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
-        if (!gHvm->cores[i].vmxOn) {
+        gHvm->VcpuArray[i].vmxOn = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+        if (!gHvm->VcpuArray[i].vmxOn) {
             goto failure;
         }
 
-        gHvm->cores[i].vmcs = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
-        if (!gHvm->cores[i].vmcs) {
+        gHvm->VcpuArray[i].vmcs = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+        if (!gHvm->VcpuArray[i].vmcs) {
             goto failure;
         }
 
-        gHvm->cores[i].stack = MemAllocAligned( stackPages * PAGE_SIZE, PAGE_SIZE );
-        if (!gHvm->cores[i].stack) {
+        gHvm->VcpuArray[i].stack = MemAllocAligned( stackPages * PAGE_SIZE, PAGE_SIZE );
+        if (!gHvm->VcpuArray[i].stack) {
             goto failure;
         }
 
-        hvmCoreStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->cores[i].stack 
+        VcpuStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->VcpuArray[i].stack
                             + (stackPages * PAGE_SIZE) - sizeof(UINT_PTR));
         
         //
-        //  Store the HvmCore at the end of the stack.
+        //  Store the Vcpu at the end of the stack.
         //
-        *hvmCoreStackPointer = (UINT_PTR)&gHvm->cores[i];
+        *VcpuStackPointer = (UINT_PTR)&gHvm->VcpuArray[i];
 
         //
-        //  Keep it aligned to 64 bytes.
+        //  The stack must be 16-byte aligned for ABI compatibility with AMD64.
         //
-        gHvm->cores[i].rsp = ((UINT_PTR)gHvm->cores[i].stack
+        gHvm->VcpuArray[i].rsp = ((UINT_PTR)gHvm->VcpuArray[i].stack
                            + (stackPages * PAGE_SIZE) - 0x40);
+        NT_ASSERT( (gHvm->VcpuArray[i].rsp % 16) == 0 );
 
-        gHvm->cores[i].handler   = handler;
-        gHvm->cores[i].configure = configure;
+        gHvm->VcpuArray[i].handler   = handler;
+        gHvm->VcpuArray[i].configure = configure;
         
-        gHvm->cores[i].launched  = FALSE;
+        gHvm->VcpuArray[i].launched  = FALSE;
     }
 
     return STATUS_SUCCESS;

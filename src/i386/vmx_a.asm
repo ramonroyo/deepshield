@@ -1,6 +1,12 @@
 .686p
 .MODEL flat, C
 
+.CONST
+
+VMX_OK                      EQU     0
+VMX_ERROR_WITH_STATUS       EQU     1
+VMX_ERROR_WITHOUT_STATUS    EQU     2
+
 .CODE
 
 VmxOn@4 PROC
@@ -130,22 +136,47 @@ VmxInvEptImpl@8 PROC
     mov ecx, [esp + 4]
     mov edx, [esp + 8]
 
-    ;invept ecx, [edx]
+    ;invept ecx, oword ptr [edx]
     BYTE 66h, 0Fh, 38h, 80h, 0Ah
 
     jz failValid
     jc failInvalid
-    mov al, 0
+
+    ; return VMX_OK
+    xor eax, eax
     ret 8
 
 failValid:
-    mov al, 1
+    mov eax, VMX_ERROR_WITH_STATUS
     ret 8
 
 failInvalid:
-    mov al, 2
+    mov eax, VMX_ERROR_WITHOUT_STATUS
     ret 8
 VmxInvEptImpl@8 ENDP
+
+VmxInvVpid@8 PROC
+    mov ecx, [esp + 4]
+    mov edx, [esp + 8]
+
+    ;invvpid ecx, oword prt [edx]
+    BYTE 66h, 0Fh, 38h, 81h, 0Ah
+
+    jz failValid
+    jc failInvalid
+
+    ; return VMX_OK
+    xor eax, eax
+    ret 8
+
+failValid:
+    mov eax, VMX_ERROR_WITH_STATUS
+    ret 8
+
+failInvalid:
+    mov eax, VMX_ERROR_WITHOUT_STATUS
+    ret 8
+VmxInvVpid@8 ENDP
 
 ;
 ; NTSTATUS __stdcall VmxCall(_In_ UINT_PTR service, _In_ UINT_PTR data);

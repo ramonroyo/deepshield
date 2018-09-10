@@ -52,7 +52,7 @@ InstrInvVpidEmulate(
     VPID_CTX ctx = { 0 };
 
     UNREFERENCED_PARAMETER(regs);
-    __invvpid( INV_ALL_CONTEXTS, &ctx );
+    VmxInvVpid( INV_ALL_CONTEXTS, &ctx );
 }
 
 VOID
@@ -137,14 +137,13 @@ InstrCrEmulate(
 #ifndef _WIN64
     if ((data.u.cr.accessType == CR_ACCESS_TYPE_MOV_TO_CR) &&
         (data.u.cr.number == 3)                            &&
-        (VmxVmcsReadPlatform(GUEST_CR4) & CR4_PAE_ENABLED)
-    )
+        (VmxVmcsReadPlatform(GUEST_CR4) & CR4_PAE_ENABLED))
     {
         VMX_PROC_SECONDARY_CTLS ctls;
 
-        ctls.u.raw = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
+        ctls.AsUint32 = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
 
-        if(ctls.u.f.enableEpt)
+        if(ctls.Bits.enableEpt)
         {
             PHYSICAL_ADDRESS cr3;
             PVOID            page;

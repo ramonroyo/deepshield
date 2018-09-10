@@ -110,14 +110,14 @@ ENDM
 .CODE
 
 ;
-; NTSTATUS __stdcall HvmpStartAsm(_In_ PHVM_CORE core);
+; NTSTATUS __stdcall HvmpStartAsm(_In_ PHVM_VCPU Vcpu);
 ;
 HvmpStartAsm@4 PROC
     push ebp
     mov ebp, esp
 
     ;
-    ; Push core to make it available in case of failure
+    ; Push Vcpu to make it available in case of failure
     ;
     push dword ptr [ebp + 8]
 
@@ -192,9 +192,9 @@ HvmpExitHandlerAsm@0 PROC
     push ebx
 
     ;
-    ; First parameter = hvm_core
+    ; First parameter = hvm_vcpu
     ;
-    or   eax, 0FFCh   ; set pointer to top of page where address of hvm_core is stored
+    or   eax, 0FFCh   ; set pointer to top of page where address of hvm_cpu is stored
     mov  eax, [eax]   ; dereference to get the pointer
     push eax
     call HvmpExitHandler@8

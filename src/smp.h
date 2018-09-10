@@ -8,48 +8,48 @@
 #include <ntifs.h>
 
 /**
-*  Callback type to be executed on every core.
+*  Callback type to be executed on every Vcpu.
 *
-* @param core     [in]     Core logical index where the code is to be executed.
+* @param VcpuId   [in]     Vcpu logical index where the code is to be executed.
 * @param context  [in opt] Context of the function.
 * @return Status codes.
 */
 typedef NTSTATUS (__stdcall * PROCESSOR_CALLBACK)(
-    _In_     UINT32 core,
+    _In_     UINT32 VcpuId,
     _In_opt_ PVOID  context
     );
 
 /**
-*  Executes a piece of code in all cores by sending an IPI.
+*  Executes a piece of code in all processors by sending an IPI.
 *
-* @param callback [in]     Function to execute on every core.
+* @param callback [in]     Function to execute on every logical processor.
 * @param context  [in opt] Context of the function.
 * @return Success if every function succeeded, first error encountered otherwise.
 */
 NTSTATUS
-SmpExecuteOnAllCores(
+SmpExecuteOnAllProcessors(
     _In_     PROCESSOR_CALLBACK callback, 
     _In_opt_ PVOID              context
 );
 
 /**
-* Indicates the total number of logical cores in the system.
+* Indicates the total number of logical processors in the system.
 *
-* @return The number of logical cores.
+* @return The number of logical processors.
 */
 UINT32
-SmpNumberOfCores(
+SmpActiveProcessorCount(
     VOID
 );
 
 /**
-* Indicates the index of the logical core executing this function.
-* The index is zero-based [0 - OsNumberOfCores() - 1]
+* Indicates the index of the logical processor executing this function.
+* The index is zero-based
 *
-* @return The current logical core index.
+* @return The current logical processor index.
 */
 UINT32 
-SmpCurrentCore(
+SmpGetCurrentProcessor(
     VOID
 );
 

@@ -33,7 +33,7 @@ static IA32_CONTROL_REGISTERS LookupCr[] = {
 
 VOID
 Cr4AccessEmulate(
-    _In_ PHVM_CORE Core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS Registers
 )
 {
@@ -66,9 +66,9 @@ Cr4AccessEmulate(
         Cr4.u.raw = *LookupGpr( Registers, (UINT8)Qualification.u.cr.moveGpr );
 
         //
-        //  Capture CR4 changes into the HVM core although is not being used.
+        //  Capture CR4 changes into the HVM Vcpu although is not being used.
         //
-        Core->savedState.cr4 = Cr4;
+        Vcpu->savedState.cr4 = Cr4;
 
         //
         //  Remove masked CR4 bits.
@@ -263,7 +263,7 @@ Unmap:
 VOID 
 DsHvdsExitHandler(
     _In_ UINT32 exitReason,
-    _In_ PHVM_CORE core,
+    _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS regs
     )
 {
@@ -292,7 +292,7 @@ DsHvdsExitHandler(
         case EXIT_REASON_MSR_READ:
         case EXIT_REASON_MSR_WRITE:
         {
-            HvmCoreHandleCommonExits(exitReason, core, regs);
+            HvmVcpuCommonExitsHandler(exitReason, Vcpu, regs);
             break;
         }
 
@@ -304,7 +304,7 @@ DsHvdsExitHandler(
             if (InterruptInfo.u.f.vector == VECTOR_INVALID_OPCODE_EXCEPTION ||
                 InterruptInfo.u.f.vector == VECTOR_GENERAL_PROTECTION_EXCEPTION ) {
 
-                GeneralProtectionFaultEmulate( core->localContext, 
+                GeneralProtectionFaultEmulate( Vcpu->localContext, 
                                                regs, 
                                                InterruptInfo );
             }
@@ -317,7 +317,7 @@ DsHvdsExitHandler(
 
         case EXIT_REASON_CR_ACCESS:
         {
-            Cr4AccessEmulate(core, regs);
+            Cr4AccessEmulate(Vcpu, regs);
             break;
         }
 

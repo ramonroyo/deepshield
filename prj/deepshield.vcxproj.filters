@@ -127,6 +127,9 @@
     <ClCompile Include="..\src\power.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\vmcsinit.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -203,6 +206,9 @@
     </ClInclude>
     <ClInclude Include="..\src\power.h">
       <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\vmcsinit.h">
+      <Filter>src\vmm</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

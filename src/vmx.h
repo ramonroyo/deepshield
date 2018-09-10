@@ -45,8 +45,8 @@
     //Configuration errors
 #define STATUS_VMX_NOT_SUPPORTED                                                VMX_STATUS(30)  //!< No virtualization technology present for Intel
 #define STATUS_VMX_BIOS_DISABLED                                                VMX_STATUS(31)  //!< Virtualization technology disabled in BIOS
-#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_CORES                                VMX_STATUS(32)  //!< Mixed environment with different kind of cores with different capabilities
-#define STATUS_VMX_EPT_NOT_SUPPORTED                                            VMX_STATUS(33)  //!< Mixed environment with different kind of cores with different capabilities
+#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS                                VMX_STATUS(32)  //!< Mixed environment with different kind of processors with different capabilities
+#define STATUS_VMX_EPT_NOT_SUPPORTED                                            VMX_STATUS(33)  //!< Mixed environment with different kind of processors with different capabilities
 
 
 //
@@ -313,10 +313,6 @@
 #define IA32_FEATURE_CONTROL_LOCK                     0x0001
 #define IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX 0x0004
 
-///////////////
-//CONFIG MSRS//
-///////////////
-
 #define IA32_VMX_BASIC         0x480
 #define IA32_VMX_CTRL_PIN      0x481
 #define IA32_VMX_CTRL_CPU0     0x482
@@ -351,7 +347,9 @@ typedef enum _INTERRUPT_TYPE
     INTERRUPT_OTHER_EVENT          = 7
 } INTERRUPT_TYPE;
 
-/* VMX entry/exit Interrupt info */
+//
+//  VMX entry/exit Interrupt info
+//
 #define VMX_INT_INFO_VALID             (1U<<31)
 
 //
@@ -383,282 +381,423 @@ typedef enum _VECTOR_EXCEPTION
 
 #define INTR_INFO_VECTOR_MASK           0x4F
 
-typedef struct _VMX_BASIC
+typedef union {
+    struct {
+        unsigned lock:1;
+        unsigned enableVmxonInSmx:1;
+        unsigned enableVmxonOutsideSmx:1;
+        unsigned _reserved0:5;
+        unsigned senterEnables:8;
+        unsigned _reserved1:16;
+        unsigned _reserved2:32;
+    } Bits;
+
+    struct {
+        unsigned lower;
+        unsigned upper;
+    } AsUint32;
+
+    UINT64 AsUint64;
+} VMX_MSR_FEATURE_CONTROL;
+
+//
+//  VMX MSR Structure - VMX_MSR_BASIC - Index 0x480
+//
+typedef union _VMX_MSR_BASIC
 {
-    union
+    struct
     {
-        UINT64 raw;
+        unsigned revisionId               : 31; // 0 - 30
+        unsigned _reserved0               : 1;  // 31
+        unsigned vmcsRegionSize           : 13; // 32 - 44
+        unsigned _reserved1               : 3;  // 45 - 47
+        unsigned physicalAddressWidth     : 1;  // 48
+        unsigned dualMonitor              : 1;  // 49
+        unsigned vmcsMemoryType           : 4;  // 50 - 53
+        unsigned vmcsInstructionInfoValid : 1;  // 54
+        unsigned defaultSettings          : 1;  // 55
+        unsigned _reserved2               : 8;  // 56 - 63
+    } Bits;
 
-        struct
-        {
-            unsigned revisionId             : 31; // 0 - 30
-            unsigned _reserved0             : 1;  // 31
-            unsigned regionSize             : 13; // 32 - 44
-            unsigned _reserved1             : 3;  // 45 - 47
-            unsigned physicalAddressWidth   : 1;  // 48
-            unsigned dualMonitor            : 1;  // 49
-            unsigned memoryType             : 4;  // 50 - 53
-            unsigned exitInformationInsOuts : 1;  // 54
-            unsigned defaultSettings        : 1;  // 55
-            unsigned _reserved2             : 8;  // 56 - 63
-        } f;
-    } u;
-} VMX_BASIC, *PVMX_BASIC;
+    UINT64 AsUint64;
+} VMX_MSR_BASIC, *PVMX_MSR_BASIC;
 
-//VMX Miscellaneous
-#define IA32_VMX_MISC 0x485
-
-typedef struct _VMX_MISC
-{
-    union
-    {
-        UINT64 raw;
-
-        struct
-        {
-            unsigned rateVmxTimerTsc                 : 5;  // 0 - 4
-            unsigned unrestrictedGuest               : 1;  // 5
-            unsigned supportActivityStateHlt         : 1;  // 6
-            unsigned supportActivityStateShutdown    : 1;  // 7
-            unsigned supportActivityStateWaitForSipi : 1;  // 8
-            unsigned _reserved0                      : 6;  // 9 - 14
-            unsigned canReadIa32SmbaseFromSmm        : 1;  // 15
-            unsigned cr3TargetCountSupported         : 9;  // 16 - 24
-            unsigned recommendedMaximumMsrNumber     : 3;  // 25 - 27
-            unsigned canReadIa32SmmMonitorControl    : 1;  // 28
-            unsigned canWriteExitInfoFields          : 1;  // 29
-            unsigned _reserved1                      : 2;  // 30 - 31
-            unsigned msegRevisionId                  : 32; // 32 - 63
-        } f;
-    } u;
-} VMX_MISC, *PVMX_MISC;
-
-//VMX EPT and VPID Capabilities
-#define IA32_VMX_EPT_VPID_CAP 0x48C
-
-typedef struct _VMX_EPT_VPID_CAP
-{
-    union
-    {
-        UINT64 raw;
-
-        struct
-        {
-            unsigned supportFlagExecuteOnly                   : 1;  // 0
-            unsigned _reserved0                               : 5;  // 1 - 5
-            unsigned supportPageWalk4                         : 1;  // 6
-            unsigned _reserved1                               : 1;  // 7
-            unsigned supportCachingUc                         : 1;  // 8
-            unsigned _reserved2                               : 5;  // 9 - 13
-            unsigned supportCachingWb                         : 1;  // 14
-            unsigned _reserved3                               : 1;  // 15
-            unsigned support2MbPages                          : 1;  // 16
-            unsigned support1GbPages                          : 1;  // 17
-            unsigned _reserved4                               : 2;  // 18 - 19
-            unsigned supportInvept                            : 1;  // 20
-            unsigned supportDirtyAccessedBits                 : 1;  // 21
-            unsigned _reserved5                               : 3;  // 22 - 24
-            unsigned supportInveptSingleContext               : 1;  // 25
-            unsigned supportInveptAllContext                  : 1;  // 26
-            unsigned _reserved6                               : 5;  // 27 - 31
-            unsigned supportInvvpid                           : 1;  // 32
-            unsigned _reserved7                               : 7;  // 33 - 39
-            unsigned supportInvvpidIndividualAddress          : 1;  // 40
-            unsigned supportInvvpidSingleContext              : 1;  // 41
-            unsigned supportInvvpidAllContext                 : 1;  // 42
-            unsigned supportInvvpidSingleContextRetainGlobals : 1;  // 43
-            unsigned _reserved8                               : 20; // 44 - 63
-        } f;
-    } u;
-} VMX_EPT_VPID_CAP, *PVMX_EPT_VPID_CAP;
-///////////////////
-//END CONFIG MSRS//
-///////////////////
-
-
-//////////////////////////////////
-//CAPABILITIES MSRS and CONTROLS//
-//////////////////////////////////
-//Pinbased Controls
+//
+//  Pin based Controls
+//
 #define IA32_VMX_PIN_CTLS           0x481
 #define IA32_VMX_TRUE_PINBASED_CTLS 0x48D
 
-typedef struct _VMX_PIN_CTLS
+//
+//  VMX MSR Structure - IA32_MSR_PIN_BASED_VM_EXECUTION_CONTROLS_INDEX - Index 0x481
+//
+typedef union _VMX_PIN_EXECUTION_CTLS
 {
-    union
+    struct
     {
-        UINT32 raw;
+        unsigned externalInterruptExiting : 1;  // 0
+        unsigned hostInterrupt           : 1;
+        unsigned init                     : 1;
+        unsigned nmiExiting               : 1;  // 3
+        unsigned sipi                     : 1;  // 4
+        unsigned virtualNmis              : 1;  // 5
+        unsigned activatePreemptionTimer  : 1;  // 6
+        unsigned processPostedInterrupts  : 1;  // 7
+        unsigned _reserved2               : 24; // 8 - 31
+    } Bits;
 
-        struct
-        {
-            unsigned externalInterruptExiting : 1;  // 0
-            unsigned _reserved0               : 2;  // 1 - 2
-            unsigned nmiExiting               : 1;  // 3
-            unsigned _reserved1               : 1;  // 4
-            unsigned virtualNmis              : 1;  // 5
-            unsigned activatePreemptionTimer  : 1;  // 6
-            unsigned processPostedInterrupts  : 1;  // 7
-            unsigned _reserved2               : 24; // 8 - 31
-        } f;
-    } u;
-} VMX_PIN_CTLS, *PVMX_PIN_CTLS;
+    UINT32 AsUint32;
+} VMX_PIN_EXECUTION_CTLS;
 
-//Proc based controls
+typedef union {
+    struct {
+        VMX_PIN_EXECUTION_CTLS    Maybe0;
+        VMX_PIN_EXECUTION_CTLS    Maybe1;
+    }  Bits;
+
+    UINT64 AsUint64;
+}  VMX_PIN_EXECUTION_CTLS_MAYBE;
+
+//
+//  Processor based execution controls.
+//
 #define IA32_VMX_PROC_PRIMARY_CTLS      0x482
 #define IA32_VMX_TRUE_PROCBASED_CTLS    0x48E
 
-typedef struct _VMX_PROC_PRIMARY_CTLS
+//
+//  VMX MSR Structure - IA32_VMX_PROC_PRIMARY_CTLS - Index 0x482
+//
+typedef union _VMX_PROC_PRIMARY_CTLS
 {
-    union
+    struct
     {
-        UINT32 raw;
+        unsigned softwareInterrupt         : 1; // 0
+        unsigned tripleFault               : 1; // 1
+        unsigned interruptWindowExiting    : 1; // 2
+        unsigned useTscOffseting           : 1; // 3
+        unsigned taskSwitch                : 1; // 4
+        unsigned cpuid                     : 1; // 5
+        unsigned getSec                    : 1; // 6 
+        unsigned hltExiting                : 1; // 7
+        unsigned invdExiting               : 1; // 8
+        unsigned invlpgExiting             : 1; // 9
+        unsigned mwaitExiting              : 1; // 10
+        unsigned rdpmcExiting              : 1; // 11
+        unsigned rdtscExiting              : 1; // 12
+        unsigned rsm                       : 1; // 13
+        unsigned vmInstruction             : 1; // 14 
+        unsigned cr3LoadExiting            : 1; // 15
+        unsigned cr3StoreExiting           : 1; // 16
+        unsigned cr3Mask                   : 1; // 17
+        unsigned cr3Read_shadow            : 1; // 18
+        unsigned cr8LoadExiting            : 1; // 19
+        unsigned cr8StoreExiting           : 1; // 20
+        unsigned useTprShadow              : 1; // 21
+        unsigned nmiWindowExiting          : 1; // 22
+        unsigned movDrExiting              : 1; // 23
+        unsigned unconditionalIoExiting    : 1; // 24
+        unsigned useIoBitmaps              : 1; // 25
+        unsigned msrProtection             : 1; // 26
+        unsigned monitorTrapFlag           : 1; // 27
+        unsigned useMsrBitmaps             : 1; // 28
+        unsigned monitorExiting            : 1; // 29
+        unsigned pauseExiting              : 1; // 30
+        unsigned SecondaryControls         : 1; // 31
+    } Bits;
+    
+    UINT32 AsUint32;
+} VMX_PROC_PRIMARY_CTLS;
 
-        struct
-        {
-            unsigned _reserved0                : 2; // 0 - 1
-            unsigned interruptWindowExiting    : 1; // 2
-            unsigned useTscOffseting           : 1; // 3
-            unsigned _reserved1                : 3; // 4 - 6
-            unsigned hltExiting                : 1; // 7
-            unsigned _reserved2                : 1; // 8
-            unsigned invlpgExiting             : 1; // 9
-            unsigned mwaitExiting              : 1; // 10
-            unsigned rdpmcExiting              : 1; // 11
-            unsigned rdtscExiting              : 1; // 12
-            unsigned _reserved3                : 2; // 13 - 14
-            unsigned cr3LoadExiting            : 1; // 15
-            unsigned cr3StoreExiting           : 1; // 16
-            unsigned _reserved4                : 2; // 17 - 18
-            unsigned cr8LoadExiting            : 1; // 19
-            unsigned cr8StoreExiting           : 1; // 20
-            unsigned useTprShadow              : 1; // 21
-            unsigned nmiWindowExiting          : 1; // 22
-            unsigned movDrExiting              : 1; // 23
-            unsigned unconditionalIoExiting    : 1; // 24
-            unsigned useIoBitmaps              : 1; // 25
-            unsigned _reserved5                : 1; // 26
-            unsigned monitorTrapFlag           : 1; // 27
-            unsigned useMsrBitmaps             : 1; // 28
-            unsigned monitorExiting            : 1; // 29
-            unsigned pauseExiting              : 1; // 30
-            unsigned activateSecondaryControls : 1; // 31
-        } f;
-    } u;
-} VMX_PROC_PRIMARY_CTLS, *PVMX_PROC_PRIMARY_CTLS;
+typedef union
+{
+    struct
+    {
+        VMX_PROC_PRIMARY_CTLS Maybe0;
+        VMX_PROC_PRIMARY_CTLS Maybe1;
+    } Bits;
 
-//Secondary proc based controls
+    UINT64 AsUint64;
+}  VMX_PROC_PRIMARY_CTLS_MAYBE;
+
+//
+//  Secondary processor based controls.
+//
 #define IA32_VMX_PROC_SECONDARY_CTLS 0x48B
 
-typedef struct _VMX_PROC_SECONDARY_CTLS
+//
+//  VMX MSR Structure - _VMX_PROC_SECONDARY_CTLS - Index 0x48B
+//
+typedef union _VMX_PROC_SECONDARY_CTLS
 {
-    union
+    struct
     {
-        UINT32 raw;
+        unsigned virtualizeApicAccess       : 1;  // 0
+        unsigned enableEpt                  : 1;  // 1
+        unsigned descriptorTableExiting     : 1;  // 2
+        unsigned enableRdtscp               : 1;  // 3
+        unsigned virtualizeX2ApicMode       : 1;  // 4
+        unsigned enableVpid                 : 1;  // 5
+        unsigned wbinvdExiting              : 1;  // 6
+        unsigned unrestrictedGuest          : 1;  // 7
+        unsigned apicRegisterVirtualization : 1;  // 8
+        unsigned virtualInterruptDelivery   : 1;  // 9
+        unsigned pauseLoopExiting           : 1;  // 10
+        unsigned rdrandExiting              : 1;  // 11
+        unsigned enableInvpcid              : 1;  // 12
+        unsigned enableVmFunctions          : 1;  // 13
+        unsigned vmcsShadowing              : 1;  // 14
+        unsigned enableEnclsExiting         : 1;  // 15
+        unsigned rdseedExiting              : 1;  // 16
+        unsigned enablePml                  : 1;  // 17
+        unsigned eptVe                      : 1;  // 18
+        unsigned concealFromPT              : 1;  // 19
+        unsigned enableXsavesXrstors        : 1;  // 20
+        unsigned _reserved0                 : 1;  // 21
+        unsigned modeBasedExecuteControlEpt : 1;  // 22
+        unsigned _reserved1                 : 2;  // 23 - 24
+        unsigned useTscScaling              : 1;  // 25
+        unsigned _reserved2                 : 6;  // 26 - 31
+    } Bits;
 
-        struct
-        {
-            unsigned virtualizeApicAccess       : 1;  // 0
-            unsigned enableEpt                  : 1;  // 1
-            unsigned descriptorTableExiting     : 1;  // 2
-            unsigned enableRdtscp               : 1;  // 3
-            unsigned virtualizeX2ApicMode       : 1;  // 4
-            unsigned enableVpid                 : 1;  // 5
-            unsigned wbinvdExiting              : 1;  // 6
-            unsigned unrestrictedGuest          : 1;  // 7
-            unsigned apicRegisterVirtualization : 1;  // 8
-            unsigned virtualInterruptDelivery   : 1;  // 9
-            unsigned pauseLoopExiting           : 1;  // 10
-            unsigned rdrandExiting              : 1;  // 11
-            unsigned enableInvpcid              : 1;  // 12
-            unsigned enableVmFunctions          : 1;  // 13
-            unsigned vmcsShadowing              : 1;  // 14
-            unsigned enableEnclsExiting         : 1;  // 15
-            unsigned rdseedExiting              : 1;  // 16
-            unsigned enablePml                  : 1;  // 17
-            unsigned eptViolationExceptions     : 1;  // 18
-            unsigned concealFromPT              : 1;  // 19
-            unsigned enableXsavesXrstors        : 1;  // 20
-            unsigned _reserved0                 : 1;  // 21
-            unsigned modeBasedExecuteControlEpt : 1;  // 22
-            unsigned _reserved1                 : 2;  // 23 - 24
-            unsigned useTscScaling              : 1;  // 25
-            unsigned _reserved2                 : 6;  // 26 - 31
-        } f;
-    } u;
-} VMX_PROC_SECONDARY_CTLS, *PVMX_PROC_SECONDARY_CTLS;
+    UINT32 AsUint32;
 
-//Exit controls
+} VMX_PROC_SECONDARY_CTLS;
+
+typedef union
+{
+    struct
+    {
+        VMX_PROC_SECONDARY_CTLS Maybe0;
+        VMX_PROC_SECONDARY_CTLS Maybe1;
+    } Bits;
+
+    UINT64 AsUint64;
+}  VMX_PROC_SECONDARY_CTLS_MAYBE;
+
+//
+//  Exit controls.
+//
 #define IA32_VMX_EXIT_CTLS          0x483
 #define IA32_VMX_TRUE_EXIT_CTLS     0x48F
 
-typedef struct _VMX_EXIT_CTLS
-{
-    union
-    {
-        UINT32 raw;
+//
+//  VMX MSR Structure - VMX_EXIT_CTLS - Index 0x483
+//
 
-        struct
-        {
-            unsigned _reserved0                  : 2; // 0 - 1
-            unsigned saveDebugControls           : 1; // 2
-            unsigned _reserved1                  : 6; // 3 - 8
-            unsigned hostAddressSpaceSize        : 1; // 9
-            unsigned _reserved2                  : 2; // 10 - 11
-            unsigned loadIa32PerfGlobalControl   : 1; // 12
-            unsigned _reserved3                  : 2; // 13 - 14
-            unsigned acknowledgeInterruptOnExit  : 1; // 15
-            unsigned _reserved4                  : 2; // 16 - 17
-            unsigned saveIa32Pat                 : 1; // 18
-            unsigned loadIa32Pat                 : 1; // 19
-            unsigned saveIa32Efer                : 1; // 20
-            unsigned loadIa32Efer                : 1; // 21
-            unsigned saveVmxPreemptionTimerValue : 1; // 22
-            unsigned clearIa32Bndcgfs            : 1; // 23
-            unsigned concealVmExitsFromPT        : 1; // 24
-            unsigned _reserved5                  : 7; // 25 - 31
-        } f;
-    } u;
+typedef union _VMX_EXIT_CTLS
+{
+    struct
+    {
+        unsigned save_cr0_and_cr4            : 1;       // 0
+        unsigned save_cr3                    : 1;       // 1 
+        unsigned saveDebugControls           : 1;       // 2
+        unsigned save_segment_registers      : 1;       // 3
+        unsigned save_esp_eip_eflags         : 1;       // 4 
+        unsigned savePendingDebugExceptions  : 1;       // 5
+        unsigned saveInterruptibilityInformation : 1;   // 6
+        unsigned saveActivityState           : 1;       // 7
+        unsigned saveWorkingVmcsPointer      : 1;       // 8
+        unsigned hostAddressSpaceSize        : 1;       // 9
+        unsigned load_cr0_and_cr4            : 1;       // 10
+        unsigned load_cr3                    : 1;       // 11
+        unsigned loadIa32PerfGlobalControl   : 1;       // 12
+        unsigned loadSegmentRegisters        : 1;       // 13
+        unsigned load_esp_eip                : 1;       // 14
+        unsigned acknowledgeInterruptOnExit  : 1;       // 15
+        unsigned saveSysEnterMsrs            : 1;       // 16
+        unsigned loadSysEnterMsrs            : 1;       // 17
+        unsigned saveIa32Pat                 : 1;       // 18
+        unsigned loadIa32Pat                 : 1;       // 19
+        unsigned saveIa32Efer                : 1;       // 20
+        unsigned loadIa32Efer                : 1;       // 21
+        unsigned saveVmxPreemptionTimerValue : 1;       // 22
+        unsigned clearIa32Bndcgfs            : 1;       // 23
+        unsigned concealVmExitsFromPT        : 1;       // 24
+        unsigned _reserved0                  : 7;       // 25 - 31
+    } Bits;
+    
+    UINT32 AsUint32;
+
 } VMX_EXIT_CTLS, *PVMX_EXIT_CTLS;
 
+typedef union
+{
+    struct
+    {
+        VMX_EXIT_CTLS Maybe0;
+        VMX_EXIT_CTLS Maybe1;
+    } Bits;
 
-//Entry controls
+    UINT64 AsUint64;
+}  VMX_EXIT_CTLS_MAYBE;
+
+//
+//  Entry controls.
+//
 #define IA32_VMX_ENTRY_CTLS         0x484
 #define IA32_VMX_TRUE_ENTRY_CTLS    0x490
 
-typedef struct _VMX_ENTRY_CTLS
+//
+//  VMX MSR Structure - VMX_ENTRY_CTLS - Index 0x484
+//
+typedef union _VMX_ENTRY_CTLS
 {
-    union
+    struct
     {
-        UINT32 raw;
+        unsigned load_cr0_and_cr4           : 1;  // 0 
+        unsigned load_cr3                   : 1;  // 1 
+        unsigned loadDebugControls          : 1;  // 2
+        unsigned loadSegmentRegisters       : 1;  // 3
+        unsigned load_esp_eip_eflags        : 1;  // 4
+        unsigned loadPendingDebugExceptions : 1;  //5
+        unsigned loadInterruptibilityInformation : 1;  //6
+        unsigned loadActivityState          : 1;  // 7
+        unsigned loadWorkingVmcsPointer     : 1;  // 8
+        unsigned ia32eModeGuest             : 1;  // 9
+        unsigned entryToSmm                 : 1;  // 10
+        unsigned deactivateDualMonitor      : 1;  // 11
+        unsigned loadSysEnterMsrs           : 1;  // 12
+        unsigned loadIa32PerfGlobalControl  : 1;  // 13
+        unsigned loadIa32Pat                : 1;  // 14
+        unsigned loadIa32Efer               : 1;  // 15
+        unsigned loadIa32Bndcgfs            : 1;  // 16
+        unsigned concealVmEntriesFromPT     : 1;  // 17
+        unsigned _reserved30                : 14; // 18 - 31
+    } Bits;
 
-        struct
-        {
-            unsigned _reserved0                : 2;  // 0 - 1
-            unsigned loadDebugControls         : 1;  // 2
-            unsigned _reserved1                : 6;  // 3 - 8
-            unsigned ia32eModeGuest            : 1;  // 9
-            unsigned entryToSmm                : 1;  // 10
-            unsigned deactivateDualMonitor     : 1;  // 11
-            unsigned _reserved2                : 1;  // 12
-            unsigned loadIa32PerfGlobalControl : 1;  // 13
-            unsigned loadIa32Pat               : 1;  // 14
-            unsigned loadIa32Efer              : 1;  // 15
-            unsigned loadIa32Bndcgfs           : 1;  // 16
-            unsigned concealVmEntriesFromPT    : 1;  // 17
-            unsigned _reserved3                : 14; // 18 - 31
-        } f;
-    } u;
+    UINT32 AsUint32;
+
 } VMX_ENTRY_CTLS, *PVMX_ENTRY_CTLS;
 
-//Miscellaneous
+typedef union
+{
+    struct
+    {
+        VMX_ENTRY_CTLS Maybe0;
+        VMX_ENTRY_CTLS Maybe1;
+    } Bits;
+
+    UINT64 AsUint64;
+}  VMX_ENTRY_CTLS_MAYBE;
+
+
+//
+//  VMX Miscellaneous
+//
+#define IA32_VMX_MISC 0x485
+
+//
+//  VMX MSR Structure - IA32_MSR_MISCELLANEOUS_DATA_INDEX - Index 0x485
+//
+
+typedef union _VMX_MISC
+{
+    struct
+    {
+        unsigned preemptionTimerLength             : 5;  // 0 - 4
+        unsigned unrestrictedGuest                 : 1;  // 5
+        unsigned entryInHaltStateSupported         : 1;  // 6
+        unsigned entryInShutdownStateSupported     : 1;  // 7
+        unsigned entryInWaitForSipiStateSupported  : 1;  // 8
+        unsigned _reserved0                        : 6;  // 9 - 14
+        unsigned canReadIa32SmbaseFromSmm          : 1;  // 15
+        unsigned numberOfCr3TargetValues           : 9;  // 16 - 24
+        unsigned msrListsMaxSize                   : 3;  // 25 - 27
+        unsigned canReadIa32SmmMonitorControl      : 1;  // 28
+        unsigned canWriteExitInfoFields            : 1;  // 29
+        unsigned _reserved1                        : 2;  // 30 - 31
+        unsigned msegRevisionId                    : 32; // 32 - 63
+    } Bits;
+
+    UINT64 AsUint64;
+
+} VMX_MISC_DATA, *PVMX_MISC_DATA;
+//
+//  VMX EPT and VPID Capabilities.
+//
+#define IA32_VMX_EPT_VPID_CAP 0x48C
+
+//
+//  VMX MSR Structure - VMX_EPT_VPID_CAP - Index 0x48C
+//
+
+typedef union _VMX_EPT_VPID_CAP
+{
+    struct
+    {
+        /* RWX support */
+        unsigned x_only                                   : 1;
+        unsigned w_only                                   : 1;
+        unsigned w_and_x_only                             : 1;
+        /* gaw support */
+        unsigned gaw_21_bit                               : 1;
+        unsigned gaw_30_bit                               : 1;
+        unsigned gaw_39_bit                               : 1;
+        unsigned gaw_48_bit                               : 1;
+        unsigned gaw_57_bit                               : 1;
+        /* EMT support */
+        unsigned uc                                       : 1;
+        unsigned wc                                       : 1;
+        unsigned _reserved0                               : 2;
+        unsigned wt                                       : 1;
+        unsigned wp                                       : 1;
+        unsigned wb                                       : 1;
+        unsigned reserved1                                : 1;
+        /* SP support */
+        unsigned sp_21_bit                                : 1;
+        unsigned sp_30_bit                                : 1;
+        unsigned sp_39_bit                                : 1;
+        unsigned sp_48_bit                                : 1;
+        unsigned supportInvept                            : 1;  // 20
+        unsigned supportDirtyAccessedBits                 : 1;  // 21
+        unsigned _reserved1                               : 2;  // 22 - 23
+        unsigned SupportInveptIndividualAddress           : 1;  // 24
+        unsigned supportInveptSingleContext               : 1;  // 25
+        unsigned supportInveptAllContext                  : 1;  // 26
+        unsigned _reserved2                               : 5;  // 27 - 31
+        unsigned supportInvvpid                           : 1;  // 32
+        unsigned _reserved3                               : 7;  // 33 - 39
+        unsigned supportInvvpidIndividualAddress          : 1;  // 40
+        unsigned supportInvvpidSingleContext              : 1;  // 41
+        unsigned supportInvvpidAllContext                 : 1;  // 42
+        unsigned supportInvvpidSingleContextRetainGlobals : 1;  // 43
+        unsigned _reserved4                               : 20; // 44 - 63
+    } Bits;
+
+    UINT64 AsUint64;
+
+} VMX_EPT_VPID_CAP;
+
+
+//
+//  VMX MSR Structure - VMX_VMFUNC_CTL - Index 0x491
+//
+typedef union
+{
+    struct
+    {
+        unsigned eptpSwitching  : 1;
+        unsigned _reserved0     : 31;
+        unsigned _reserved1     : 32;
+    }  Bits;
+
+    UINT64 AsUint64;
+
+} VMX_VMFUNC_CTL;
+
+//
+//  VMX MSR Structure - IA32_MSR_CR0_ALLOWED_ZERO_INDEX,
+//  IA32_MSR_CR0_ALLOWED_ONE_INDEX - Index 0x486, 0x487
+//
 #define IA32_VMX_CR0_FIXED0 0x486
 #define IA32_VMX_CR0_FIXED1 0x487
+
+//
+// VMX MSR Structure - IA32_MSR_CR4_ALLOWED_ZERO_INDEX,
+// IA32_MSR_CR4_ALLOWED_ONE_INDEX - Index 0x488, 0x489
+//
 #define IA32_VMX_CR4_FIXED0 0x488
 #define IA32_VMX_CR4_FIXED1 0x489
-
-//////////////////////////////////////
-//END CAPABILITIES MSRS and CONTROLS//
-//////////////////////////////////////
 
 //////////////////////////
 //GUEST ADDITIONAL STATE// //24.4.2
@@ -1367,6 +1506,7 @@ UINT8 __stdcall VmxVmPtrSt(PUINT64 vmcsAddress);
 UINT8 __stdcall VmxVmRead (UINT32 field, PUINT_PTR data);
 UINT8 __stdcall VmxVmWrite(UINT32 field, UINT_PTR  data);
 UINT8 __stdcall VmxInvEpt (UINT_PTR type, PVOID eptPointer);
+UINT8 __stdcall VmxInvVpid(IVVPID_TYPE type, PVPID_CTX vpidContext );
 
 #else
 
@@ -1378,7 +1518,7 @@ UINT8 __stdcall VmxInvEpt (UINT_PTR type, PVOID eptPointer);
 #define VmxVmRead   __vmx_vmread
 #define VmxVmWrite  __vmx_vmwrite
 UINT8 VmxInvEpt(_In_ UINT_PTR type, _In_ PVOID eptPointer);
-VOID __invvpid( _In_ IVVPID_TYPE Type, _In_ PVPID_CTX Context );
+UINT8 VmxInvVpid(_In_ IVVPID_TYPE type, _In_ PVPID_CTX vpidContext );
 
 #endif
 

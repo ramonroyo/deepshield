@@ -91,21 +91,13 @@ LocalCtx(
     VOID
 )
 {
-    return &gLocalContexts[SmpCurrentCore()];
+    return &gLocalContexts[SmpGetCurrentProcessor()];
 }
 
 PLOCAL_CONTEXT
-LocalCtxForCore(
-    _In_ UINT32 core
+LocalCtxForVcpu(
+    _In_ UINT32 VcpuId
 )
 {
-    return &gLocalContexts[core];
-}
-
-PREGISTERS
-LocalRegs(
-    VOID
-)
-{
-    return HvmCoreRegisters(HvmCoreCurrent());
+    return &gLocalContexts[VcpuId];
 }

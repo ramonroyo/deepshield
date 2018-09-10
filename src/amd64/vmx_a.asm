@@ -1,28 +1,54 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; constants
+;
+.CONST
+
+VMX_OK                      EQU     0
+VMX_ERROR_WITH_STATUS       EQU     1
+VMX_ERROR_WITHOUT_STATUS    EQU     2
+
 .CODE
 
 VmxInvEptImpl PROC
-
-    ;invept ecx, [edx]
+    ;invept rcx, oword ptr [rdx]
     BYTE 66h, 0Fh, 38h, 80h, 0Ah
 
     jz failValid
     jc failInvalid
-    mov al, 0
+
+    ; return VMX_OK
+    xor rax, rax
     ret
 
 failValid:
-    mov al, 1
+    mov rax, VMX_ERROR_WITH_STATUS
     ret
 
 failInvalid:
-    mov al, 2
+    mov rax, VMX_ERROR_WITHOUT_STATUS
     ret
 VmxInvEptImpl ENDP
 
-__invvpid PROC
-    invvpid rcx, OWORD PTR [rdx]
+VmxInvVpid PROC
+    ;invvpid rcx, oword ptr [rdx]
+    BYTE 66h, 0Fh, 38h, 81h, 0Ah
+
+    jz failValid
+    jc failInvalid
+
+    ; return VMX_OK
+    xor rax, rax
     ret
-__invvpid ENDP
+
+failValid:
+    mov rax, VMX_ERROR_WITH_STATUS
+    ret
+
+failInvalid:
+    mov rax, VMX_ERROR_WITHOUT_STATUS
+    ret
+VmxInvVpid ENDP
 
 ;
 ; NTSTATUS VmxCall(_In_ UINT_PTR service, _In_ UINT_PTR data);

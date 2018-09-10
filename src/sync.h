@@ -52,8 +52,8 @@ SpinUnlock(
 
 /**
 * Condition variables. Natural word.
-* Provides a value that can be used safely in SMP environments as provides core aquire and release memory fences
-* both for reading and for writing.
+* Provides a value that can be used safely in SMP environments as provides
+* processor acquire and release memory fences both for reading and for writing.
 */
 #ifndef _WIN64
 typedef volatile LONG ATOMIC, *PATOMIC;

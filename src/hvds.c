@@ -4,6 +4,7 @@
 #include "context.h"
 #include "hvm.h"
 #include "vmcs.h"
+#include "vmcsinit.h"
 #include "vmx.h"
 #include "mem.h"
 #include "mmu.h"
@@ -20,34 +21,34 @@ DspFinalizeHvds(
     );
 
 NTSTATUS __stdcall
-LocalContextResetOnCore(
-    _In_     UINT32 core,
-    _In_opt_ PVOID  context
+ResetLocalContextByVcpuId(
+    _In_ UINT32 VcpuId,
+    _In_opt_ PVOID Reserved
     )
 {
-    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER( Reserved );
 
-    LocalContextReset(&gLocalContexts[core]);
+    LocalContextReset( &gLocalContexts[VcpuId] );
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS __stdcall
-LocalContextConfigureOnCore(
-    _In_     UINT32 core,
-    _In_opt_ PVOID  context
+ConfigureLocalContextByVcpuId(
+    _In_ UINT32 Vcpu,
+    _In_opt_ PVOID Reserved
     )
 {
-    UNREFERENCED_PARAMETER(context);
+    UNREFERENCED_PARAMETER( Reserved );
 
-    return LocalContextConfigure(&gLocalContexts[core]) ?
+    return LocalContextConfigure( &gLocalContexts[Vcpu] ) ?
         STATUS_SUCCESS :
         STATUS_UNSUCCESSFUL;
 }
 
 VOID
 DsConfigureHvds(
-    _In_ PHVM_CORE core
+    _In_ PHVM_VCPU Vcpu
     )
 {
     CR4_REGISTER cr4 = { 0 };
@@ -56,8 +57,10 @@ DsConfigureHvds(
     PGLOBAL_CONTEXT globalContext;
     PLOCAL_CONTEXT localContext;
 
-    globalContext = (PGLOBAL_CONTEXT) HvmCoreGlobalContext(core);
-    localContext  = (PLOCAL_CONTEXT)  HvmCoreLocalContext(core);
+    globalContext = (PGLOBAL_CONTEXT) HvmGetVcpuGlobalContext( Vcpu );
+    localContext  = (PLOCAL_CONTEXT) HvmGetVcpuLocalContext( Vcpu );
+
+    VmcsInitializeContext();
 
     //
     // Common configuration
@@ -83,9 +86,9 @@ DsConfigureHvds(
     msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
     VmxVmcsWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
 
-    procPrimaryControls.u.raw = VmxVmcsRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
-    procPrimaryControls.u.f.useMsrBitmaps = 1;
-    VmxVmcsWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.u.raw );
+    procPrimaryControls.AsUint32 = VmxVmcsRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
+    procPrimaryControls.Bits.useMsrBitmaps = 1;
+    VmxVmcsWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32 );
 
     //
     //  Activate #GP and #UD.
@@ -115,7 +118,7 @@ DspInitializeHvds(
         goto failure;
     }
 
-    gLocalContexts = MemAllocArray(SmpNumberOfCores(), sizeof(LOCAL_CONTEXT));
+    gLocalContexts = MemAllocArray(SmpActiveProcessorCount(), sizeof(LOCAL_CONTEXT));
     if (!gLocalContexts) {
         goto failure;
     }
@@ -132,13 +135,13 @@ DspInitializeHvds(
         goto failure;
     }
 
-    if(!NT_SUCCESS( SmpExecuteOnAllCores( LocalContextConfigureOnCore, 0 ))) {
+    if(!NT_SUCCESS( SmpExecuteOnAllProcessors( ConfigureLocalContextByVcpuId, 0 ))) {
         goto failure;
     }
 
     HvmGlobalContextSet( gGlobalContext );
 
-    for (i = 0; i < SmpNumberOfCores(); i++) {
+    for (i = 0; i < SmpActiveProcessorCount(); i++) {
         HvmLocalContextSet(i, &gLocalContexts[i]);
     }
 
@@ -159,13 +162,13 @@ DspFinalizeHvds(
     }
 
     if (gLocalContexts) {
-        SmpExecuteOnAllCores(LocalContextResetOnCore, 0);
+        SmpExecuteOnAllProcessors(ResetLocalContextByVcpuId, 0);
 
         MemFree(gLocalContexts);
         gLocalContexts = 0;
     }
 
-    if(gGlobalContext) {
+    if (gGlobalContext) {
         GlobalContextReset(gGlobalContext);
 
         MemFree(gGlobalContext);

@@ -294,6 +294,7 @@
     <ClCompile Include="..\src\tests.c" />
     <ClCompile Include="..\src\tsc.c" />
     <ClCompile Include="..\src\vmcs.c" />
+    <ClCompile Include="..\src\vmcsinit.c" />
     <ClCompile Include="..\src\vmx.c" />
     <ClCompile Include="..\src\x86.c" />
   </ItemGroup>
@@ -310,6 +311,7 @@
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />
     <ClInclude Include="..\src\ringbuf.h" />
+    <ClInclude Include="..\src\vmcsinit.h" />
     <ClInclude Include="..\src\wdk7.h" />
     <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />

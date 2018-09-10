@@ -27,12 +27,13 @@ DpcRoutine(
     UNREFERENCED_PARAMETER( arg1 );
     UNREFERENCED_PARAMETER( arg2 );
 
-    if (!ARGUMENT_PRESENT(context))
+    if (!ARGUMENT_PRESENT(context)) {
         return;
+    }
 
-    status = info->callback(SmpCurrentCore(), info->context);
+    status = info->callback(SmpGetCurrentProcessor(), info->context);
 
-    if(status != STATUS_SUCCESS)
+    if (status != STATUS_SUCCESS)
     {
         InterlockedCompareExchange(&info->error, status, STATUS_SUCCESS);
     }
@@ -41,18 +42,18 @@ DpcRoutine(
 }
 
 NTSTATUS
-SmpExecuteOnAllCores(
-    _In_     PROCESSOR_CALLBACK callback, 
-    _In_opt_ PVOID              context
+SmpExecuteOnAllProcessors(
+    _In_ PROCESSOR_CALLBACK callback,
+    _In_opt_ PVOID context
 )
 {
     NTSTATUS status;
     KIRQL    savedIrql;
-    UINT32   numberOfCores;
+    UINT32   ProcessorCount;
     
-    numberOfCores = SmpNumberOfCores();
+    ProcessorCount = SmpActiveProcessorCount();
 
-    if (numberOfCores > 1)
+    if ( ProcessorCount > 1)
     {
         KDPC           dpcTraps[MAXIMUM_PROCESSORS] = { 0 };
         PROCESSOR_INFO info                         = { 0 };
@@ -64,9 +65,9 @@ SmpExecuteOnAllCores(
 
         KeRaiseIrql(DISPATCH_LEVEL, &savedIrql);
 
-        for (i = 0; i < numberOfCores; i++)
+        for (i = 0; i < ProcessorCount; i++)
         {
-            if (i != SmpCurrentCore())
+            if (i != SmpGetCurrentProcessor())
             {
                 KeInitializeDpc(&dpcTraps[i], DpcRoutine, &info);
                 KeSetTargetProcessorDpc(&dpcTraps[i], (CCHAR)i);
@@ -76,8 +77,9 @@ SmpExecuteOnAllCores(
 
         DpcRoutine(0, &info, 0, 0);
 
-        while (InterlockedCompareExchange(&info.sync, 0, numberOfCores))
+        while (InterlockedCompareExchange(&info.sync, 0, ProcessorCount )) {
             YieldProcessor();
+        }
 
         KeLowerIrql( savedIrql );
 
@@ -87,7 +89,7 @@ SmpExecuteOnAllCores(
     {
         KeRaiseIrql(DISPATCH_LEVEL, &savedIrql);
 
-        status = callback(SmpCurrentCore(), context);
+        status = callback(SmpGetCurrentProcessor(), context);
 
         KeLowerIrql(savedIrql);    
     }
@@ -96,35 +98,33 @@ SmpExecuteOnAllCores(
 }
 
 UINT32
-SmpNumberOfCores(
+SmpActiveProcessorCount(
     VOID
     )
 {
-    static UINT32 numberOfProcessors = 0;
+    static UINT32 BitCount = 0;
+    UINT32 Shift = 0;
+    KAFFINITY ActiveMap;
 
-    if (numberOfProcessors == 0)
-    {
-        KAFFINITY cores = KeQueryActiveProcessors();
-        UINT_PTR i;
+    if (BitCount == 0) {
 
-        for (i = 0; i < sizeof(KAFFINITY) * 8; i++)
-        {
-            KAFFINITY affinity = 1;
+        ActiveMap = KeQueryActiveProcessors();
 
-            affinity <<= i;
+        for (; Shift < sizeof( KAFFINITY ) * 8; Shift++) {
 
-            if (cores & affinity)
-                numberOfProcessors++;
+            if (ActiveMap & (1ULL << Shift) ) {
+                BitCount++;
+            }
         }
     }
 
-    return numberOfProcessors;
+    return BitCount;
 }
 
 UINT32 
-SmpCurrentCore(
+SmpGetCurrentProcessor(
     VOID
-)
+    )
 {
     return (UINT32)KeGetCurrentProcessorNumber();
 }

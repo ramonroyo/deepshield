@@ -6,108 +6,82 @@
 
 extern PHVM gHvm;
 
-PHVM_CORE ROOT_MODE_API
-HvmCoreCurrent(
+PHVM_VCPU ROOT_MODE_API
+HvmGetCurrentVcpu(
     VOID
-)
+    )
 {
-    /*
-    UINT32   i;
-    UINT_PTR sp;
+    return &gHvm->VcpuArray[SmpGetCurrentProcessor()];
+}
 
-    sp = __readsp();
-
-    for (i = 0; i < SmpNumberOfCores(); i++)
-    {
-        PHVM_CORE hvmCore = &gHvm.cores[i];
-
-        UINT_PTR bottom = (UINT_PTR)hvmCore->stack;
-        UINT_PTR top    = (UINT_PTR)hvmCore->rsp;
-
-        if(bottom < sp && sp < top)
-            return hvmCore;
+PVOID ROOT_MODE_API
+HvmGetVcpuLocalContext(
+    _In_ PHVM_VCPU Vcpu
+    )
+{
+    if (!Vcpu) {
+        return 0;
     }
 
-    return 0;
-    */
-    return &gHvm->cores[SmpCurrentCore()];
-}
-
-PREGISTERS ROOT_MODE_API
-HvmCoreRegisters(
-    _In_ PHVM_CORE core
-)
-{
-    if(!core)
-        return 0;
-
-    return (PREGISTERS)(core->rsp - sizeof(REGISTERS));
-}
-
-
-PVOID ROOT_MODE_API
-HvmCoreLocalContext(
-    _In_ PHVM_CORE core
-)
-{
-    if(!core)
-        return 0;
-
-    return core->localContext;
+    return Vcpu->localContext;
 }
 
 PVOID ROOT_MODE_API
-HvmCoreGlobalContext(
-    _In_ PHVM_CORE core
-)
+HvmGetVcpuGlobalContext(
+    _In_ PHVM_VCPU Vcpu
+    )
 {
-    if(!core)
+    if (!Vcpu) {
         return 0;
+    }
 
-    return core->hvm->globalContext;
+    return Vcpu->hvm->globalContext;
 }
 
 UINT32 ROOT_MODE_API
-HvmCoreIndex(
-    _In_ PHVM_CORE core
-)
+HvmGetVcpuId(
+    _In_ PHVM_VCPU Vcpu
+   )
 {
-    if (!core)
+    if (!Vcpu) {
         return (UINT32)-1;
+    }
 
-    return core->index;
+    return Vcpu->index;
 }
 
 PHVM ROOT_MODE_API
-HvmCoreHvm(
-    _In_ PHVM_CORE core
-)
+HvmGetVcpuHvm(
+    _In_ PHVM_VCPU Vcpu
+    )
 {
-    if(!core)
+    if (!Vcpu) {
         return 0;
+    }
 
-    return core->hvm;
+    return Vcpu->hvm;
 }
 
 PHOST_SAVED_STATE ROOT_MODE_API
-HvmCoreSavedState(
-    _In_ PHVM_CORE core
-)
+HvmGetVcpuSavedState(
+    _In_ PHVM_VCPU Vcpu
+    )
 {
-    if (!core)
+    if (!Vcpu) {
         return 0;
+    }
 
-    return &core->savedState;
+    return &Vcpu->savedState;
 }
 
 BOOLEAN ROOT_MODE_API
-HvmCoreHandleCommonExits(
-    _In_ UINT32     exitReason,
-    _In_ PHVM_CORE  core,
+HvmVcpuCommonExitsHandler(
+    _In_ UINT32 exitReason,
+    _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS regs
     )
 {
-    UNREFERENCED_PARAMETER(core);
+    UNREFERENCED_PARAMETER(Vcpu);
 
     switch (exitReason)
     {
@@ -126,13 +100,14 @@ HvmCoreHandleCommonExits(
         }
 #endif
 
-        /*
+#ifdef HVM_EMULATE_INVVPID
         case EXIT_REASON_INVVPID:
         {
             InstrInvVpidEmulate( regs );
             InstrRipAdvance( regs );
             return TRUE;
-        }*/
+        }
+#endif
 
         //
         //  Virtualization instructions
