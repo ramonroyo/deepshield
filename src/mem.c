@@ -682,7 +682,7 @@ ArenaInit(
         MappingPriority |= MdlMappingNoExecute;
     }
 #else
-    Arena->mdl = MmAllocatePagesForMdl( LowAddress, HighAddress, SkipBytes, TotalBytes );
+    Arena->Mdl = MmAllocatePagesForMdl( LowAddress, HighAddress, SkipBytes, TotalBytes );
 #endif
 
     if (!Arena->Mdl || (MmGetMdlByteCount( Arena->Mdl ) != TotalBytes )) {
