@@ -57,7 +57,6 @@ VmcsInitializeContext(
 
         if (Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableEpt
             || Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableVpid) {
-
             Capabilities.EptVpidCapabilities.AsUint64 = __readmsr(IA32_MSR_EPT_VPID_CAP_INDEX);
         }
 
@@ -114,11 +113,11 @@ VmcsInitializeContext(
     
     Constraints.EptVpidCapabilities = Capabilities.EptVpidCapabilities;
 
-    Fixed.PinControlFixed1.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 &    Constraints.PinBasedControlsMaybe1.AsUint32;
-    Fixed.PinControlFixed0.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 |    Constraints.PinBasedControlsMaybe1.AsUint32;
+    Fixed.PinControlFixed1.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 & Constraints.PinBasedControlsMaybe1.AsUint32;
+    Fixed.PinControlFixed0.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 | Constraints.PinBasedControlsMaybe1.AsUint32;
 
     Fixed.ProcessorControlsFixed1.AsUint32 = Constraints.ProcessorControlsMaybe0.AsUint32 & Constraints.ProcessorControlsMaybe1.AsUint32;
-    Fixed.ProcessorControlsFixed0.AsUint32 = Constraints.ProcessorControlsMaybe0.AsUint32 |    Constraints.ProcessorControlsMaybe1.AsUint32;
+    Fixed.ProcessorControlsFixed0.AsUint32 = Constraints.ProcessorControlsMaybe0.AsUint32 | Constraints.ProcessorControlsMaybe1.AsUint32;
 
     Fixed.ProcessorControls2Fixed1.AsUint32 = Constraints.ProcessorControls2Maybe0.AsUint32 & Constraints.ProcessorControls2Maybe1.AsUint32;
     Fixed.ProcessorControls2Fixed0.AsUint32 = Constraints.ProcessorControls2Maybe0.AsUint32 | Constraints.ProcessorControls2Maybe1.AsUint32;

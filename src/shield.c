@@ -1,11 +1,11 @@
 #include "wdk7.h"
 #include "channel.h"
 #include "shield.h"
+#include "dshvm.h"
 #include "mmu.h"
 #include "mem.h"
 #include "hvm.h"
 #include "vmx.h"
-#include "hvds.h"
 #include "smp.h"
 
 extern UINT_PTR gSystemPageDirectoryTable;
@@ -32,7 +32,7 @@ DsStartShield(
     VOID
     )
 {
-    return DsLoadHvds();
+    return DsLoadHvm();
 }
 
 NTSTATUS
@@ -40,7 +40,7 @@ DsStopShield(
     VOID
     )
 {
-    return DsUnloadHvds();
+    return DsUnloadHvm();
 }
 
 BOOLEAN
@@ -48,5 +48,5 @@ DsIsShieldRunning(
     VOID
     )
 {
-    return DsIsHvdsRunning();
+    return DsIsHvmRunning();
 }

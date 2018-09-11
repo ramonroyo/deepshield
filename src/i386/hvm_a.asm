@@ -2,7 +2,7 @@
 .XMM
 .MODEL flat, C
 
-extern HvmpStart@16:PROC
+extern HvmpEnterRoot@16:PROC
 extern HvmpStartFailure@8:PROC
 extern HvmpExitHandler@8:PROC
 extern HvmpFailure@8:PROC
@@ -122,7 +122,7 @@ HvmpStartAsm@4 PROC
     push dword ptr [ebp + 8]
 
     ;
-    ; Call HvmpStart injecting rip and rsp for successful vmlaunch
+    ; Call HvmpEnterRoot injecting rip and rsp for successful vmlaunch
     ;
         ;Fourth Parameter
     push dword ptr [ebp + 8]
@@ -137,7 +137,7 @@ HvmpStartAsm@4 PROC
     push vmlaunchReturn
 
         ;Call
-    call HvmpStart@16
+    call HvmpEnterRoot@16
 
     ;
     ; Check if configuration was successful. If configuration failed, function performed switch off of vmx mode, since we need only to report error

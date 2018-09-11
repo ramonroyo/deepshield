@@ -6,29 +6,22 @@
 BOOLEAN
 VmcsClear(
     _In_ PVOID vmcs
-)
+    )
 {
-    VMX_MSR_BASIC        basicVmx;
     PHYSICAL_ADDRESS vmcsPhysical;
 
-    basicVmx.AsUint64 = VmxCapability(IA32_VMX_BASIC);
-
-    *(PUINT32)vmcs = basicVmx.Bits.revisionId;
-
-    vmcsPhysical   = MmuGetPhysicalAddress(0, vmcs);
-
+    vmcsPhysical = MmuGetPhysicalAddress(0, vmcs);
     return VmxVmClear((unsigned __int64*)&vmcsPhysical) == 0;
 }
 
 BOOLEAN
 VmcsLoad(
     _In_ PVOID vmcs
-)
+    )
 {
     PHYSICAL_ADDRESS vmcsPhysical;
 
     vmcsPhysical = MmuGetPhysicalAddress(0, vmcs);
-
     return VmxVmPtrLd((unsigned __int64*)&vmcsPhysical) == 0;
 }
 
@@ -37,7 +30,7 @@ VmcsLoad(
 VOID
 VmcsConfigureCommonGuest(
     VOID
-)
+    )
 {
     VmxVmcsWritePlatform(GUEST_CR0,                                    __readcr0());
     VmxVmcsWritePlatform(GUEST_CR3,                                    __readcr3());
@@ -269,7 +262,14 @@ VmcsConfigureCommonEntry(
 {
 #ifndef _WIN64
     ULONG_PTR cr4 = 0;
-#endif    
+#endif
+
+    //
+    //  TODO: why?
+    //
+    rflags.u.f.cf = 0;
+    rflags.u.f.zf = 0;
+
     VmxVmcsWritePlatform(GUEST_RSP,    rsp);
     VmxVmcsWritePlatform(GUEST_RIP,    rip);
     VmxVmcsWritePlatform(GUEST_RFLAGS, rflags.u.raw);

@@ -272,7 +272,7 @@
     <ClCompile Include="..\src\channel.c" />
     <ClCompile Include="..\src\context.c" />
     <ClCompile Include="..\src\driver.c" />
-    <ClCompile Include="..\src\hvds.c" />
+    <ClCompile Include="..\src\dshvm.c" />
     <ClCompile Include="..\src\ioctl.c" />
     <ClCompile Include="..\src\mailbox.c" />
     <ClCompile Include="..\src\os.c" />
@@ -303,7 +303,7 @@
     <ClInclude Include="..\src\channel.h" />
     <ClInclude Include="..\src\context.h" />
     <ClInclude Include="..\src\dsdef.h" />
-    <ClInclude Include="..\src\hvds.h" />
+    <ClInclude Include="..\src\dshvm.h" />
     <ClInclude Include="..\src\mailbox.h" />
     <ClInclude Include="..\src\os.h" />
     <ClInclude Include="..\src\policy.h" />

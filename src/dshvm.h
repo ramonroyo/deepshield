@@ -4,22 +4,22 @@
 #include <ntifs.h>
 
 NTSTATUS
-DsIsHvdsSupported(
+DsIsHvmSupported(
     VOID
     );
 
 NTSTATUS
-DsLoadHvds(
+DsLoadHvm(
     VOID
     );
 
 NTSTATUS
-DsUnloadHvds(
+DsUnloadHvm(
     VOID
     );
 
 BOOLEAN
-DsIsHvdsRunning(
+DsIsHvmRunning(
     VOID
     );
 

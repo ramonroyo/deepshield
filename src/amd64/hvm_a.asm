@@ -1,5 +1,5 @@
 
-extern HvmpStart:PROC
+extern HvmpEnterRoot:PROC
 extern HvmpStartFailure:PROC
 extern HvmpExitHandler:PROC
 extern HvmpFailure:PROC
@@ -182,7 +182,7 @@ HvmpStartAsm PROC
     push rcx
 
     ;
-    ; Call HvmpStart injecting rip and rsp for successful vmlaunch
+    ; Call HvmpEnterRoot injecting rip and rsp for successful vmlaunch
     ;
     ;Fourth Parameter
     mov r9, rcx
@@ -198,7 +198,7 @@ HvmpStartAsm PROC
     mov rcx, vmlaunchReturn
 
     ;Call
-    CALLF HvmpStart
+    CALLF HvmpEnterRoot
 
     ;
     ; Check if configuration was successful. If configuration failed, function

@@ -100,11 +100,8 @@ VmxpEnable(
     PVOID vmxOn
 )
 {
-    VMX_MSR_BASIC        basicVmx;
-    CR4_REGISTER     cr4;
+    CR4_REGISTER cr4;
     PHYSICAL_ADDRESS vmxOnPhysical;
-
-    basicVmx.AsUint64 = VmxCapability(IA32_VMX_BASIC);
 
     //
     // Activate 13 bit (VMX enable)
@@ -113,23 +110,18 @@ VmxpEnable(
     cr4.u.f.vmxe = 1;
     __writecr4(cr4.u.raw);
 
-
     //
-    // Write revision identifier in VMXON region
-    //
-    *(UINT32*)vmxOn = basicVmx.Bits.revisionId;
-
-    //
-    // Activate virtualization
+    //  Activate virtualization
     //
     vmxOnPhysical = MmuGetPhysicalAddress(0, vmxOn);
-    if (VmxOn((unsigned __int64*)&vmxOnPhysical) != 0)
-    {
+    if (VmxOn((unsigned __int64*)&vmxOnPhysical) != 0) {
+
         //
-        //Disable VMX bit
+        //  Disable VMX bit
         //
         cr4.u.f.vmxe = 0;
         __writecr4(cr4.u.raw);
+
         return STATUS_UNSUCCESSFUL;
     }
 
@@ -138,10 +130,14 @@ VmxpEnable(
 
 VOID
 VmxpDisable(
-    VOID
+    PVOID VmcsHva
     )
 {
     CR4_REGISTER cr4;
+    BOOLEAN ClearResult;
+
+    ClearResult = VmcsClear( VmcsHva );
+    NT_ASSERT( ClearResult );
 
     VmxOff();
 
@@ -149,7 +145,6 @@ VmxpDisable(
     cr4.u.f.vmxe = 0;
     __writecr4(cr4.u.raw);
 }
-
 
 NTSTATUS __stdcall
 HvmpStartVcpu(
@@ -161,7 +156,7 @@ HvmpStartVcpu(
     PHVM_VCPU Vcpu;
     NTSTATUS status;
 
-    hvm     = (PHVM)context;
+    hvm = (PHVM)context;
     Vcpu = &hvm->VcpuArray[VcpuId];
 
     __cli();
@@ -174,66 +169,59 @@ HvmpStartVcpu(
 }
 
 NTSTATUS __stdcall
-HvmpStart(
-    _In_ UINT_PTR  code,
-    _In_ UINT_PTR  stack,
-    _In_ UINT_PTR  flags,
+HvmpEnterRoot(
+    _In_ UINT_PTR Code,
+    _In_ UINT_PTR Stack,
+    _In_ UINT_PTR Flags,
     _In_ PHVM_VCPU Vcpu
     )
 {
-    NTSTATUS       status;
+    NTSTATUS Status;
     FLAGS_REGISTER rflags;
+    VMX_MSR_BASIC BasicVmx;
+
+    NT_ASSERT( Vcpu );
+    rflags.u.raw = Flags;
+
+    BasicVmx.AsUint64 = VmxCapability( IA32_VMX_BASIC );
+
+    *(PUINT32) Vcpu->VmxOnRegionHva = BasicVmx.Bits.revisionId;
+    *(PUINT32) Vcpu->VmcsRegionHva = BasicVmx.Bits.revisionId;
+
+    HvmpSaveHostState( &Vcpu->SavedState );
+
+    Status = VmxpEnable( Vcpu->VmxOnRegionHva );
     
-    //
-    // Check Vcpu
-    //
-    if(!Vcpu)
-        return STATUS_UNSUCCESSFUL;
-
-    //
-    // Save host state
-    //
-    HvmpSaveHostState(&Vcpu->savedState);
-
-    //
-    // Enable VMX tech on this Vcpu
-    //
-    status = VmxpEnable(Vcpu->vmxOn);
-    
-    if(!NT_SUCCESS(status))
-        return status;
-
-    //
-    // Clear and load VMCS
-    //
-    if(!VmcsClear(Vcpu->vmcs))
-    {
-        VmxpDisable();
-        return STATUS_UNSUCCESSFUL;
+    if (!NT_SUCCESS( Status )) {
+        return Status;
     }
 
-    if(!VmcsLoad(Vcpu->vmcs))
-    {
-        VmxpDisable();
-        return STATUS_UNSUCCESSFUL;
+    if (!VmcsClear( Vcpu->VmcsRegionHva )) {
+        goto RoutineExit;
     }
 
-    //
-    // HVM entry point config
-    //
-    rflags.u.raw  = flags;
-    rflags.u.f.cf = 0;
-    rflags.u.f.zf = 0;
+    if (!VmcsLoad( Vcpu->VmcsRegionHva )) {
+        goto RoutineExit;
+    }
 
-    Vcpu->configure(Vcpu);
+    Vcpu->SetupVmcs( Vcpu );
 
-    VmxVmcsWritePlatform(HOST_RSP, Vcpu->rsp);
-    VmxVmcsWritePlatform(HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm);
-    VmcsConfigureCommonEntry(code, stack, rflags);
+    VmxVmcsWritePlatform( HOST_RSP, Vcpu->Rsp );
+    VmxVmcsWritePlatform( HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm );
+    VmcsConfigureCommonEntry( Code, Stack, rflags );
    
-    AtomicWrite(&Vcpu->launched, TRUE);
+    //
+    //  TODO: but it is not launched indeed!
+    //
+    AtomicWrite( &Vcpu->Launched, TRUE );
+
+RoutineExit:
+
+    if (!NT_SUCCESS( Status )) {
+        VmxpDisable( Vcpu->VmcsRegionHva );
+    }
     
-    return STATUS_SUCCESS;
+    return Status;
 }
 
 NTSTATUS __stdcall
@@ -259,14 +247,15 @@ HvmpFailure(
 NTSTATUS __stdcall
 HvmpStartFailure(
     _In_ PHVM_VCPU Vcpu,
-    _In_ BOOLEAN   valid
+    _In_ BOOLEAN valid
     )
 {
     NTSTATUS status;
 
-    AtomicWrite(&Vcpu->launched, FALSE);
-    status = HvmpFailure(Vcpu, valid);
-    VmxpDisable();
+    AtomicWrite( &Vcpu->Launched, FALSE );
+    status = HvmpFailure( Vcpu, valid );
+    
+    VmxpDisable( Vcpu->VmcsRegionHva );
 
     return status;
 }
@@ -280,7 +269,7 @@ HvmpStopVcpu(
     UNREFERENCED_PARAMETER(VcpuId);
     UNREFERENCED_PARAMETER(context);
 
-    return HvmInternalCallAsm(HVM_INTERNAL_SERVICE_STOP, 0);
+    return HvmInternalCallAsm( HVM_INTERNAL_SERVICE_STOP, 0 );
 }
 
 VOID
@@ -294,16 +283,16 @@ HvmpRestore(
     //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
     //
 
-    __writeds( Vcpu->savedState.ds.u.raw );
-    __writees( Vcpu->savedState.es.u.raw );
-    __writefs( Vcpu->savedState.fs.u.raw );
+    __writeds( Vcpu->SavedState.ds.u.raw );
+    __writees( Vcpu->SavedState.es.u.raw );
+    __writefs( Vcpu->SavedState.fs.u.raw );
 #ifndef _WIN64
-    __writess( Vcpu->savedState.ss.u.raw );
-    __writegs( Vcpu->savedState.gs.u.raw );
+    __writess( Vcpu->SavedState.ss.u.raw );
+    __writegs( Vcpu->SavedState.gs.u.raw );
 #endif
 
-    lgdt( Vcpu->savedState.gdt.base, Vcpu->savedState.gdt.limit );
-    lidt( Vcpu->savedState.idt.base, Vcpu->savedState.idt.limit );
+    lgdt( Vcpu->SavedState.gdt.base, Vcpu->SavedState.gdt.limit );
+    lidt( Vcpu->SavedState.idt.base, Vcpu->SavedState.idt.limit );
 
     //
     //  Disable TSD monitoring.
@@ -329,10 +318,10 @@ HvmpStop(
     IRET_FRAME iret;
 
     iret.rip = regs->rip;
-    iret.cs = Vcpu->savedState.cs.u.raw;
+    iret.cs = Vcpu->SavedState.cs.u.raw;
     iret.rflags = regs->rflags.u.raw;
     iret.rsp = regs->rsp;
-    iret.ss = Vcpu->savedState.ss.u.raw;
+    iret.ss = Vcpu->SavedState.ss.u.raw;
 #else
 
     PIRET_FRAME iretx86;
@@ -342,7 +331,7 @@ HvmpStop(
                      - (sizeof( IRET_FRAME ) / sizeof( UINT_PTR )));
 
     iretx86->rip = regs->rip;
-    iretx86->cs = Vcpu->savedState.cs.u.raw;
+    iretx86->cs = Vcpu->SavedState.cs.u.raw;
     iretx86->rflags = regs->rflags.u.raw;
 #endif
     
@@ -354,7 +343,7 @@ HvmpStop(
     //
     //  This deactivates VMX operation in the processor.
     //
-    VmxpDisable();
+    VmxpDisable( Vcpu->VmcsRegionHva );
 
     //
     //  Restore registers and return from the interrupt.

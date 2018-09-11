@@ -39,18 +39,15 @@ HvmpExitEventLog(
     //
     // Calculate new index
     //
-    index = Vcpu->loggedEvents.numberOfEvents % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
+    index = Vcpu->LoggedEvents.numberOfEvents % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
     
     //
     // Log exit data
     //
-    HvmpExitEventLogVmcsInfo(&Vcpu->loggedEvents.queue[index].info);
-    Vcpu->loggedEvents.queue[index].regs = *regs;
+    HvmpExitEventLogVmcsInfo(&Vcpu->LoggedEvents.queue[index].info);
 
-    //
-    // Increase number of events serviced
-    //
-    Vcpu->loggedEvents.numberOfEvents++;
+    Vcpu->LoggedEvents.queue[index].regs = *regs;
+    Vcpu->LoggedEvents.numberOfEvents++;
 }
 
 
@@ -115,7 +112,7 @@ HvmpExitHandler(
 {
     UINT32 exitReason;
 
-    NT_ASSERT( &Vcpu->guestRegisters == regs );
+    NT_ASSERT( &Vcpu->GuestRegisters == regs );
 
     //
     // Gather minimal exit information
@@ -147,7 +144,7 @@ HvmpExitHandler(
         //
         // Invoke HVM Handler
         //
-        Vcpu->handler(exitReason, Vcpu, regs);
+        Vcpu->ExitHandler(exitReason, Vcpu, regs);
     }
 
     //

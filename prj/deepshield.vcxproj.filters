@@ -97,9 +97,6 @@
     <ClCompile Include="..\src\shield.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\hvds.c">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\tsc.c">
       <Filter>src</Filter>
     </ClCompile>
@@ -128,6 +125,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\vmcsinit.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dshvm.c">
       <Filter>src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -177,9 +177,6 @@
     <ClInclude Include="..\src\shield.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\hvds.h">
-      <Filter>inc</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\tsc.h">
       <Filter>inc</Filter>
     </ClInclude>
@@ -209,6 +206,9 @@
     </ClInclude>
     <ClInclude Include="..\src\vmcsinit.h">
       <Filter>src\vmm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dshvm.h">
+      <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

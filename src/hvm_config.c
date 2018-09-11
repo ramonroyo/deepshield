@@ -40,7 +40,7 @@ HvmLocalContextSet(
         return;
     }
 
-    InterlockedExchangePointer(&gHvm->VcpuArray[VcpuId].localContext, context);
+    InterlockedExchangePointer(&gHvm->VcpuArray[VcpuId].LocalContext, context);
 }
 
 PVOID
@@ -56,5 +56,5 @@ HvmLocalContextGet(
         return 0;
     }
 
-    return gHvm->VcpuArray[VcpuId].localContext;
+    return gHvm->VcpuArray[VcpuId].LocalContext;
 }

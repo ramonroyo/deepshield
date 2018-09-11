@@ -589,7 +589,6 @@ InjectHardwareException(
 {
     VECTOR_EXCEPTION Vector = InterruptInfo.u.f.vector;
 
-    NT_ASSERT( (Vector & INTR_INFO_VECTOR_MASK) == 0 );
     NT_ASSERT( InterruptInfo.u.f.type == INTERRUPT_HARDWARE_EXCEPTION );
 
     if (ExceptionType[Vector] & EXCEPTION_ERROR_CODE_VALID) {

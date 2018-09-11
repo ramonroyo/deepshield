@@ -2,9 +2,6 @@
 #include "mem.h"
 #include "sync.h"
 
-/**
-* Heap data structures
-*/
 #define HEAP_BLOCK_FREE 0
 #define HEAP_BLOCK_USED 1
 
@@ -33,7 +30,7 @@ typedef struct _HEAP_BLOCK
 
 #define BLOCK(X)    ((PHEAP_BLOCK)(((PUINT8)heap->memory) + (X) - sizeof(HEAP_BLOCK)))
 #define STATE(X)    (BLOCK(X)->state)
-#define SIZE(X)        (BLOCK(X)->size) 
+#define SIZE(X)     (BLOCK(X)->size)
 #define PPREV(X)    (BLOCK(X)->pprev) 
 #define PNEXT(X)    (BLOCK(X)->pnext)
 #define VPREV(X)    (BLOCK(X)->vprev) 
@@ -46,15 +43,15 @@ typedef struct _HEAP_BLOCK
 #define POINTER(X) ((PVOID)((PUINT8)heap->memory + (X)))          //!< Given an offset, converts it to a pointer in the heap
 #define OFFSET(X)  ((UINT32)((PUINT8)(X) - (PUINT8)heap->memory)) //!< Given a pointer, converts it to a offset in the heap
 
-/**
-* Memory arena data structures
-*/
 typedef struct _MEMORY_ARENA
 {
-    PMDL   mdl;                //!< Physical pages description
-    PVOID  virtualAddress;    //!< Virtual address where pages are mapped
-    UINT32 numberOfPages;    //!< Allocated pages
+    UINT32 NumberOfPages;
+    PMDL Mdl;
+    PVOID BaseAddress;
 } MEMORY_ARENA, *PMEMORY_ARENA;
+
+PHEAP gHeap = 0;
+MEMORY_ARENA gMemoryArena = { 0 };
 
 VOID
 HeappBlockUnlink(
@@ -365,7 +362,7 @@ HeappContains(
 
 PHEAP
 HeapCreate(
-    _In_ PVOID  arena,
+    _In_ PVOID  Arena,
     _In_ UINT32 size
     )
 {
@@ -375,8 +372,8 @@ HeapCreate(
     if (size < 16 * PAGE_SIZE)
         return 0;
 
-    heap = (PHEAP)arena;
-    heap->memory   = (UINT8*)arena + PAGE_SIZE; //+ sizeof(HEAP); Page aligned so MemAllocAligned works correctly
+    heap = (PHEAP)Arena;
+    heap->memory   = (UINT8*)Arena + PAGE_SIZE; //+ sizeof(HEAP); Page aligned so MemAllocAligned works correctly
     heap->size     = size - PAGE_SIZE;          //- sizeof(HEAP);
     heap->freeList = START;
     heap->usedList = 0;
@@ -643,91 +640,99 @@ HeapContains(
 
 VOID
 ArenaDone(
-    _In_ PMEMORY_ARENA arena
+    _In_ PMEMORY_ARENA Arena
     );
 
 NTSTATUS
 ArenaInit(
-    _In_ PMEMORY_ARENA arena,
-    _In_ UINT32        numberOfBytes
+    _In_ PMEMORY_ARENA Arena,
+    _In_ UINT32 NumberOfBytes
     )
 {
-    PHYSICAL_ADDRESS low;
-    PHYSICAL_ADDRESS high;
-    PHYSICAL_ADDRESS skip;
-    ULONG mappingPriority = HighPagePriority;
+    NTSTATUS Status = STATUS_NO_MEMORY;
+    PHYSICAL_ADDRESS LowAddress;
+    PHYSICAL_ADDRESS HighAddress;
+    PHYSICAL_ADDRESS SkipBytes;
+    SIZE_T TotalBytes;
+    ULONG MappingPriority = HighPagePriority;
+    ULONG Flags = 0;
 
-    low.QuadPart = 0;
-    high.QuadPart = (UINT64)-1;
-    skip.QuadPart = 0;
+    LowAddress.QuadPart = 0;
+    HighAddress.QuadPart = (UINT64)-1;
+    SkipBytes.QuadPart = 0;
 
-    //
-    //
-    // Zero
-    //
-    memset(arena, 0, sizeof(MEMORY_ARENA));
+    RtlZeroMemory( Arena, sizeof( MEMORY_ARENA ));
+    Arena->NumberOfPages = BYTES_TO_PAGES( NumberOfBytes );
 
-    //
-    // Initialize entry
-    //
-    arena->numberOfPages = BYTES_TO_PAGES(numberOfBytes);
-
-    //
-    // Allocate physical pages
-    //
-    arena->mdl = MmAllocatePagesForMdl(low, high, skip, arena->numberOfPages * PAGE_SIZE);
-    if (!arena->mdl)
-        goto failure;
-
-    if (MmGetMdlByteCount(arena->mdl) != arena->numberOfPages * PAGE_SIZE)
-        goto failure;
+    TotalBytes = Arena->NumberOfPages * PAGE_SIZE;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
-    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN8 )) {
-        mappingPriority |= MdlMappingNoExecute;
+    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN7 )) {
+        Flags |= MM_ALLOCATE_FULLY_REQUIRED | MM_ALLOCATE_PREFER_CONTIGUOUS;
     }
+
+    Arena->Mdl = MmAllocatePagesForMdlEx( LowAddress,
+                                          HighAddress,
+                                          SkipBytes,
+                                          TotalBytes,
+                                          MmCached, 
+                                          Flags );
+
+    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN8 )) {
+        MappingPriority |= MdlMappingNoExecute;
+    }
+#else
+    Arena->mdl = MmAllocatePagesForMdl( LowAddress, HighAddress, SkipBytes, TotalBytes );
 #endif
-    
-    arena->virtualAddress = MmMapLockedPagesSpecifyCache( arena->mdl, 
-                                                          KernelMode,
-                                                          MmNonCached,
-                                                          0,
-                                                          FALSE,
-                                                          mappingPriority );
-    if (!arena->virtualAddress)
-        goto failure;
 
-    return STATUS_SUCCESS;
+    if (!Arena->Mdl || (MmGetMdlByteCount( Arena->Mdl ) != TotalBytes )) {
+        goto RoutineExit;
+    }
 
-failure:
-    ArenaDone(arena);
+    Arena->BaseAddress = MmMapLockedPagesSpecifyCache( Arena->Mdl,
+                                                       KernelMode,
+                                                       MmCached,
+                                                       0,
+                                                       FALSE,
+                                                       MappingPriority );
+    if (!Arena->BaseAddress) {
+        goto RoutineExit;
+    }
 
-    return STATUS_UNSUCCESSFUL;
+    Status = MmProtectMdlSystemAddress( Arena->Mdl, PAGE_READWRITE );
+
+RoutineExit:
+
+    if (!NT_SUCCESS( Status )) {
+        ArenaDone( Arena );
+    }
+
+    return Status;
 }
 
 VOID
 ArenaDone(
-    _In_ PMEMORY_ARENA arena
+    _In_ PMEMORY_ARENA Arena
     )
 {
-    if (arena->virtualAddress)
+    if (Arena->BaseAddress)
     {
-        MmUnmapLockedPages(arena->virtualAddress, arena->mdl);
+        MmUnmapLockedPages(Arena->BaseAddress, Arena->Mdl);
     }
 
-    if (arena->mdl)
+    if (Arena->Mdl)
     {
-        MmFreePagesFromMdl(arena->mdl);
-        ExFreePool(arena->mdl);
+        MmFreePagesFromMdl(Arena->Mdl);
+        ExFreePool(Arena->Mdl);
     }
 
-    memset(arena, 0, sizeof(MEMORY_ARENA));
+    RtlZeroMemory(Arena, sizeof(MEMORY_ARENA));
 }
 
 PHYSICAL_ADDRESS
 ArenaVirtualToPhysical(
-    _In_ PMEMORY_ARENA arena,
-    _In_ PVOID         virtualAddress
+    _In_ PMEMORY_ARENA Arena,
+    _In_ PVOID         BaseAddress
     )
 {
     PHYSICAL_ADDRESS result;
@@ -735,14 +740,16 @@ ArenaVirtualToPhysical(
     UINT_PTR         end;
 
     result.QuadPart = 0;
-    start = (UINT_PTR)arena->virtualAddress;
-    end   = (UINT_PTR)arena->virtualAddress + arena->numberOfPages * PAGE_SIZE;
+    start = (UINT_PTR)Arena->BaseAddress;
+    end   = (UINT_PTR)Arena->BaseAddress + Arena->NumberOfPages * PAGE_SIZE;
 
-    //Check virtual range
-    if (start <= ((UINT_PTR)virtualAddress) && ((UINT_PTR)virtualAddress) < end)
+    //
+    //  Check virtual range.
+    //
+    if (start <= ((UINT_PTR)BaseAddress) && ((UINT_PTR)BaseAddress) < end)
     {
-        UINT_PTR index = ((UINT_PTR)virtualAddress - start) >> 12;
-        result.QuadPart = (MmGetMdlPfnArray(arena->mdl)[index] << 12) + ((UINT_PTR)virtualAddress & 0xFFF);
+        UINT_PTR index = ((UINT_PTR)BaseAddress - start) >> 12;
+        result.QuadPart = (MmGetMdlPfnArray(Arena->Mdl)[index] << 12) + ((UINT_PTR)BaseAddress & 0xFFF);
     }
 
     return result;
@@ -750,7 +757,7 @@ ArenaVirtualToPhysical(
 
 PVOID
 ArenaPhysicalToVirtual(
-    _In_ PMEMORY_ARENA    arena,
+    _In_ PMEMORY_ARENA    Arena,
     _In_ PHYSICAL_ADDRESS physicalAddress
     )
 {
@@ -759,15 +766,16 @@ ArenaPhysicalToVirtual(
     UINT32      entries;
     UINT32      i;
 
-    result  = 0;
-    pfns    = MmGetMdlPfnArray(arena->mdl);
-    entries = ADDRESS_AND_SIZE_TO_SPAN_PAGES(MmGetMdlVirtualAddress(arena->mdl), MmGetMdlByteCount(arena->mdl));
+    result = 0;
+    pfns = MmGetMdlPfnArray( Arena->Mdl );
+    entries = ADDRESS_AND_SIZE_TO_SPAN_PAGES( MmGetMdlVirtualAddress( Arena->Mdl ), 
+                                              MmGetMdlByteCount( Arena->Mdl ) );
 
-    for (i = 0; i < entries; i++)
-    {
-        if (((UINT64)(physicalAddress.QuadPart >> 12)) == pfns[i])
-        {
-            result = (PVOID)(((UINT_PTR)arena->virtualAddress + i * PAGE_SIZE) + ((UINT_PTR)physicalAddress.QuadPart & 0xFFF));
+    for (i = 0; i < entries; i++) {
+        if (((UINT64)(physicalAddress.QuadPart >> 12)) == pfns[i]) {
+
+            result = (PVOID)(((UINT_PTR)Arena->BaseAddress + i * PAGE_SIZE) 
+                   + ((UINT_PTR)physicalAddress.QuadPart & 0xFFF));
             break;
         }
     }
@@ -775,39 +783,27 @@ ArenaPhysicalToVirtual(
     return result;
 }
 
-/*
-*
-* Global Memory System (malloc and the like replacement)
-*
-*/
-MEMORY_ARENA gMemoryArena = { 0 };
-PHEAP        gHeap = 0;
-
 NTSTATUS
 MemInit(
     _In_ UINT32 numberOfBytes
     )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
     
-    //
-    // Create arena
-    //
-    status = ArenaInit(&gMemoryArena, numberOfBytes);
-    if (!NT_SUCCESS(status))
-        return status;
-
-    //
-    // Create heap
-    //
-    gHeap = HeapCreate(gMemoryArena.virtualAddress, gMemoryArena.numberOfPages * PAGE_SIZE);
-    if (!gHeap)
-    {
-        ArenaDone(&gMemoryArena);
-        status = STATUS_UNSUCCESSFUL;
+    Status = ArenaInit( &gMemoryArena, numberOfBytes );
+    if (!NT_SUCCESS( Status )) {
+        return Status;
     }
 
-    return status;
+    gHeap = HeapCreate( gMemoryArena.BaseAddress, 
+                        gMemoryArena.NumberOfPages * PAGE_SIZE );
+
+    if (!gHeap) {
+        ArenaDone( &gMemoryArena );
+        Status = STATUS_NO_MEMORY;
+    }
+
+    return Status;
 }
 
 VOID
@@ -815,8 +811,8 @@ MemDone(
     VOID
     )
 {
-    HeapDelete(gHeap);
-    ArenaDone(&gMemoryArena);
+    HeapDelete( gHeap );
+    ArenaDone( &gMemoryArena );
 }
 
 PVOID
@@ -824,7 +820,7 @@ MemAlloc(
     _In_ UINT32 numberOfBytes
     )
 {
-    return HeapAlloc(gHeap, numberOfBytes);
+    return HeapAlloc( gHeap, numberOfBytes );
 }
 
 PVOID
@@ -833,7 +829,7 @@ MemAllocAligned(
     _In_ UINT32 alignment
     )
 {
-    return HeapAllocAligned(gHeap, numberOfBytes, alignment);
+    return HeapAllocAligned( gHeap, numberOfBytes, alignment );
 }
 
 PVOID
@@ -842,7 +838,7 @@ MemAllocArray(
     _In_ UINT32 elementSize
     )
 {
-    return HeapAllocArray(gHeap, numberOfElements, elementSize);
+    return HeapAllocArray( gHeap, numberOfElements, elementSize );
 }
 
 VOID
@@ -850,7 +846,7 @@ MemFree(
     _In_ PVOID memory
     )
 {
-    HeapFree(gHeap, memory);
+    HeapFree( gHeap, memory );
 }
 
 VOID
@@ -858,15 +854,15 @@ MemFreeSecure(
     _In_ PVOID memory
     )
 {
-    HeapFreeSecure(gHeap, memory);
+    HeapFreeSecure( gHeap, memory );
 }
 
 PHYSICAL_ADDRESS
 MemVirtualToPhysical(
-    _In_ PVOID virtualAddress
+    _In_ PVOID BaseAddress
     )
 {
-    return ArenaVirtualToPhysical(&gMemoryArena, virtualAddress);
+    return ArenaVirtualToPhysical( &gMemoryArena, BaseAddress );
 }
 
 PVOID
@@ -874,5 +870,5 @@ MemPhysicalToVirtual(
     _In_ PHYSICAL_ADDRESS physicalAddress
     )
 {
-    return ArenaPhysicalToVirtual(&gMemoryArena, physicalAddress);
+    return ArenaPhysicalToVirtual( &gMemoryArena, physicalAddress );
 }

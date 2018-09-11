@@ -146,13 +146,13 @@ ArenaDone(
 *  Translates to physical address a virtual address inside a given arena.
 *
 * @param arena [in] Arena structure.
-* @param virtualAddress [in] Address to obtains its physical counterpart.
+* @param BaseAddress [in] Address to obtains its physical counterpart.
 * @return Physical address os success, 0 otherwise.
 */
 PHYSICAL_ADDRESS
 ArenaVirtualToPhysical(
     _In_ PMEMORY_ARENA arena,
-    _In_ PVOID         virtualAddress
+    _In_ PVOID         BaseAddress
 );
 
 /**
@@ -264,12 +264,12 @@ MemFreeSecure(
 /**
 *  Translates to physical address a virtual address inside global arena.
 *
-* @param virtualAddress [in] Address to obtains its physical counterpart.
+* @param BaseAddress [in] Address to obtains its physical counterpart.
 * @return Physical address os success, 0 otherwise.
 */
 PHYSICAL_ADDRESS
 MemVirtualToPhysical(
-    _In_ PVOID virtualAddress
+    _In_ PVOID BaseAddress
 );
 
 /**

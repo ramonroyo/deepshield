@@ -1,5 +1,5 @@
 #include "wdk7.h"
-#include "hvds.h"
+#include "dshvm.h"
 #include "exits.h"
 #include "context.h"
 #include "hvm.h"
@@ -16,7 +16,7 @@ extern PGLOBAL_CONTEXT gGlobalContext;
 extern PLOCAL_CONTEXT  gLocalContexts;
 
 NTSTATUS
-DspFinalizeHvds(
+DsFinalizeHvm(
     VOID
     );
 
@@ -47,7 +47,7 @@ ConfigureLocalContextByVcpuId(
 }
 
 VOID
-DsConfigureHvds(
+DsHvmSetupVmcs(
     _In_ PHVM_VCPU Vcpu
     )
 {
@@ -98,7 +98,7 @@ DsConfigureHvds(
 }
 
 NTSTATUS
-DsIsHvdsSupported(
+DsIsHvmSupported(
     VOID
     )
 {
@@ -106,7 +106,7 @@ DsIsHvdsSupported(
 }
 
 NTSTATUS
-DspInitializeHvds(
+DsInitializeHvm(
     VOID
     )
 {
@@ -123,9 +123,7 @@ DspInitializeHvds(
         goto failure;
     }
 
-    Status = HvmInitialize( DS_VMM_STACK_PAGES, 
-                            DsHvdsExitHandler, 
-                            DsConfigureHvds );
+    Status = HvmInitialize( DS_VMM_STACK_PAGES, DsHvmExitHandler, DsHvmSetupVmcs );
 
     if (!NT_SUCCESS( Status )) {
         goto failure;
@@ -135,7 +133,7 @@ DspInitializeHvds(
         goto failure;
     }
 
-    if(!NT_SUCCESS( SmpExecuteOnAllProcessors( ConfigureLocalContextByVcpuId, 0 ))) {
+    if(!NT_SUCCESS( SmpExecuteOnAllProcessors( ConfigureLocalContextByVcpuId, NULL ))) {
         goto failure;
     }
 
@@ -148,12 +146,12 @@ DspInitializeHvds(
     return STATUS_SUCCESS;
 
 failure:
-    DspFinalizeHvds();
+    DsFinalizeHvm();
     return STATUS_UNSUCCESSFUL;
 }
 
 NTSTATUS
-DspFinalizeHvds(
+DsFinalizeHvm(
     VOID
     )
 {
@@ -179,11 +177,11 @@ DspFinalizeHvds(
 }
 
 NTSTATUS
-DsLoadHvds(
+DsLoadHvm(
     VOID
     )
 {
-    NTSTATUS Status = DspInitializeHvds();
+    NTSTATUS Status = DsInitializeHvm();
 
     if (NT_SUCCESS( Status )) {
 
@@ -202,7 +200,7 @@ DsLoadHvds(
             //
             //  Deallocate resources.
             //
-            DspFinalizeHvds();
+            DsFinalizeHvm();
         }
     }
 
@@ -210,21 +208,21 @@ DsLoadHvds(
 }
 
 NTSTATUS
-DsUnloadHvds(
+DsUnloadHvm(
     VOID
     )
 {
     NTSTATUS Status = HvmStop();
 
     if (NT_SUCCESS( Status )) {
-        DspFinalizeHvds();
+        DsFinalizeHvm();
     }
 
     return Status;
 }
 
 BOOLEAN
-DsIsHvdsRunning(
+DsIsHvmRunning(
     VOID
     )
 {

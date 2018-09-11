@@ -4,38 +4,6 @@
 #include "x86.h"
 #include "sync.h"
 
-/*
-typedef struct _REGISTERS
-{
-#ifdef _WIN64
-    UINT_PTR r15;
-    UINT_PTR r14;
-    UINT_PTR r13;
-    UINT_PTR r12;
-    UINT_PTR r11;
-    UINT_PTR r10;
-    UINT_PTR r9;
-    UINT_PTR r8;
-#endif
-    UINT_PTR rdi;
-    UINT_PTR rsi;
-    UINT_PTR rbp;
-    UINT_PTR rsp;
-    UINT_PTR rbx;
-    UINT_PTR rdx;
-    UINT_PTR rcx;
-    UINT_PTR rax;
-
-    UINT_PTR       rip;
-    FLAGS_REGISTER rflags;
-
-#ifdef _WIN64
-#ifndef FEATURE_OPTIMIZE_NOT_SAVING_FXSTATE
-    UINT8 fxarea[512];
-#endif
-#endif
-} REGISTERS, *PREGISTERS;*/
-
 typedef struct DECLSPEC_ALIGN(16) _REGISTERS
 {
     UINT_PTR rax;
@@ -134,13 +102,14 @@ typedef struct _HVM_LOGGED_EVENTS
 
 typedef struct _HVM_VCPU HVM_VCPU, *PHVM_VCPU;
 
-typedef VOID(*HVM_EXIT_HANDLER)(
+typedef 
+VOID(*PHVM_EXIT_HANDLER)(
     _In_ UINT32     exitReason,
     _In_ PHVM_VCPU  Vcpu,
     _In_ PREGISTERS regs
     );
 
-typedef VOID(*HVM_CONFIGURE)(
+typedef VOID(*PHVM_SETUP_VMCS)(
     _In_ PHVM_VCPU Vcpu
     );
 
@@ -151,20 +120,21 @@ typedef struct _HVM_VCPU
     //
     //  This field must be the first.
     //
-    REGISTERS guestRegisters;
-    UINT32 index;
-    PHVM hvm;
-    HOST_SAVED_STATE savedState;
-    PVOID vmxOn;
-    PVOID vmcs;
-    PVOID stack;
-    UINT_PTR rsp;
-    HVM_EXIT_HANDLER handler;
-    HVM_CONFIGURE configure;
-    PVOID localContext;
-
-    ATOMIC            launched;
-    HVM_LOGGED_EVENTS loggedEvents;
+    REGISTERS GuestRegisters;
+    UINT32 Index;
+    PHVM Hvm;
+    HOST_SAVED_STATE SavedState;
+    PVOID VmxOnRegionHva;
+    PVOID VmxOnRegionHpa;
+    PVOID VmcsRegionHva;
+    PVOID VmcsRegionHpa;
+    PVOID Stack;
+    UINT_PTR Rsp;
+    PHVM_EXIT_HANDLER ExitHandler;
+    PHVM_SETUP_VMCS SetupVmcs;
+    PVOID LocalContext;
+    ATOMIC Launched;
+    HVM_LOGGED_EVENTS LoggedEvents;
 } HVM_VCPU, *PHVM_VCPU;
 
 typedef struct _HVM
@@ -187,9 +157,9 @@ HvmLaunched(
 
 NTSTATUS
 HvmInitialize(
-    _In_  UINT32           stackPages,
-    _In_  HVM_EXIT_HANDLER handler,
-    _In_  HVM_CONFIGURE    configure
+    _In_ UINT32 StackPages,
+    _In_ PHVM_EXIT_HANDLER ExitHandlerCb,
+    _In_ PHVM_SETUP_VMCS SetupVmcsCb
 );
 
 VOID

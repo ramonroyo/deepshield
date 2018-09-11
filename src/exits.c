@@ -68,7 +68,7 @@ Cr4AccessEmulate(
         //
         //  Capture CR4 changes into the HVM Vcpu although is not being used.
         //
-        Vcpu->savedState.cr4 = Cr4;
+        Vcpu->SavedState.cr4 = Cr4;
 
         //
         //  Remove masked CR4 bits.
@@ -261,7 +261,7 @@ Unmap:
 //  at HIGH_LEVEL
 //
 VOID 
-DsHvdsExitHandler(
+DsHvmExitHandler(
     _In_ UINT32 exitReason,
     _In_ PHVM_VCPU Vcpu,
     _In_ PREGISTERS regs
@@ -304,7 +304,7 @@ DsHvdsExitHandler(
             if (InterruptInfo.u.f.vector == VECTOR_INVALID_OPCODE_EXCEPTION ||
                 InterruptInfo.u.f.vector == VECTOR_GENERAL_PROTECTION_EXCEPTION ) {
 
-                GeneralProtectionFaultEmulate( Vcpu->localContext, 
+                GeneralProtectionFaultEmulate( Vcpu->LocalContext, 
                                                regs, 
                                                InterruptInfo );
             }

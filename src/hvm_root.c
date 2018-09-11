@@ -23,7 +23,7 @@ HvmGetVcpuLocalContext(
         return 0;
     }
 
-    return Vcpu->localContext;
+    return Vcpu->LocalContext;
 }
 
 PVOID ROOT_MODE_API
@@ -35,7 +35,7 @@ HvmGetVcpuGlobalContext(
         return 0;
     }
 
-    return Vcpu->hvm->globalContext;
+    return Vcpu->Hvm->globalContext;
 }
 
 UINT32 ROOT_MODE_API
@@ -47,7 +47,7 @@ HvmGetVcpuId(
         return (UINT32)-1;
     }
 
-    return Vcpu->index;
+    return Vcpu->Index;
 }
 
 PHVM ROOT_MODE_API
@@ -59,7 +59,7 @@ HvmGetVcpuHvm(
         return 0;
     }
 
-    return Vcpu->hvm;
+    return Vcpu->Hvm;
 }
 
 PHOST_SAVED_STATE ROOT_MODE_API
@@ -71,7 +71,7 @@ HvmGetVcpuSavedState(
         return 0;
     }
 
-    return &Vcpu->savedState;
+    return &Vcpu->SavedState;
 }
 
 BOOLEAN ROOT_MODE_API
