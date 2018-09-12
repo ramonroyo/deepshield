@@ -651,7 +651,7 @@ ArenaInit(
 {
     NTSTATUS Status = STATUS_NO_MEMORY;
     PHYSICAL_ADDRESS LowAddress = { 0i64 };
-    PHYSICAL_ADDRESS HighAddress = { (ULONG) 0, MAXULONG32 };
+    PHYSICAL_ADDRESS HighAddress = { (ULONG) 0, MAXULONG };
     PHYSICAL_ADDRESS SkipBytes = { 0i64 };
     ULONG RequestBytes;
     ULONG MappingPriority = HighPagePriority;
