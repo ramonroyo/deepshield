@@ -112,6 +112,8 @@ HvmInitialize(
             goto failure;
         }
 
+        //TODO: get physicall address.
+
         gHvm->VcpuArray[i].Stack = MemAllocAligned( StackPages * PAGE_SIZE, PAGE_SIZE );
         if (!gHvm->VcpuArray[i].Stack) {
             goto failure;

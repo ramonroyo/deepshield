@@ -233,16 +233,16 @@ RoutineExit:
 
     if (!NT_SUCCESS( Status )) {
 
-        if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {
-
-            ClearFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
-            DsDeregisterPowerChangeCallback( gPowerRegistration );
-        }
-
         if (FlagOn( gStateFlags, DSH_GFL_SHIELD_INITIALIZED )) {
 
             ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
             DsFinalizeShield();
+        }
+
+        if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {
+
+            ClearFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
+            DsDeregisterPowerChangeCallback( gPowerRegistration );
         }
 
         if (SymbolicLink) {
@@ -284,6 +284,12 @@ DriverUnload(
 
         ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
         DsFinalizeShield();
+    }
+
+    if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {
+
+        ClearFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
+        DsDeregisterPowerChangeCallback( gPowerRegistration );
     }
 
     if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {

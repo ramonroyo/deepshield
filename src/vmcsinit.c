@@ -9,6 +9,14 @@ VMX_CAPABILITIES Capabilities;
 VMX_CONSTRAINS Constraints;
 VMX_VMCS_FIXED Fixed;
 
+
+/*
+ * VMCS Data Structure
+ */
+typedef struct {
+	UINT32	revision_identifier;
+    UINT32	abort_indicator;
+}  ia32_vmx_vmcs_t;
 /*
 FORCEINLINE
 ULONG
@@ -28,6 +36,9 @@ GetVmcsMemoryType(
     NT_ASSERT( FALSE );
     return 1;
 }*/
+
+#define VMCS_ABOVE_4G_SUPPORTED                           \
+	(Capabilities.Basic.Bits.physicalAddressWidth  != 1)  \
 
 VOID
 VmcsInitializeContext(
