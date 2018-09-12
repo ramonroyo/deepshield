@@ -4,11 +4,11 @@
 #include "context.h"
 #include "hvm.h"
 #include "vmcs.h"
-#include "vmcsinit.h"
 #include "vmx.h"
 #include "mem.h"
 #include "mmu.h"
 #include "smp.h"
+#include "vmcsinit.h"
 
 #define DS_VMM_STACK_PAGES 3
 

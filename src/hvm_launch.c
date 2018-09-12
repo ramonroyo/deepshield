@@ -130,13 +130,13 @@ VmxpEnable(
 
 VOID
 VmxpDisable(
-    PVOID VmcsHva
+    _In_ PHYSICAL_ADDRESS VmcsHpa
     )
 {
     CR4_REGISTER cr4;
     BOOLEAN ClearResult;
 
-    ClearResult = VmcsClear( VmcsHva );
+    ClearResult = VmcsClear( VmcsHpa );
     NT_ASSERT( ClearResult );
 
     VmxOff();
@@ -186,7 +186,6 @@ HvmpEnterRoot(
     BasicVmx.AsUint64 = VmxCapability( IA32_VMX_BASIC );
 
     *(PUINT32) Vcpu->VmxOnRegionHva = BasicVmx.Bits.revisionId;
-    *(PUINT32) Vcpu->VmcsRegionHva = BasicVmx.Bits.revisionId;
 
     HvmpSaveHostState( &Vcpu->SavedState );
 
@@ -196,11 +195,11 @@ HvmpEnterRoot(
         return Status;
     }
 
-    if (!VmcsClear( Vcpu->VmcsRegionHva )) {
+    if (!VmcsClear( Vcpu->VmcsRegionHpa )) {
         goto RoutineExit;
     }
 
-    if (!VmcsLoad( Vcpu->VmcsRegionHva )) {
+    if (!VmcsLoad( Vcpu->VmcsRegionHpa )) {
         goto RoutineExit;
     }
 
@@ -218,7 +217,7 @@ HvmpEnterRoot(
 RoutineExit:
 
     if (!NT_SUCCESS( Status )) {
-        VmxpDisable( Vcpu->VmcsRegionHva );
+        VmxpDisable( Vcpu->VmcsRegionHpa );
     }
     
     return Status;
@@ -255,7 +254,7 @@ HvmpStartFailure(
     AtomicWrite( &Vcpu->Launched, FALSE );
     status = HvmpFailure( Vcpu, valid );
     
-    VmxpDisable( Vcpu->VmcsRegionHva );
+    VmxpDisable( Vcpu->VmcsRegionHpa );
 
     return status;
 }
@@ -343,7 +342,7 @@ HvmpStop(
     //
     //  This deactivates VMX operation in the processor.
     //
-    VmxpDisable( Vcpu->VmcsRegionHva );
+    VmxpDisable( Vcpu->VmcsRegionHpa );
 
     //
     //  Restore registers and return from the interrupt.

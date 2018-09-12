@@ -3,26 +3,21 @@
 #include "vmx.h"
 #include "mmu.h"
 
+
 BOOLEAN
 VmcsClear(
-    _In_ PVOID vmcs
+    _In_ PHYSICAL_ADDRESS VmcsHpa
     )
 {
-    PHYSICAL_ADDRESS vmcsPhysical;
-
-    vmcsPhysical = MmuGetPhysicalAddress(0, vmcs);
-    return VmxVmClear((unsigned __int64*)&vmcsPhysical) == 0;
+    return VmxVmClear((UINT64*)&VmcsHpa) == 0;
 }
 
 BOOLEAN
 VmcsLoad(
-    _In_ PVOID vmcs
+    _In_ PHYSICAL_ADDRESS VmcsHpa
     )
 {
-    PHYSICAL_ADDRESS vmcsPhysical;
-
-    vmcsPhysical = MmuGetPhysicalAddress(0, vmcs);
-    return VmxVmPtrLd((unsigned __int64*)&vmcsPhysical) == 0;
+    return VmxVmPtrLd((UINT64*)&VmcsHpa ) == 0;
 }
 
 #define LOW32(v)  ((UINT32)(v))
@@ -150,7 +145,9 @@ VmcsConfigureCommonHost(
     VmxVmcsWrite16(      HOST_TR_SELECTOR,                             __str() & 0xFFFC);
     VmxVmcsWritePlatform(HOST_TR_BASE,                                 DescriptorBase(__str()));
 
-    //TODO: check if this is possible.
+    //
+    //  TODO: check if this is possible.
+    //
     VmxVmcsWrite32(      HOST_IA32_SYSENTER_CS,                        (UINT32)  __readmsr(IA32_SYSENTER_CS));
     VmxVmcsWritePlatform(HOST_IA32_SYSENTER_ESP,                       (UINT_PTR)__readmsr(IA32_SYSENTER_ESP));
     VmxVmcsWritePlatform(HOST_IA32_SYSENTER_EIP,                       (UINT_PTR)__readmsr(IA32_SYSENTER_EIP));
@@ -212,6 +209,17 @@ VmcsConfigureCommonControl(
     VmxVmcsWrite32( VM_EXIT_MSR_LOAD_COUNT, 0 );
     VmxVmcsWrite32( VM_ENTRY_MSR_LOAD_COUNT, 0 );
 
+    //
+    //  XSAVES causes a VM exit if any bit is set in the logical-AND of the
+    //  following three values: EDX:EAX, the IA32_XSS MSR, and the XSS-exiting
+    //  bitmap.
+    //
+    // TODO: VmxVmcsWrite64(      XSS_EXITING_BITMAP,                    X);
+    //
+    //  Activate VMCS shadow:
+    //  TODO: VmxVmcsWrite64(      VMREAD_BITMAP_ADDRESS,                X);
+    //  TODO: VmxVmcsWrite64(      VMWRITE_BITMAP_ADDRESS,               X);
+
 
     //VmxVmcsWrite32(      EXCEPTION_BITMAP,                             X);
     //VmxVmcsWrite32(      PAGE_FAULT_ERRORCODE_MASK,                    X);
@@ -239,13 +247,10 @@ VmcsConfigureCommonControl(
     //VmxVmcsWrite32(      PLE_WINDOW,                                   X);
     //VmxVmcsWrite64(      VM_FUNCTION_CONTROLS,                         X);
     //VmxVmcsWrite64(      EPTP_LIST_ADDRESS,                            X);
-    //VmxVmcsWrite64(      VMREAD_BITMAP_ADDRESS,                        X);
-    //VmxVmcsWrite64(      VMWRITE_BITMAP_ADDRESS,                       X);
     //VmxVmcsWrite64(      ENCLS_EXITING_BITMAP_ADDRESS,                 X);
     //VmxVmcsWrite64(      PML_ADDRESS,                                  X);
     //VmxVmcsWrite64(      VIRTUALIZATION_EXCEPTION_INFORMATION_ADDRESS, X);
     //VmxVmcsWrite16(      EPTP_INDEX,                                   X);
-    //VmxVmcsWrite64(      XSS_EXITING_BITMAP,                           X);
     //VmxVmcsWrite64(      VM_EXIT_MSR_STORE_ADDRESS,                    X);
     //VmxVmcsWrite64(      VM_EXIT_MSR_LOAD_ADDRESS,                     X);
     //VmxVmcsWrite32(      VM_ENTRY_MSR_LOAD_COUNT,                      X);

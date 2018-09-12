@@ -651,7 +651,7 @@ ArenaInit(
 {
     NTSTATUS Status = STATUS_NO_MEMORY;
     PHYSICAL_ADDRESS LowAddress = { 0i64 };
-    PHYSICAL_ADDRESS HighAddress = { (ULONG) 0, MAXULONG };
+    PHYSICAL_ADDRESS HighAddress = { 0i64 };
     PHYSICAL_ADDRESS SkipBytes = { 0i64 };
     ULONG RequestBytes;
     ULONG MappingPriority = HighPagePriority;
@@ -667,10 +667,6 @@ ArenaInit(
         Flags |= MM_ALLOCATE_FULLY_REQUIRED | MM_ALLOCATE_PREFER_CONTIGUOUS;
     }
 
-    //
-    //  Limit HighAddress to 4G as some CPU doesn't support the VMCS above it.
-    //
-
     Arena->Mdl = MmAllocatePagesForMdlEx( LowAddress,
                                           HighAddress,
                                           SkipBytes,
@@ -682,6 +678,11 @@ ArenaInit(
         MappingPriority |= MdlMappingNoExecute;
     }
 #else
+    //
+    //  Limit HighAddress to 4GB as some CPU doesn't support the VMCS above it.
+    //
+    HighAddress.LowPart = MAXULONG;
+
     Arena->Mdl = MmAllocatePagesForMdl( LowAddress, HighAddress, SkipBytes, RequestBytes );
 #endif
 

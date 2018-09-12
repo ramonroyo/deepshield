@@ -19,6 +19,7 @@
 #include "smp.h"
 #include "os.h"
 #include "vmx.h"
+#include "vmcsinit.h"
 
 #pragma warning(disable:4201)   // nameless struct/union
 

@@ -3,6 +3,7 @@
 #include "vmx.h"
 #include "mem.h"
 #include "smp.h"
+#include "vmcsinit.h"
 
 PHVM gHvm = 0;
 
@@ -107,12 +108,15 @@ HvmInitialize(
             goto failure;
         }
 
-        gHvm->VcpuArray[i].VmcsRegionHva = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+        MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+
+        gHvm->VcpuArray[i].VmcsRegionHva = VmcsAllocateRegion( VMCS_REGION_SIZE );
         if (!gHvm->VcpuArray[i].VmcsRegionHva) {
             goto failure;
         }
 
-        //TODO: get physicall address.
+        gHvm->VcpuArray[i].VmcsRegionHpa = 
+            MmGetPhysicalAddress( gHvm->VcpuArray[ i ].VmcsRegionHva );
 
         gHvm->VcpuArray[i].Stack = MemAllocAligned( StackPages * PAGE_SIZE, PAGE_SIZE );
         if (!gHvm->VcpuArray[i].Stack) {

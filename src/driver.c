@@ -80,6 +80,9 @@ ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
 UNICODE_STRING gDriverKeyName;
+VMX_CAPABILITIES Capabilities;
+VMX_CONSTRAINS Constraints;
+VMX_VMCS_FIXED Fixed;
 
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
 DS_VMX_STATE gVmxState;
@@ -490,11 +493,6 @@ DsCheckCpuFamilyIntel(
            CPUID_VALUE_EDX( CpuInfo ) == 'Ieni' &&
            CPUID_VALUE_EBX( CpuInfo ) == 'uneG';
 }
-
-//
-//  VMX capabilities are declared in bit 5 of ECX retured from CPUID
-//
-#define IA32_CPUID_ECX_VMX                  0x20
 
 BOOLEAN
 DsCheckCpuVmxCapable(

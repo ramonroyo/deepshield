@@ -296,7 +296,7 @@ DsHvmExitHandler(
             break;
         }
 
-        case EXIT_REASON_EXCEPTION_OR_NMI:
+        case EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI:
         {
             INTERRUPT_INFORMATION InterruptInfo;
             InterruptInfo.u.raw = VmxVmcsRead32( EXIT_INTERRUPTION_INFORMATION );

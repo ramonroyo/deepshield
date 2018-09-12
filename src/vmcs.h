@@ -5,12 +5,12 @@
 
 BOOLEAN
 VmcsClear(
-    _In_ PVOID vmcs
+    _In_ PHYSICAL_ADDRESS VmcsHpa
 );
 
 BOOLEAN
 VmcsLoad(
-    _In_ PVOID vmcs
+    _In_ PHYSICAL_ADDRESS VmcsHpa
 );
 
 VOID

@@ -125,9 +125,9 @@ typedef struct _HVM_VCPU
     PHVM Hvm;
     HOST_SAVED_STATE SavedState;
     PVOID VmxOnRegionHva;
-    PVOID VmxOnRegionHpa;
+    PHYSICAL_ADDRESS VmxOnRegionHpa;
     PVOID VmcsRegionHva;
-    PVOID VmcsRegionHpa;
+    PHYSICAL_ADDRESS VmcsRegionHpa;
     PVOID Stack;
     UINT_PTR Rsp;
     PHVM_EXIT_HANDLER ExitHandler;
