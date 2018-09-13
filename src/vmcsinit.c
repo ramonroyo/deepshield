@@ -83,8 +83,8 @@ VmcsInitializeContext(
 
     Capabilities.cr0Maybe0.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
     Capabilities.cr0Maybe1.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
-    Capabilities.cr4Maybe0.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
-    Capabilities.cr4Maybe1.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
+    Capabilities.cr4Maybe0.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
+    Capabilities.cr4Maybe1.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
 
 
     Constraints.PinBasedControlsMaybe1.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
@@ -100,8 +100,8 @@ VmcsInitializeContext(
 
     Constraints.cr0Maybe1.u.raw = Capabilities.cr0Maybe1.u.raw;
     Constraints.cr0Maybe0.u.raw = Capabilities.cr0Maybe0.u.raw;
-    Constraints.cr4Maybe1.u.raw = Capabilities.cr4Maybe1.u.raw;
-    Constraints.cr4Maybe0.u.raw = Capabilities.cr4Maybe0.u.raw;
+    Constraints.cr4Maybe1.AsUintN = Capabilities.cr4Maybe1.AsUintN;
+    Constraints.cr4Maybe0.AsUintN = Capabilities.cr4Maybe0.AsUintN;
 
     Constraints.VmcsRevision = Capabilities.Basic.Bits.revisionId;
     Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.numberOfCr3TargetValues;
@@ -152,10 +152,8 @@ VmcsInitializeContext(
     }
     Fixed.cr0Fixed0.u.raw = Constraints.cr0Maybe0.u.raw | Constraints.cr0Maybe1.u.raw;
 
-    Fixed.cr4Fixed1.u.raw = Constraints.cr4Maybe0.u.raw & Constraints.cr4Maybe1.u.raw;
-    Fixed.cr4Fixed0.u.raw = Constraints.cr4Maybe0.u.raw | Constraints.cr4Maybe1.u.raw;
-
-    //MON_DEBUG_CODE(print_vmx_capabilities());
+    Fixed.cr4Fixed1.AsUintN = Constraints.cr4Maybe0.AsUintN & Constraints.cr4Maybe1.AsUintN;
+    Fixed.cr4Fixed0.AsUintN = Constraints.cr4Maybe0.AsUintN | Constraints.cr4Maybe1.AsUintN;
 }
 
 PVOID

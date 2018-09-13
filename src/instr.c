@@ -8,9 +8,9 @@
 #define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
 
 PUINT_PTR
-LookupGpr(
-    _In_ PREGISTERS regs,
-    _In_ UINT8      gpr
+LookupGp(
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINT32     gpr
 )
 {
 #ifndef _WIN64
@@ -18,82 +18,132 @@ LookupGpr(
 #endif
 
     //
-    //  TODO: use new REGISTERS for 32-bits build.
+    //  TODO: use new GP_REGISTERS for 32-bits build.
     //
-    return (PUINT_PTR)regs + gpr;
+    return (PUINT_PTR)Registers + gpr;
 }
 
 VOID
 InstrInvdEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
-    UNREFERENCED_PARAMETER(regs);
+    UNREFERENCED_PARAMETER(Registers);
     __wbinvd();
 }
 
+/*
+BOOLEAN
+IsXStateSupported(
+    VOID
+    )
+{
+    UINT32  Eax;
+    UINT32  Ebx;
+    UINT32  Ecx;
+    UINT32  Edx;
+
+    AsmCpuid( CPUID_FEATURE_INFORMATION,
+              &Eax,
+              &Ebx,
+              &Ecx,
+              &Edx
+    );
+
+    if ((Ecx & BIT26) == 0) {
+        return FALSE;
+    }
+    else {
+        return TRUE;
+    }
+}
+
+//
+//  This function return if processor enable XState.
+//
+BOOLEAN
+IsXStateEnabled(
+    VOID
+    )
+{
+    if ((AsmReadCr4 () & CR4_OSXSAVE) != 0) {
+        return TRUE;
+
+    } else {
+        return FALSE;
+    }
+}*/
+
 VOID
 InstrXsetbvEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
 #ifdef _WIN64
-    __xsetbv((UINT32)regs->rcx, regs->rdx << 32 | (UINT32)regs->rax);
+
+    /*
+    if (IsXStateSupoprted()) {
+        AsmWriteCr4(AsmReadCr4() | CR4_OSXSAVE);
+    }*/
+
+    __xsetbv((UINT32)Registers->rcx, Registers->rdx << 32 | (UINT32)Registers->rax);
+
 #else
-    UNREFERENCED_PARAMETER(regs);
+    UNREFERENCED_PARAMETER(Registers);
 #endif
 }
 
 VOID
 InstrInvVpidEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
     VPID_CTX ctx = { 0 };
 
-    UNREFERENCED_PARAMETER(regs);
+    UNREFERENCED_PARAMETER(Registers);
     VmxInvVpid( INV_ALL_CONTEXTS, &ctx );
 }
 
 VOID
 InstrCpuidEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 )
 {
-    int cpuRegs[4] = { 0 };
+    INT32 CpuRegs[4] = { 0 };
 
-    //__cpuid(cpuRegs, (int)regs->rax);
-    __cpuidex( (int*)cpuRegs, (int) regs->rax, (int) regs->rcx );
+    __cpuidex( (INT32*)CpuRegs,
+               (INT32)Registers->rax & 0xFFFFFFFF,
+               (INT32)Registers->rcx & 0xFFFFFFFF );
 
-    regs->rax = (UINT_PTR) cpuRegs[0];
-    regs->rbx = (UINT_PTR) cpuRegs[1];
-    regs->rcx = (UINT_PTR) cpuRegs[2];
-    regs->rdx = (UINT_PTR) cpuRegs[3];
+    Registers->rax = (UINT_PTR)CpuRegs[0];
+    Registers->rbx = (UINT_PTR)CpuRegs[1];
+    Registers->rcx = (UINT_PTR)CpuRegs[2];
+    Registers->rdx = (UINT_PTR)CpuRegs[3];
 }
 
 VOID
 InstrMsrReadEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 )
 {
     UINT64 value;
 
-    value = __readmsr(LOW32(regs->rcx));
+    value = __readmsr(LOW32(Registers->rcx));
 
-    regs->rax = (UINT_PTR) LOW32(value);
-    regs->rdx = (UINT_PTR) HIGH32(value);
+    Registers->rax = (UINT_PTR) LOW32(value);
+    Registers->rdx = (UINT_PTR) HIGH32(value);
 }
 
 VOID
 InstrMsrWriteEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 )
 {
     UINT64 value;
 
-    value = (((UINT64)LOW32(regs->rdx)) << 32) | LOW32(regs->rax);
+    value = (((UINT64)LOW32(Registers->rdx)) << 32) | LOW32(Registers->rax);
 
-    __writemsr(LOW32(regs->rcx), value);
+    __writemsr( LOW32(Registers->rcx), value );
 }
 
 VOID
@@ -105,73 +155,63 @@ InstrInvlpgEmulate(
 }
 
 VOID
-InstrCrEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
-)
+InstrCr4Emulate(
+    _In_ EXIT_QUALIFICATION_CR Qualification,
+    _Inout_ PGP_REGISTERS Registers,
+    _Inout_ PHVM_VCPU Vcpu
+    )
 {
-    PUINT_PTR             gpr;
-    EXIT_QUALIFICATION_CR data;
+    CR4_REGISTER Cr4;
+    PUINT_PTR Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
+    INT32 AccessType = Qualification.CrAccess.AccessType;
 
-    data.u.raw = exitQualification;
+    if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
 
-    gpr = LookupGpr(regs, (UINT8)data.u.cr.moveGpr);
+        Cr4.AsUintN = *Gp;
 
-    if (data.u.cr.accessType == CR_ACCESS_TYPE_MOV_FROM_CR)
-    {
-        switch(data.u.cr.number)
-        {
-            case 3: *gpr = VmxVmcsReadPlatform(GUEST_CR3); break;
-            case 8: *gpr = readcr(data.u.cr.number);       break;
-        }
+        //
+        //  Save CR4 changes into the Vcpu although it is not used.
+        //
+        Vcpu->SavedState.cr4 = Cr4;
+
+        //
+        //  Remove host owned and force fixed 0 and fixed 1 bits.
+        // 
+        Cr4.AsUintN &= ~VmxReadPlatform( CR4_GUEST_HOST_MASK );
+        Cr4.AsUintN |= (UINT_PTR)(__readmsr(IA32_VMX_CR4_FIXED0) 
+                                & __readmsr(IA32_VMX_CR4_FIXED1));
+
+        VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
     }
-    else if (data.u.cr.accessType == CR_ACCESS_TYPE_MOV_TO_CR)
-    {
-        switch(data.u.cr.number)
-        {
-            case 3: VmxVmcsWritePlatform(GUEST_CR3, *gpr); break;
-            case 8: writecr(data.u.cr.number, *gpr);       break;
-        }
+    else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType ) {
+        *Gp = VmxReadPlatform( GUEST_CR4 );
     }
+}
 
-#ifndef _WIN64
-    if ((data.u.cr.accessType == CR_ACCESS_TYPE_MOV_TO_CR) &&
-        (data.u.cr.number == 3)                            &&
-        (VmxVmcsReadPlatform(GUEST_CR4) & CR4_PAE_ENABLED))
-    {
-        VMX_PROC_SECONDARY_CTLS ctls;
+VOID
+InstrCr3Emulate(
+    _In_ EXIT_QUALIFICATION_CR Qualification,
+    _Inout_ PGP_REGISTERS Registers
+    )
+{
+    PUINT_PTR Gp;
+    UINT32 AccessType = Qualification.CrAccess.AccessType;
+   
+    Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
 
-        ctls.AsUint32 = VmxVmcsRead32(VM_EXEC_CONTROLS_PROC_SECONDARY);
-
-        if(ctls.Bits.enableEpt)
-        {
-            PHYSICAL_ADDRESS cr3;
-            PVOID            page;
-            PUINT64          pdptes;
-
-            cr3.HighPart = 0;
-            cr3.LowPart  = *gpr;
-
-            page = MmuMap(cr3);
-
-            pdptes = (PUINT64)((UINT_PTR)page + ((*gpr) & 0xFF0));
-
-            VmxVmcsWrite64(GUEST_PDPTE_0, pdptes[0]);
-            VmxVmcsWrite64(GUEST_PDPTE_1, pdptes[1]);
-            VmxVmcsWrite64(GUEST_PDPTE_2, pdptes[2]);
-            VmxVmcsWrite64(GUEST_PDPTE_3, pdptes[3]);
-
-            MmuUnmap(page);
-        }
+    if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
+        VmxWritePlatform( GUEST_CR3, *Gp );
     }
-#endif
+    else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType) {
+        *Gp = VmxReadPlatform( GUEST_CR3 );
+    }
 }
 
 /*
 VOID
 InstrDrEmulate(
     _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 )
 {
     PUINT_PTR             gpr;
@@ -179,7 +219,7 @@ InstrDrEmulate(
 
     data.u.raw = exitQualification;
 
-    gpr = LookupGpr(regs, (UINT8)data.u.f.gpr);
+    gpr = LookupGp(Registers, (UINT8)data.u.f.gpr);
 
     if (data.u.f.accessType == DR_ACCESS_TYPE_MOV_FROM_DR)
     {
@@ -195,7 +235,7 @@ InstrDrEmulate(
 VOID
 InstrIoEmulate(
     _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 )
 {
     EXIT_QUALIFICATION_IO data;
@@ -208,9 +248,9 @@ InstrIoEmulate(
         {
             switch (data.u.f.size)
             {
-            case 1: __inbytestring ((USHORT)data.u.f.port, (PUCHAR) regs->rdi, (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
-            case 2: __inwordstring ((USHORT)data.u.f.port, (PUSHORT)regs->rdi, (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
-            case 4: __indwordstring((USHORT)data.u.f.port, (PULONG)regs->rdi,  (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
+            case 1: __inbytestring ((USHORT)data.u.f.port, (PUCHAR) Registers->rdi, (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
+            case 2: __inwordstring ((USHORT)data.u.f.port, (PUSHORT)Registers->rdi, (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
+            case 4: __indwordstring((USHORT)data.u.f.port, (PULONG)Registers->rdi,  (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
             }
         }
         else
@@ -218,13 +258,13 @@ InstrIoEmulate(
             switch (data.u.f.size)
             {
 #ifndef _WIN64
-            case 1: regs->rax = (regs->rax & 0xFFFFFF00) | __inbyte (data.u.f.port);
-            case 2: regs->rax = (regs->rax & 0xFFFF0000) | __inword (data.u.f.port);
-            case 4: regs->rax =                            __indword(data.u.f.port);
+            case 1: Registers->rax = (Registers->rax & 0xFFFFFF00) | __inbyte (data.u.f.port);
+            case 2: Registers->rax = (Registers->rax & 0xFFFF0000) | __inword (data.u.f.port);
+            case 4: Registers->rax =                            __indword(data.u.f.port);
 #else
-            case 1: regs->rax = (regs->rax & 0xFFFFFFFFFFFFFF00) | __inbyte ((USHORT)data.u.f.port);
-            case 2: regs->rax = (regs->rax & 0xFFFFFFFFFFFF0000) | __inword ((USHORT)data.u.f.port);
-            case 4: regs->rax = (regs->rax & 0xFFFFFFFF00000000) | __indword((USHORT)data.u.f.port);
+            case 1: Registers->rax = (Registers->rax & 0xFFFFFFFFFFFFFF00) | __inbyte ((USHORT)data.u.f.port);
+            case 2: Registers->rax = (Registers->rax & 0xFFFFFFFFFFFF0000) | __inword ((USHORT)data.u.f.port);
+            case 4: Registers->rax = (Registers->rax & 0xFFFFFFFF00000000) | __indword((USHORT)data.u.f.port);
 #endif
             }
         }
@@ -235,18 +275,18 @@ InstrIoEmulate(
         {
             switch (data.u.f.size)
             {
-            case 1: __outbytestring ((USHORT)data.u.f.port, (PUCHAR) regs->rsi, (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
-            case 2: __outwordstring ((USHORT)data.u.f.port, (PUSHORT)regs->rsi, (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
-            case 4: __outdwordstring((USHORT)data.u.f.port, (PULONG) regs->rsi, (ULONG)(data.u.f.hasRepPrefix ? regs->rcx : 1)); break;
+            case 1: __outbytestring ((USHORT)data.u.f.port, (PUCHAR) Registers->rsi, (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
+            case 2: __outwordstring ((USHORT)data.u.f.port, (PUSHORT)Registers->rsi, (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
+            case 4: __outdwordstring((USHORT)data.u.f.port, (PULONG) Registers->rsi, (ULONG)(data.u.f.hasRepPrefix ? Registers->rcx : 1)); break;
             }
         }
         else
         {
             switch (data.u.f.size)
             {
-            case 1: __outbyte ((USHORT)data.u.f.port, (UCHAR) regs->rax);  break;
-            case 2: __outword ((USHORT)data.u.f.port, (USHORT)regs->rax); break;
-            case 4: __outdword((USHORT)data.u.f.port, (ULONG) regs->rax); break;
+            case 1: __outbyte ((USHORT)data.u.f.port, (UCHAR) Registers->rax);  break;
+            case 2: __outword ((USHORT)data.u.f.port, (USHORT)Registers->rax); break;
+            case 4: __outdword((USHORT)data.u.f.port, (ULONG) Registers->rax); break;
             }
         }
     }
@@ -254,7 +294,7 @@ InstrIoEmulate(
 
 BOOLEAN 
 IsSingleStep(
-    _In_ PREGISTERS Regs
+    _In_ PGP_REGISTERS Regs
     )
 {
     return Regs->rflags.u.f.tf == TRUE;
@@ -262,31 +302,31 @@ IsSingleStep(
 
 VOID 
 InjectInt1(
-    _In_ PREGISTERS Regs
+    _In_ PGP_REGISTERS Regs
     )
 {
-    INTERRUPT_INFORMATION Int1 = { 0 };
+    VMX_EXIT_INTERRUPT_INFO Int1 = { 0 };
 
-    Int1.u.f.valid = 1;
-    Int1.u.f.vector = 1;
-    Int1.u.f.type = INTERRUPT_TYPE_HARDWARE_EXCEPTION;
-
+    Int1.Bits.InterruptType = INTERRUPT_TYPE_HARDWARE_EXCEPTION;
+    Int1.Bits.Valid = 1;
+    Int1.Bits.Vector = VECTOR_DEBUG_EXCEPTION;
+    
     //
-    // Clear trap flag
+    //  Clear trap flag.
     //
     Regs->rflags.u.f.tf = 0;
 
-    VmxVmcsWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, Int1.u.raw);
+    VmxWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, Int1.AsUint32);
 }
 
 VOID
 InstrRipAdvance(
-    _In_ PREGISTERS Regs
+    _In_ PGP_REGISTERS Regs
     )
 {
     UINT32 InstructionLength;
 
-    InstructionLength = VmxVmcsRead32(EXIT_INSTRUCTION_LENGTH);
+    InstructionLength = VmxRead32(EXIT_INSTRUCTION_LENGTH);
 
     Regs->rip += InstructionLength;
 

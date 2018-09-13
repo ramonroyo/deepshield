@@ -97,17 +97,17 @@ VmxpCheckSupport(
     VOID
 )
 {
-    int regs[4] = { 0 };
+    int Registers[4] = { 0 };
 
     //
     // Checking the CPUID on each logical processor to ensure VMX is supported and that the overall feature set of each logical processor is compatible.
     //
-    __cpuid(regs, 1);
+    __cpuid(Registers, 1);
 
     //
     // Check ECX[5] = 1
     //
-    if (!(regs[2] & (1 << 5)))
+    if (!(Registers[2] & (1 << 5)))
         return STATUS_VMX_NOT_SUPPORTED;
 
     //
@@ -218,14 +218,14 @@ VmxIsIntel(
     VOID
 )
 {
-    int regs[4] = { 0 };
+    int Registers[4] = { 0 };
 
-    __cpuid(regs, 0);
+    __cpuid(Registers, 0);
 
     //
     // GenuineIntel
     //
-    return regs[2] == 'letn' && regs[3] == 'Ieni' && regs[1] == 'uneG';
+    return Registers[2] == 'letn' && Registers[3] == 'Ieni' && Registers[1] == 'uneG';
 }
 
 
@@ -312,7 +312,7 @@ VmxAllowed(
 
 
 UINT16
-VmxVmcsRead16(
+VmxRead16(
     _In_ UINT32 field
 )
 {
@@ -329,7 +329,7 @@ VmxVmcsRead16(
 }
 
 UINT32
-VmxVmcsRead32(
+VmxRead32(
     _In_ UINT32 field
 )
 {
@@ -346,7 +346,7 @@ VmxVmcsRead32(
 }
 
 UINT64
-VmxVmcsRead64(
+VmxRead64(
     _In_ UINT32 field
 )
 {
@@ -382,7 +382,7 @@ VmxVmcsRead64(
 }
 
 UINT_PTR
-VmxVmcsReadPlatform(
+VmxReadPlatform(
     _In_ UINT32 field
 )
 {
@@ -400,7 +400,7 @@ VmxVmcsReadPlatform(
 
 
 BOOLEAN
-VmxVmcsWrite16(
+VmxWrite16(
     _In_ UINT32 field,
     _In_ UINT16 data
 )
@@ -471,7 +471,7 @@ VmxpNormalizeControls(
 }
 
 BOOLEAN
-VmxVmcsWrite32(
+VmxWrite32(
     _In_ UINT32 field,
     _In_ UINT32 data
 )
@@ -488,7 +488,7 @@ VmxVmcsWrite32(
 }
 
 BOOLEAN
-VmxVmcsWrite64(
+VmxWrite64(
     _In_ UINT32 field,
     _In_ UINT64 data
 )
@@ -517,7 +517,7 @@ VmxVmcsWrite64(
 }
 
 BOOLEAN
-VmxVmcsWritePlatform(
+VmxWritePlatform(
     _In_ UINT32   field,
     _In_ UINT_PTR data
 )
@@ -548,7 +548,7 @@ VmxInvEpt(
 
 BOOLEAN 
 IsErrorCodeRequired( 
-    _In_ VECTOR_EXCEPTION Vector
+    _In_ VMX_VECTOR_EXCEPTION Vector
     )
 {
     switch (Vector) {
@@ -572,43 +572,69 @@ InjectUndefinedOpcodeException(
     VOID
     )
 {
-    INTERRUPT_INFORMATION InterruptInfo = { 0 };
+    VMX_EXIT_INTERRUPT_INFO InterruptInfo = { 0 };
 
-    InterruptInfo.u.f.valid = 1;
-    InterruptInfo.u.f.vector = VECTOR_INVALID_OPCODE_EXCEPTION;
-    InterruptInfo.u.f.type = INTERRUPT_HARDWARE_EXCEPTION;
-    InterruptInfo.u.f.deliverCode = 0;
+    InterruptInfo.Bits.Vector = VECTOR_INVALID_OPCODE_EXCEPTION;
+    InterruptInfo.Bits.InterruptType = INTERRUPT_HARDWARE_EXCEPTION;
+    InterruptInfo.Bits.ErrorCodeValid = 0;
+    InterruptInfo.Bits.Valid = 1;
 
     InjectHardwareException( InterruptInfo );
 }
 
 VOID
 InjectHardwareException(
-    _In_ INTERRUPT_INFORMATION InterruptInfo
+    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
-    VECTOR_EXCEPTION Vector = InterruptInfo.u.f.vector;
+    VMX_VECTOR_EXCEPTION Vector = InterruptInfo.Bits.Vector;
 
-    NT_ASSERT( InterruptInfo.u.f.type == INTERRUPT_HARDWARE_EXCEPTION );
+    NT_ASSERT( InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION );
 
-    if (ExceptionType[Vector] & EXCEPTION_ERROR_CODE_VALID) {
+    if (InterruptInfo.Bits.ErrorCodeValid) {
 
-        NT_ASSERT( TRUE == InterruptInfo.u.f.deliverCode );
+        NT_ASSERT( ExceptionType[Vector] & EXCEPTION_ERROR_CODE_VALID );
         NT_ASSERT( IsErrorCodeRequired( Vector ) );
 
-        VmxVmcsWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
-                        VmxVmcsRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+        VmxWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
+                        VmxRead32( EXIT_INTERRUPTION_ERRORCODE ) );
     }
 
-    VmxVmcsWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
+    VmxWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
                     VMX_INT_INFO_VALID
                     | (ExceptionType[ Vector ] << 8) | Vector );
 
-    //
-    //  Writing the instruction length field is only for software interrupts.
-    //
-    //  UINT32 InsLength = VmxVmcsRead32( EXIT_INSTRUCTION_LENGTH );
-    //  if (InsLength > 0) {
-    //    VmxVmcsWrite32( VM_ENTRY_INSTRUCTION_LENGTH, InsLength );
-    //  }
+    VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
+}
+
+VOID
+InjectInterruptOrException(
+    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
+    )
+{
+    UINT32 InterruptType = InterruptInfo.Bits.InterruptType;
+    VM_ENTRY_CONTROL_INTERRUPT InterruptControl;
+
+    InterruptControl.Bits.Vector = InterruptInfo.Bits.Vector;
+    InterruptControl.Bits.InterruptType = InterruptInfo.Bits.InterruptType;
+    InterruptControl.Bits.DeliverErrorCode = InterruptInfo.Bits.ErrorCodeValid;
+    InterruptControl.Bits.Valid = InterruptInfo.Bits.Valid;
+
+    if (InterruptControl.Bits.DeliverErrorCode) {
+        VmxWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
+                    VmxRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+    }
+     
+    VmxWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, InterruptControl.AsUint32 );
+
+    if ((InterruptType == INTERRUPT_SOFTWARE_INTERRUPT) ||
+        (InterruptType == INTERRUPT_PRIVILIGED_EXCEPTION) ||
+        (InterruptType == INTERRUPT_SOFTWARE_EXCEPTION)) {
+
+        VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH,
+                    VmxRead32( EXIT_INSTRUCTION_LENGTH ) );
+    }
+    else {
+        VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
+    }
 }

@@ -50,6 +50,9 @@ extern MAILBOX gSecureMailbox;
 #define DSH_GFL_CHANNEL_SETUP       0x00000008
 #define DSH_GFL_POWER_REGISTERED    0x00000010
 
+#define DSH_VMX_ABSENT(v)    \
+    ((BOOLEAN)(((PDS_VMX_STATE)(v))->Flags.AllFlags != 0))
+
 //
 //  These macros are used to test, set and clear flags respectivly
 //

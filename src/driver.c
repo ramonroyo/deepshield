@@ -70,9 +70,6 @@ DECLARE_CONST_UNICODE_STRING(
     );
 #endif
 
-#define DS_VMX_DISABLED(v)    \
-    ((BOOLEAN)(((PDS_VMX_STATE)(v))->Flags.AllFlags != 0))
-
 PVOID gPowerRegistration;
 BOOLEAN gSecuredPageTables;
 UINT_PTR gSystemPageDirectoryTable;
@@ -193,7 +190,7 @@ DriverEntry(
 
     Status = DsVerifyVmxState( &gVmxState );
 
-    if (!NT_SUCCESS( Status ) || DS_VMX_DISABLED( &gVmxState ) ){
+    if (!NT_SUCCESS( Status )) {
         goto RoutineExit;
     }
 

@@ -155,7 +155,7 @@ TestReadMsr(
 BOOLEAN
 RdtscEmulateTester(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs,
+    _In_ PGP_REGISTERS     Regs,
     _In_ UINT_PTR       Process
 )
 {
@@ -199,7 +199,7 @@ AddTimeStampHit(
     _In_opt_ UINT64 Delta
 ) {
 
-    REGISTERS      Regs          = { 0 };
+    GP_REGISTERS      Regs          = { 0 };
 
     if ( Process == 0 ) {
         Process = CreateCR3();
@@ -338,7 +338,7 @@ TestBasicTimeStampDetectionWithSkip(
     PTSC_ENTRY     TscHits       = NULL;
     UINT_PTR       Process       = 0;
 
-    REGISTERS      Regs          = { 0 };
+    GP_REGISTERS      Regs          = { 0 };
     UINT32         Addition      = 0;
     INT            i             = 0;
 
@@ -417,7 +417,7 @@ TestRdtscInstructionBoundaries(
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
 
-    REGISTERS      Regs            = { 0 };
+    GP_REGISTERS      Regs            = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;
 
@@ -472,7 +472,7 @@ TestBasicTimeStampDetection(
     PLOCAL_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
 
-    REGISTERS      Regs            = { 0 };
+    GP_REGISTERS      Regs            = { 0 };
     LARGE_INTEGER  RandomAddress   = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;

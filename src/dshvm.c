@@ -51,7 +51,7 @@ DsHvmSetupVmcs(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    CR4_REGISTER cr4 = { 0 };
+    CR4_REGISTER Cr4 = { 0 };
     PHYSICAL_ADDRESS msrBitmap;
     VMX_PROC_PRIMARY_CTLS procPrimaryControls;
     PGLOBAL_CONTEXT globalContext;
@@ -70,30 +70,30 @@ DsHvmSetupVmcs(
     VmcsConfigureCommonControl();
 
     //
-    //  Unprivilege TSD.
+    //  Unprivilege TSD bit making it host owned.
     //
-    cr4.u.raw = VmxVmcsReadPlatform(GUEST_CR4);
-    cr4.u.f.tsd = 1;
+    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
+    Cr4.Bits.tsd = 1;
 
-    VmxVmcsWritePlatform(GUEST_CR4, cr4.u.raw);
-    VmxVmcsWritePlatform(CR4_GUEST_HOST_MASK, (1 << 2));
-    VmxVmcsWritePlatform(CR4_READ_SHADOW, 0);
+    VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
+    VmxWritePlatform( CR4_GUEST_HOST_MASK, (1 << 2) );
+    VmxWritePlatform (CR4_READ_SHADOW, 0 );
 
     //
     //  Minimize MSR exits.
     //
 
     msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
-    VmxVmcsWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
+    VmxWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
 
-    procPrimaryControls.AsUint32 = VmxVmcsRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
+    procPrimaryControls.AsUint32 = VmxRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
     procPrimaryControls.Bits.useMsrBitmaps = 1;
-    VmxVmcsWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32 );
+    VmxWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32 );
 
     //
     //  Activate #GP and #UD.
     //
-    VmxVmcsWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
+    VmxWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
                                     | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
 }
 

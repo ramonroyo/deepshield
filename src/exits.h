@@ -7,7 +7,7 @@ VOID
 DsHvmExitHandler(
     _In_ UINT32 exitReason,
     _In_ PHVM_VCPU  Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 #endif

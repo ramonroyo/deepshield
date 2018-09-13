@@ -1,42 +1,43 @@
 #ifndef __INSTR_H__
 #define __INSTR_H__
 
+#include "vmx.h"
 #include "hvm.h"
 
 PUINT_PTR
-LookupGpr(
-    _In_ PREGISTERS regs,
-    _In_ UINT8      gpr
+LookupGp(
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINT32     gpr
 );
 
 VOID
 InstrInvdEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrXsetbvEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrInvVpidEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrCpuidEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrMsrReadEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrMsrWriteEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
@@ -44,14 +45,17 @@ InstrInvlpgEmulate(
     _In_ UINT_PTR exitQualification
 );
 
-//
-// Only works correctly for CR3 and CR8
-// No support yet for CR0 and CR4
-//
 VOID
-InstrCrEmulate(
-    _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
+InstrCr4Emulate(
+    _In_ EXIT_QUALIFICATION_CR Qualification,
+    _Inout_ PGP_REGISTERS Registers,
+    _Inout_ PHVM_VCPU Vcpu
+    )
+    ;
+VOID
+InstrCr3Emulate(
+    _In_ EXIT_QUALIFICATION_CR Qualification,
+    _Inout_ PGP_REGISTERS Registers
 );
 
 /*
@@ -61,19 +65,19 @@ InstrCrEmulate(
 VOID
 InstrDrEmulate(
     _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 */
 
 VOID
 InstrIoEmulate(
     _In_ UINT_PTR   exitQualification,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 InstrRipAdvance(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 #endif

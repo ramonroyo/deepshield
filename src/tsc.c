@@ -356,7 +356,7 @@ ProcessTscEvent(
 
 VOID InjectTerminateProcess(
     PUINT8     Mapping,
-    PREGISTERS Regs
+    PGP_REGISTERS Regs
     )
 {
 
@@ -398,7 +398,7 @@ VOID InjectTerminateProcess(
 VOID
 RdtscEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs,
+    _In_ PGP_REGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 )
@@ -420,7 +420,7 @@ RdtscEmulate(
 VOID
 RdtscpEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs,
+    _In_ PGP_REGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 )
@@ -443,7 +443,6 @@ RdtscpEmulate(
         return;
     }
 
-
     InstrRipAdvance(Regs);
 }
 
@@ -452,13 +451,7 @@ EnableUserTimeStamp(
     VOID
     )
 {
-    CR4_REGISTER cr4 = { 0 };
-    cr4.u.raw = __readcr4();
-
-    // disable TimeStamp when requested from user-mode
-    cr4.u.f.tsd = 1;
-
-    __writecr4(cr4.u.raw);
+    __writecr4( __readcr4() & ~CR4_TSD );
 }
 
 VOID
@@ -466,12 +459,5 @@ DisableUserTimeStamp(
     VOID
     )
 {
-    CR4_REGISTER cr4 = { 0 };
-
-    cr4.u.raw = __readcr4();
-
-    // disable TimeStamp when requested from user-mode
-    cr4.u.f.tsd = 0;
-
-    __writecr4(cr4.u.raw);
+    __writecr4( __readcr4() | CR4_TSD );
 }

@@ -20,19 +20,6 @@ typedef struct DECLSPEC_ALIGN( 16 ) _IRET_FRAME
 #endif
 } IRET_FRAME, *PIRET_FRAME;
 
-#ifdef _WIN64
-typedef struct DECLSPEC_ALIGN(16) _HVM_STOP_STACK_LAYOUT {
-    REGISTERS  regs;
-    IRET_FRAME iret;
-} HVM_STOP_STACK_LAYOUT, *PHVM_STOP_STACK_LAYOUT;
-#else
-typedef struct _HVM_STOP_STACK_LAYOUT {
-    REGISTERS  regs;
-    PIRET_FRAME iret;
-} HVM_STOP_STACK_LAYOUT, *PHVM_STOP_STACK_LAYOUT;
-#endif
-
-
 #define HVM_INTERNAL_SERVICE_STOP   0
 
 extern NTSTATUS __stdcall
@@ -49,7 +36,7 @@ HvmpStartAsm(
 extern VOID __stdcall
 HvmpStopAsm(
     _In_ UINT_PTR iret,
-    _In_ UINT_PTR regs
+    _In_ UINT_PTR Registers
 );
 
 extern VOID
@@ -64,25 +51,25 @@ HvmpSaveHostState(
 )
 {
     state->cr0.u.raw   = __readcr0();
-    state->cr4.u.raw   = __readcr4();
-    state->cs.u.raw    = __readcs();
-    state->ss.u.raw    = __readss();
-    state->ds.u.raw    = __readds();
-    state->es.u.raw    = __reades();
-    state->fs.u.raw    = __readfs();
+    state->cr4.AsUintN = __readcr4();
+    state->cs.u.raw    = AsmReadCs();
+    state->ss.u.raw    = AsmReadSs();
+    state->ds.u.raw    = AsmReadDs();
+    state->es.u.raw    = AsmReadEs();
+    state->fs.u.raw    = AsmReadFs();
 #ifndef _WIN64
-    state->fsBase      = DescriptorBase(__readfs());
+    state->fsBase      = DescriptorBase(AsmReadFs());
 #else
     state->fsBase      = __readmsr(IA32_FS_BASE);
 #endif    
-    state->gs.u.raw    = __readgs();
+    state->gs.u.raw    = AsmReadGs();
 #ifndef _WIN64
-    state->gsBase      = DescriptorBase(__readgs());
+    state->gsBase      = DescriptorBase(AsmReadGs());
 #else
     state->gsBase      = __readmsr(IA32_GS_BASE);
 #endif    
-    state->tr.u.raw    = __str();
-    state->trBase      = DescriptorBase(__str());
+    state->tr.u.raw    = AsmReadTr();
+    state->trBase      = DescriptorBase(AsmReadTr());
     state->gdt.base    = sgdt_base();
     state->gdt.limit   = sgdt_limit();
     state->idt.base    = sidt_base();
@@ -100,27 +87,23 @@ VmxpEnable(
     PVOID vmxOn
 )
 {
-    CR4_REGISTER cr4;
-    PHYSICAL_ADDRESS vmxOnPhysical;
+    CR4_REGISTER Cr4;
+    PHYSICAL_ADDRESS VmxOnPhysical;
 
     //
-    // Activate 13 bit (VMX enable)
+    //  Activate VMX enable bit.
     //
-    cr4.u.raw = __readcr4();
-    cr4.u.f.vmxe = 1;
-    __writecr4(cr4.u.raw);
 
-    //
-    //  Activate virtualization
-    //
-    vmxOnPhysical = MmuGetPhysicalAddress(0, vmxOn);
-    if (VmxOn((unsigned __int64*)&vmxOnPhysical) != 0) {
+    Cr4.AsUintN = __readcr4();
+    Cr4.Bits.vmxe = 1;
+    __writecr4(Cr4.AsUintN );
 
-        //
-        //  Disable VMX bit
-        //
-        cr4.u.f.vmxe = 0;
-        __writecr4(cr4.u.raw);
+    VmxOnPhysical = MmuGetPhysicalAddress( 0, vmxOn );
+
+    if (VmxOn( (UINT64*)&VmxOnPhysical) != 0 ) {
+
+        Cr4.Bits.vmxe = 0;
+        __writecr4( Cr4.AsUintN );
 
         return STATUS_UNSUCCESSFUL;
     }
@@ -141,9 +124,9 @@ VmxpDisable(
 
     VmxOff();
 
-    cr4.u.raw = __readcr4();
-    cr4.u.f.vmxe = 0;
-    __writecr4(cr4.u.raw);
+    cr4.AsUintN = __readcr4();
+    cr4.Bits.vmxe = 0;
+    __writecr4( cr4.AsUintN );
 }
 
 NTSTATUS __stdcall
@@ -159,11 +142,11 @@ HvmpStartVcpu(
     hvm = (PHVM)context;
     Vcpu = &hvm->VcpuArray[VcpuId];
 
-    __cli();
+    AsmDisableInterrupts();
 
     status = HvmpStartAsm( Vcpu );
 
-    __sti();
+    AsmEnableInterrupts();
 
     return status;
 }
@@ -205,8 +188,8 @@ HvmpEnterRoot(
 
     Vcpu->SetupVmcs( Vcpu );
 
-    VmxVmcsWritePlatform( HOST_RSP, Vcpu->Rsp );
-    VmxVmcsWritePlatform( HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm );
+    VmxWritePlatform( HOST_RSP, Vcpu->Rsp );
+    VmxWritePlatform( HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm );
     VmcsConfigureCommonEntry( Code, Stack, rflags );
    
     //
@@ -234,7 +217,7 @@ HvmpFailure(
     UNREFERENCED_PARAMETER(Vcpu);
 
     if (valid) {
-        status = VMX_STATUS(VmxVmcsRead32(VM_INSTRUCTION_ERROR));
+        status = VMX_STATUS(VmxRead32( VM_INSTRUCTION_ERROR ));
     }
     else {
         status = STATUS_UNSUCCESSFUL;
@@ -276,18 +259,18 @@ HvmpRestore(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    CR4_REGISTER cr4 = { 0 };
+    CR4_REGISTER Cr4 = { 0 };
 
     //
     //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
     //
 
-    __writeds( Vcpu->SavedState.ds.u.raw );
-    __writees( Vcpu->SavedState.es.u.raw );
-    __writefs( Vcpu->SavedState.fs.u.raw );
+    AsmWriteDs( Vcpu->SavedState.ds.u.raw );
+    AsmWriteEs( Vcpu->SavedState.es.u.raw );
+    AsmWriteFs( Vcpu->SavedState.fs.u.raw );
 #ifndef _WIN64
-    __writess( Vcpu->SavedState.ss.u.raw );
-    __writegs( Vcpu->SavedState.gs.u.raw );
+    AsmWriteSs( Vcpu->SavedState.ss.u.raw );
+    AsmWriteGs( Vcpu->SavedState.gs.u.raw );
 #endif
 
     lgdt( Vcpu->SavedState.gdt.base, Vcpu->SavedState.gdt.limit );
@@ -296,42 +279,42 @@ HvmpRestore(
     //
     //  Disable TSD monitoring.
     //
-    cr4.u.raw = VmxVmcsReadPlatform( GUEST_CR4 );
-    cr4.u.f.tsd = 0;
-    __writecr4( cr4.u.raw );
+    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
+    Cr4.Bits.tsd = 0;
+    __writecr4( Cr4.AsUintN );
 
     //
     //  To allow the stop routine being invoked in any process context the CR3
     //  should be set to the guest CR3.
     //
-    __writecr3( VmxVmcsReadPlatform( GUEST_CR3 ) );
+    __writecr3( VmxReadPlatform( GUEST_CR3 ) );
 }
 
 VOID
 HvmpStop(
     _In_ PHVM_VCPU Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
 #ifdef _WIN64
     IRET_FRAME iret;
 
-    iret.rip = regs->rip;
+    iret.rip = Registers->rip;
     iret.cs = Vcpu->SavedState.cs.u.raw;
-    iret.rflags = regs->rflags.u.raw;
-    iret.rsp = regs->rsp;
+    iret.rflags = Registers->rflags.u.raw;
+    iret.rsp = Registers->rsp;
     iret.ss = Vcpu->SavedState.ss.u.raw;
 #else
 
     PIRET_FRAME iretx86;
 
     iretx86 = (PIRET_FRAME) 
-        ((PUINT_PTR) VmxVmcsReadPlatform( GUEST_RSP )
+        ((PUINT_PTR) VmxReadPlatform( GUEST_RSP )
                      - (sizeof( IRET_FRAME ) / sizeof( UINT_PTR )));
 
-    iretx86->rip = regs->rip;
+    iretx86->rip = Registers->rip;
     iretx86->cs = Vcpu->SavedState.cs.u.raw;
-    iretx86->rflags = regs->rflags.u.raw;
+    iretx86->rflags = Registers->rflags.u.raw;
 #endif
     
     //
@@ -348,9 +331,9 @@ HvmpStop(
     //  Restore registers and return from the interrupt.
     //
 #ifdef _WIN64
-    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) regs );
+    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) Registers );
 #else
-    HvmpStopAsm( (UINT_PTR)&iretx86, (UINT_PTR) regs );
+    HvmpStopAsm( (UINT_PTR)&iretx86, (UINT_PTR) Registers );
 #endif
 
 }
