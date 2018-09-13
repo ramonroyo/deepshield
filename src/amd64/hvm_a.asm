@@ -173,7 +173,7 @@ ENDM
 ;
 HvmpStartAsm PROC
     ;
-    ; Save used regs
+    ; Save used Registers
     ;
     push r9
     push r8
@@ -232,7 +232,7 @@ HvmpStartAsm ENDP
 
 
 ;
-; VOID HvmpStopAsm( _In_ UINT_PTR iret, _In_ UINT_PTR regs);
+; VOID HvmpStopAsm( _In_ UINT_PTR iret, _In_ UINT_PTR Registers);
 ;
 HvmpStopAsm PROC
     mov rsp, rcx
@@ -251,7 +251,7 @@ HvmpExitHandlerAsm PROC
     ;
     CPU_SAVE_REGS
 
-    ; Second parameter = regs
+    ; Second parameter = Registers
     mov rdx, rbx
 
     ;

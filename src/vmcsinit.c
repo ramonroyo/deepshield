@@ -1,23 +1,15 @@
 #include "wdk7.h"
 #include "vmcs.h"
 #include "vmx.h"
+#include "mem.h"
 #include "vmcsinit.h"
 
 #define MASK_PE_PG_OFF_UNRESTRICTED_GUEST 0xFFFFFFFF7FFFFFFE
 
-VMX_CAPABILITIES Capabilities;
-VMX_CONSTRAINS Constraints;
-VMX_VMCS_FIXED Fixed;
+#define MEMORY_INVALID         0
+#define MEMORY_UNCACHED        1
+#define MEMORY_WRITE_BACK      2
 
-
-/*
- * VMCS Data Structure
- */
-typedef struct {
-	UINT32	revision_identifier;
-    UINT32	abort_indicator;
-}  ia32_vmx_vmcs_t;
-/*
 FORCEINLINE
 ULONG
 GetVmcsMemoryType(
@@ -26,19 +18,15 @@ GetVmcsMemoryType(
 {
     switch (Capabilities.Basic.Bits.vmcsMemoryType ) {
         case 0:
-            return X;
+            return MEMORY_UNCACHED;
         case 6:
-            return Y;
+            return MEMORY_WRITE_BACK;
         default:
             break;
     }
 
-    NT_ASSERT( FALSE );
-    return 1;
-}*/
-
-#define VMCS_ABOVE_4G_SUPPORTED                           \
-	(Capabilities.Basic.Bits.physicalAddressWidth  != 1)  \
+    return MEMORY_INVALID;
+}
 
 VOID
 VmcsInitializeContext(
@@ -55,6 +43,7 @@ VmcsInitializeContext(
     //
 
     Capabilities.Basic.AsUint64 = __readmsr( IA32_MSR_VMX_BASIC_INDEX );
+    NT_ASSERT( VMCS_ABOVE_4G_SUPPORTED );
     
     Capabilities.PinBasedControls.AsUint64 = __readmsr(IA32_MSR_PIN_BASED_VM_EXECUTION_CONTROLS_INDEX);
     Capabilities.ProcessorControls.AsUint64 = __readmsr(IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS_INDEX);
@@ -80,18 +69,30 @@ VmcsInitializeContext(
     Capabilities.EntryControls.AsUint64 = __readmsr(IA32_MSR_VM_ENTRY_CONTROLS_INDEX);
     Capabilities.MiscellaneousData.AsUint64 = __readmsr(IA32_MSR_MISCELLANEOUS_DATA_INDEX);
 
+    //
+    //  If bit X is 1 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX, then that bit of CRX
+    //  is fixed to 1. If bit X is 0 in IA32_MSR_CRX_ALLOWED_ONE_INDEX, then
+    //  that bit of CRX is fixed to 0. It is always the case that, if bit X is
+    //  1 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX, then that bit is also 1 in 
+    //  IA32_MSR_CRX_ALLOWED_ONE_INDEX; if bit X is 0 in IA32_MSR_CRX_ALLOWED_ONE_INDEX,
+    //  then that bit is also 0 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX. Thus, each
+    //  bit in CRX is either fixed to 0 (with value 0 in both MSRs), fixed to 1
+    //  (1 in both MSRs), or flexible (0 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX and
+    //  1 in IA32_MSR_CRX_ALLOWED_ONE_INDEX).
+    //
+
     Capabilities.cr0Maybe0.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
     Capabilities.cr0Maybe1.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
-    Capabilities.cr4Maybe0.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
-    Capabilities.cr4Maybe1.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
+    Capabilities.cr4Maybe0.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
+    Capabilities.cr4Maybe1.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
 
 
     Constraints.PinBasedControlsMaybe1.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
     Constraints.PinBasedControlsMaybe0.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe0.AsUint32;
     Constraints.ProcessorControlsMaybe1.AsUint32 = Capabilities.ProcessorControls.Bits.Maybe1.AsUint32;
     Constraints.ProcessorControlsMaybe0.AsUint32 = Capabilities.ProcessorControls.Bits.Maybe0.AsUint32;
-    Constraints.ProcessorControls2Maybe1.AsUint32 =    Capabilities.ProcessorControls2.Bits.Maybe1.AsUint32;
-    Constraints.ProcessorControls2Maybe0.AsUint32 =    Capabilities.ProcessorControls2.Bits.Maybe0.AsUint32;
+    Constraints.ProcessorControls2Maybe1.AsUint32 = Capabilities.ProcessorControls2.Bits.Maybe1.AsUint32;
+    Constraints.ProcessorControls2Maybe0.AsUint32 = Capabilities.ProcessorControls2.Bits.Maybe0.AsUint32;
     Constraints.ExitControlMaybe1.AsUint32 = Capabilities.ExitControl.Bits.Maybe1.AsUint32;
     Constraints.ExitControlMaybe0.AsUint32 = Capabilities.ExitControl.Bits.Maybe0.AsUint32;
     Constraints.EntryControlsMaybe1.AsUint32 = Capabilities.EntryControls.Bits.Maybe1.AsUint32;
@@ -99,8 +100,8 @@ VmcsInitializeContext(
 
     Constraints.cr0Maybe1.u.raw = Capabilities.cr0Maybe1.u.raw;
     Constraints.cr0Maybe0.u.raw = Capabilities.cr0Maybe0.u.raw;
-    Constraints.cr4Maybe1.u.raw = Capabilities.cr4Maybe1.u.raw;
-    Constraints.cr4Maybe0.u.raw = Capabilities.cr4Maybe0.u.raw;
+    Constraints.cr4Maybe1.AsUintN = Capabilities.cr4Maybe1.AsUintN;
+    Constraints.cr4Maybe0.AsUintN = Capabilities.cr4Maybe0.AsUintN;
 
     Constraints.VmcsRevision = Capabilities.Basic.Bits.revisionId;
     Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.numberOfCr3TargetValues;
@@ -151,8 +152,25 @@ VmcsInitializeContext(
     }
     Fixed.cr0Fixed0.u.raw = Constraints.cr0Maybe0.u.raw | Constraints.cr0Maybe1.u.raw;
 
-    Fixed.cr4Fixed1.u.raw = Constraints.cr4Maybe0.u.raw & Constraints.cr4Maybe1.u.raw;
-    Fixed.cr4Fixed0.u.raw = Constraints.cr4Maybe0.u.raw | Constraints.cr4Maybe1.u.raw;
+    Fixed.cr4Fixed1.AsUintN = Constraints.cr4Maybe0.AsUintN & Constraints.cr4Maybe1.AsUintN;
+    Fixed.cr4Fixed0.AsUintN = Constraints.cr4Maybe0.AsUintN | Constraints.cr4Maybe1.AsUintN;
+}
 
-    //MON_DEBUG_CODE(print_vmx_capabilities());
+PVOID
+VmcsAllocateRegion(
+    _In_ UINT32 RegionSize
+    )
+{
+    PVMX_VMCS VmcsRegion = NULL;
+
+    VmcsRegion = MemAllocAligned( RegionSize, PAGE_SIZE );
+
+    if (VmcsRegion) {
+        VmcsRegion->Bits.RevisionIdentifier = VMCS_REVISION;
+        VmcsRegion->Bits.ShadowIndicator = 0;
+
+        VmcsRegion->AbortIndicator = 0;
+    }
+
+    return VmcsRegion;
 }

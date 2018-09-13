@@ -28,6 +28,8 @@ Environment:
 #pragma alloc_text(PAGE, DsCtlShieldChannelTeardown)
 #endif
 
+extern DS_VMX_STATE gVmxState;
+
 NTSTATUS
 DsCltGetShieldState(
     _In_ PIRP Irp,
@@ -94,6 +96,7 @@ DsCtlShieldControl(
                 break;
             }
 
+            NT_ASSERT( !DSH_VMX_ABSENT( &gVmxState ) );
             NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
 
             Status = DsStartShield();

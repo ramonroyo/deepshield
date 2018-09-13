@@ -78,7 +78,7 @@ BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
     _In_ UINT32 exitReason,
     _In_ PHVM_VCPU Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
     UNREFERENCED_PARAMETER(Vcpu);
@@ -87,15 +87,15 @@ HvmVcpuCommonExitsHandler(
     {
         case EXIT_REASON_INVD:
         {
-            InstrInvdEmulate(regs);
-            InstrRipAdvance(regs);
+            InstrInvdEmulate( Registers );
+            InstrRipAdvance( Registers );
             return TRUE;
         }
 #ifdef _WIN64
         case EXIT_REASON_XSETBV:
         {
-            InstrXsetbvEmulate(regs);
-            InstrRipAdvance(regs);
+            InstrXsetbvEmulate( Registers );
+            InstrRipAdvance( Registers );
             return TRUE;
         }
 #endif
@@ -103,8 +103,8 @@ HvmVcpuCommonExitsHandler(
 #ifdef HVM_EMULATE_INVVPID
         case EXIT_REASON_INVVPID:
         {
-            InstrInvVpidEmulate( regs );
-            InstrRipAdvance( regs );
+            InstrInvVpidEmulate( Registers );
+            InstrRipAdvance( Registers );
             return TRUE;
         }
 #endif
@@ -126,23 +126,23 @@ HvmVcpuCommonExitsHandler(
         {
             InjectUndefinedOpcodeException();
 
-            regs->rflags.u.f.rf = 1;
-            VmxVmcsWritePlatform( GUEST_RFLAGS, regs->rflags.u.raw );
+            Registers->rflags.u.f.rf = 1;
+            VmxWritePlatform( GUEST_RFLAGS, Registers->rflags.u.raw );
 
-            InstrRipAdvance(regs);
+            InstrRipAdvance( Registers );
             return TRUE;
         }
 
         case EXIT_REASON_MSR_READ:
         {
-            InstrMsrReadEmulate(regs);
-            InstrRipAdvance(regs);
+            InstrMsrReadEmulate(Registers);
+            InstrRipAdvance( Registers );
             return TRUE;
         }
         case EXIT_REASON_MSR_WRITE:
         {
-            InstrMsrWriteEmulate(regs);
-            InstrRipAdvance(regs);
+            InstrMsrWriteEmulate( Registers );
+            InstrRipAdvance( Registers );
             return TRUE;
         }
     }

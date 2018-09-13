@@ -1,149 +1,133 @@
 .CODE
 
-__readcs PROC
-    xor rax, rax
-    mov ax, cs
+AsmCpuPause PROC
+    pause
     ret
-__readcs ENDP
+AsmCpuPause ENDP
 
+AsmReadCs PROC
+    xor rax, rax
+    mov eax, cs
+    ret
+AsmReadCs ENDP
 
-__readss PROC
+AsmReadDs PROC
+    xor rax, rax
+    mov eax, ds
+    ret
+AsmReadDs ENDP
+
+AsmReadSs PROC
     xor rax, rax
     mov ax, ss
     ret
-__readss ENDP
+AsmReadSs ENDP
 
-
-__readds PROC
+AsmReadEs PROC
     xor rax, rax
-    mov ax, ds
+    mov eax, es
     ret
-__readds ENDP
+AsmReadEs ENDP
 
-
-__reades PROC
+AsmReadFs PROC
     xor rax, rax
-    mov ax, es
+    mov eax, fs
     ret
-__reades ENDP
+AsmReadFs ENDP
 
-
-__readfs PROC
+AsmReadGs PROC
     xor rax, rax
-    mov ax, fs
+    mov eax, gs
     ret
-__readfs ENDP
+AsmReadGs ENDP
 
-
-__readgs PROC
-    xor rax, rax
-    mov ax, gs
-    ret
-__readgs ENDP
-
-
-__str PROC
-    xor rax, rax
-    str ax
-    ret
-__str ENDP
-
-
-__sldt PROC
-    xor rax, rax
-    sldt ax
-    ret
-__sldt ENDP
-
-
-__writess PROC
-    mov ss, cx
-    ret
-__writess ENDP
-
-
-__writeds PROC
-    mov ds, cx
-    ret
-__writeds ENDP
-
-
-__writees PROC
-    mov es, cx
-    ret
-__writees ENDP
-
-
-__writefs PROC
-    mov fs, cx
-    ret
-__writefs ENDP
-
-
-__writegs PROC
-    mov gs, cx
-    ret
-__writegs ENDP
-
-
-__ltr PROC
-    ltr cx
-    ret
-__ltr ENDP
-
-
-DescriptorLimit PROC
+AsmReadSegmentLimit PROC
     lsl rax, rcx
     ret
-DescriptorLimit ENDP
+AsmReadSegmentLimit ENDP
 
-
-__readsp PROC
-    mov rax, rsp
+AsmReadTr PROC
+    xor rax, rax
+    str eax
     ret
-__readsp ENDP
+AsmReadTr ENDP
 
+AsmReadGdtr PROC
+    sgdt fword ptr [rcx]
+    ret
+AsmReadGdtr ENDP
 
-__readflags PROC
+AsmReadLdtr PROC
+    xor rax, rax
+    sldt eax
+    ret
+AsmReadLdtr ENDP
+
+AsmReadFlags PROC
     pushfq
     pop rax
     ret
-__readflags ENDP
+AsmReadFlags ENDP
 
+AsmWriteCs PROC
+    mov cs, cx
+    ret
+AsmWriteCs ENDP
 
-__writecr2 PROC
+AsmWriteDs PROC
+    mov ds, cx
+    ret
+AsmWriteDs ENDP
+
+AsmWriteSs PROC
+    mov ss, cx
+    ret
+AsmWriteSs ENDP
+
+AsmWriteEs PROC
+    mov es, cx
+    ret
+AsmWriteEs ENDP
+
+AsmWriteFs PROC
+    mov fs, cx
+    ret
+AsmWriteFs ENDP
+
+AsmWriteGs PROC
+    mov gs, cx
+    ret
+AsmWriteGs ENDP
+
+AsmWriteTr PROC
+    ltr cx
+    ret
+AsmWriteTr ENDP
+
+AsmReadSp PROC
+    mov rax, rsp
+    ret
+AsmReadSp ENDP
+
+AsmWriteCr2 PROC
     mov cr2, rcx
+    mov rax, rcx
     ret
-__writecr2 ENDP
+AsmWriteCr2 ENDP
 
-
-__cli PROC
-    cli
-    ret
-__cli ENDP
-
-
-__sti PROC
-    sti
-    ret
-__sti ENDP
-
-
-__pause PROC
-    pause
-    ret
-__pause ENDP
-
-
-__sgdt PROC
-    sgdt [rcx]
-    ret
-__sgdt ENDP
-
-__lgdt PROC
+AsmWriteGdtr PROC
     lgdt fword ptr [rcx]
     ret
-__lgdt ENDP
+AsmWriteGdtr ENDP
 
+AsmEnableInterrupts PROC
+    sti
+    ret
+AsmEnableInterrupts ENDP
+
+AsmDisableInterrupts PROC
+    cli
+    ret
+AsmDisableInterrupts ENDP
 
 END

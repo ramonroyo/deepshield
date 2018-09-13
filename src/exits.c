@@ -32,51 +32,36 @@ static IA32_CONTROL_REGISTERS LookupCr[] = {
 };
 
 VOID
-Cr4AccessEmulate(
+CrAccessHandler(
     _In_ PHVM_VCPU Vcpu,
-    _In_ PREGISTERS Registers
-)
+    _In_ PGP_REGISTERS Registers
+    )
 {
     EXIT_QUALIFICATION_CR Qualification;
-    IA32_CONTROL_REGISTERS CrId;
-    CR4_REGISTER Cr4;
-    UINT_PTR Cr4Mask;
-    BOOLEAN Cr4Load = FALSE;
+    IA32_CONTROL_REGISTERS CrNumber;
 
-    Qualification.u.raw = VmxVmcsReadPlatform( EXIT_QUALIFICATION );
-    CrId = LookupCr[Qualification.u.cr.number];
+    Qualification.AsUintN = VmxReadPlatform( EXIT_QUALIFICATION );
+    CrNumber = LookupCr[Qualification.CrAccess.Number];
 
-    if (CR_ACCESS_TYPE_MOV_TO_CR == Qualification.u.cr.accessType) {
-        switch (CrId) {
+    switch ( CrNumber ) {
+        case IA32_CTRL_CR4:
 
-            case IA32_CTRL_CR4: 
-                Cr4Load = TRUE; 
-                break;
+            InstrCr4Emulate( Qualification, Registers, Vcpu );
+            break;
 
-            default: break;
-        }
-    }
+        case IA32_CTRL_CR3:
 
-    //
-    //  Check that we are not monitoring other operations accidentally
-    //
-    NT_ASSERT( Cr4Load );
+            InstrCr3Emulate( Qualification, Registers );
+            break;
 
-    if (Cr4Load) {
-        Cr4.u.raw = *LookupGpr( Registers, (UINT8)Qualification.u.cr.moveGpr );
+        default:
 
-        //
-        //  Capture CR4 changes into the HVM Vcpu although is not being used.
-        //
-        Vcpu->SavedState.cr4 = Cr4;
-
-        //
-        //  Remove masked CR4 bits.
-        // 
-        Cr4Mask = VmxVmcsReadPlatform( CR4_GUEST_HOST_MASK );
-
-        Cr4.u.raw &= ~Cr4Mask;
-        VmxVmcsWritePlatform( GUEST_CR4, Cr4.u.raw );
+            //
+            //  Sanity check to avoid monitoring other operations
+            //  accidentally.
+            //
+            NT_ASSERT( FALSE );
+            break;
     }
 
     InstrRipAdvance( Registers );
@@ -84,26 +69,26 @@ Cr4AccessEmulate(
 
 VOID
 CpuidEmulate(
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
     UINT_PTR function;
     UINT_PTR subleaf;
 
-    function = regs->rax;
-    subleaf  = regs->rcx;
+    function = Registers->rax;
+    subleaf  = Registers->rcx;
 
-    InstrCpuidEmulate(regs);
+    InstrCpuidEmulate( Registers );
 
     //
     // Disable RTM if available
     //
     if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
     {
-        regs->rbx &= ~(1 << 11);
+        Registers->rbx &= ~(1 << 11);
     }
 
-    InstrRipAdvance(regs);
+    InstrRipAdvance( Registers );
 }
 
 /*
@@ -168,10 +153,10 @@ FlushCurrentTb(
 }*/
 
 VOID
-GeneralProtectionFaultEmulate(
+HardwareExceptionHandler(
     _In_ PVOID Local,
-    _In_ PREGISTERS Regs,
-    _In_ INTERRUPT_INFORMATION InterruptInfo
+    _In_ PGP_REGISTERS Regs,
+    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
     PHYSICAL_ADDRESS PhysicalAddress = { 0 };
@@ -190,14 +175,14 @@ GeneralProtectionFaultEmulate(
         //
         //  Get current privilege level for the descriptor.
         //
-        Dpl = VmxVmcsRead32( GUEST_CS_ACCESS_RIGHTS );
+        Dpl = VmxRead32( GUEST_CS_ACCESS_RIGHTS );
         Dpl = (Dpl >> 5) & 3;
 
         NT_ASSERT( Dpl == 0 );
         goto Inject;
     }
 
-    InsLenght = VmxVmcsRead32( EXIT_INSTRUCTION_LENGTH );
+    InsLenght = VmxRead32( EXIT_INSTRUCTION_LENGTH );
     if (InsLenght != 2 && InsLenght != 3 ) {
         goto Inject;
     }
@@ -209,7 +194,7 @@ GeneralProtectionFaultEmulate(
     //  so it might be convenient to change the host CR3 to opportunistically
     //  exit with the most frequently used CR3 to call RDTSC/P.
     //
-    Process = VmxVmcsReadPlatform( GUEST_CR3 );
+    Process = VmxReadPlatform( GUEST_CR3 );
 
     PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Regs->rip );
     if (!PhysicalAddress.QuadPart) {
@@ -262,20 +247,17 @@ Unmap:
 //
 VOID 
 DsHvmExitHandler(
-    _In_ UINT32 exitReason,
+    _In_ UINT32 ExitReason,
     _In_ PHVM_VCPU Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     )
 {
     //
     //  I thought at first that you had done something clever, but I see that
     //  there was nothing in it, after all.
     //
-    switch (exitReason)
+    switch ( ExitReason )
     {
-        //
-        // Common VM exits
-        //
         case EXIT_REASON_INVD:
         case EXIT_REASON_XSETBV:
         case EXIT_REASON_VMXON:
@@ -292,24 +274,25 @@ DsHvmExitHandler(
         case EXIT_REASON_MSR_READ:
         case EXIT_REASON_MSR_WRITE:
         {
-            HvmVcpuCommonExitsHandler(exitReason, Vcpu, regs);
+            HvmVcpuCommonExitsHandler( ExitReason, Vcpu, Registers );
             break;
         }
 
-        case EXIT_REASON_EXCEPTION_OR_NMI:
+        case EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI:
         {
-            INTERRUPT_INFORMATION InterruptInfo;
-            InterruptInfo.u.raw = VmxVmcsRead32( EXIT_INTERRUPTION_INFORMATION );
+            VMX_EXIT_INTERRUPT_INFO InterruptInfo;
+            InterruptInfo.AsUint32 = VmxRead32( EXIT_INTERRUPTION_INFORMATION );
 
-            if (InterruptInfo.u.f.vector == VECTOR_INVALID_OPCODE_EXCEPTION ||
-                InterruptInfo.u.f.vector == VECTOR_GENERAL_PROTECTION_EXCEPTION ) {
+            if (InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION
+                && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector
+                    || VECTOR_GENERAL_PROTECTION_EXCEPTION == InterruptInfo.Bits.Vector )) {
 
-                GeneralProtectionFaultEmulate( Vcpu->LocalContext, 
-                                               regs, 
-                                               InterruptInfo );
+                HardwareExceptionHandler( Vcpu->LocalContext, 
+                                          Registers,
+                                          InterruptInfo );
             }
             else {
-                InjectHardwareException( InterruptInfo );
+                InjectInterruptOrException( InterruptInfo );
             }
 
             break;
@@ -317,13 +300,13 @@ DsHvmExitHandler(
 
         case EXIT_REASON_CR_ACCESS:
         {
-            Cr4AccessEmulate(Vcpu, regs);
+            CrAccessHandler( Vcpu, Registers );
             break;
         }
 
         case EXIT_REASON_CPUID:
         {
-            CpuidEmulate(regs);
+            CpuidEmulate( Registers );
             break;
         }
 
@@ -336,7 +319,7 @@ DsHvmExitHandler(
 
         default:
         {
-            KeBugCheckEx(HYPERVISOR_ERROR, exitReason, 0, 0, 0);
+            KeBugCheckEx( HYPERVISOR_ERROR, ExitReason, 0, 0, 0 );
             break;
         }
     }

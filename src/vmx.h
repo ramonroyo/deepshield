@@ -10,56 +10,97 @@
 #include <ntifs.h>
 
 //
+//  VMX capabilities are declared in bit 5 of ECX retured from CPUID
+//
+#define IA32_CPUID_ECX_VMX                  0x20
+
+//
 // VMX NTSTATUS Errors
 //
 #define VMX_STATUS_MASK  0xEB1E0000
 #define VMX_STATUS(X)    ((NTSTATUS)(VMX_STATUS_MASK | ((X) & 0x0000FFFF)))
 
-    //VMCS VM_INSTRUCTION_ERROR field. See Intel manual.
-#define STATUS_VM_ENTRY_WITH_INVALID_CONTROL_FIELDS                             VMX_STATUS(7)
-#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS                          VMX_STATUS(8)
-#define STATUS_VM_ENTRY_WITH_INVALID_EXECUTIVE_VMCS_POINTER                     VMX_STATUS(16)
-#define STATUS_VM_ENTRY_WITH_NON_LAUNCHED_EXECUTIVE_VMCS                        VMX_STATUS(17)
-#define STATUS_VM_ENTRY_WITH_EXECUTIVE_VMCS_POINTER_NOT_VMXON                   VMX_STATUS(18)
-#define STATUS_VM_ENTRY_WITH_INVALID_VM_EXEC_CONTROL_FIELDS_IN_EXECUTIVE_VMCS   VMX_STATUS(25)
-#define STATUS_VM_ENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS                           VMX_STATUS(26)
-#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION                            VMX_STATUS(1)
-#define STATUS_VMCALL_WITH_NON_CLEAR_VMCS                                       VMX_STATUS(19)
-#define STATUS_VMCALL_WITH_INVALID_VM_EXIT_CONTROL_FIELDS                       VMX_STATUS(20)
-#define STATUS_VMCALL_WITH_INCORRECT_MSEG_REVISION_ID                           VMX_STATUS(22)
-#define STATUS_VMCALL_WITH_INVALID_SMM_MONITOR_FEATURES                         VMX_STATUS(24)
-#define STATUS_VMPTRLD_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(9)
-#define STATUS_VMPTRLD_WITH_VMXON_POINTER                                       VMX_STATUS(10)
-#define STATUS_VMPTRLD_WITH_INCORRECT_VMCS_REVISION_IDENTIFIER                  VMX_STATUS(11)
-#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(2)
-#define STATUS_VMCLEAR_WITH_VMXON_POINTER                                       VMX_STATUS(3)
-#define STATUS_VMLAUNCH_WITH_NON_CLEAR_VMCS                                     VMX_STATUS(4)
-#define STATUS_VMRESUME_WITH_NON_LAUNCHED_VMCS                                  VMX_STATUS(5)
-#define STATUS_VMRESUME_AFTER_VMXOFF                                            VMX_STATUS(6)
-#define STATUS_VMREAD_VMWRITE_FROM_TO_UNSSUPORTED_VMCS_COMPONENT                VMX_STATUS(12)
-#define STATUS_VMWRITE_TO_READONLY_VMCS_COMPONENT                               VMX_STATUS(13)
-#define STATUS_VMXON_EXECUTED_IN_VMX_ROOT_OPERATION                             VMX_STATUS(15)
-#define STATUS_VMXOFF_UNDER_DUAL_MONITOR                                        VMX_STATUS(23)
-#define STATUS_INVALID_OPERAND_TO_INVEPT_INVVPID                                VMX_STATUS(28)
+//
+//  VMX Error Codes
+//
+#define NO_INSTRUCTION_ERROR                        0                  /* VMxxxxx */
+#define VMCALL_IN_ROOT_ERROR                        1                  /* VMCALL */
+#define VMCLEAR_INVALID_PHYSICAL_ADDRESS_ERROR      2                  /* VMCLEAR */
+#define VMCLEAR_WITH_CURRENT_CONTROLLING_PTR_ERROR  3                  /* VMCLEAR */
+#define VMLAUNCH_WITH_NON_CLEAR_VMCS_ERROR          4                  /* VMLAUNCH */
+#define VMRESUME_WITH_NON_LAUNCHED_VMCS_ERROR       5                  /* VMRESUME */
+#define VMRESUME_WITH_NON_CHILD_VMCS_ERROR          6                  /* VMRESUME */
+#define VMENTER_BAD_CONTROL_FIELD_ERROR             7                  /* VMENTER */
+#define VMENTER_BAD_MONITOR_STATE_ERROR             8                  /* VMENTER */
+#define VMPTRLD_INVALID_PHYSICAL_ADDRESS_ERROR      9                  /* VMPTRLD */
+#define VMPTRLD_WITH_CURRENT_CONTROLLING_PTR_ERROR  10                 /* VMPTRLD */
+#define VMPTRLD_WITH_BAD_REVISION_ID_ERROR          11                 /* VMPTRLD */
+#define VMREAD_OR_VMWRITE_OF_UNSUPPORTED_COMPONENT_ERROR 12            /* VMREAD */
+#define VMWRITE_OF_READ_ONLY_COMPONENT_ERROR        13                 /* VMWRITE */
+#define VMWRITE_INVALID_FIELD_VALUE_ERROR           14                 /* VMWRITE */
+#define VMXON_IN_VMX_ROOT_OPERATION_ERROR           15                 /* VMXON */
+#define VMENTRY_WITH_BAD_OSV_CONTROLLING_VMCS_ERROR 16                 /* VMENTER */
+#define VMENTRY_WITH_NON_LAUNCHED_OSV_CONTROLLING_VMCS_ERROR 17        /* VMENTER */
+#define VMENTRY_WITH_NON_ROOT_OSV_CONTROLLING_VMCS_ERROR 18            /* VMENTER */
+#define VMCALL_WITH_NON_CLEAR_VMCS_ERROR            19                 /* VMCALL */
+#define VMCALL_WITH_BAD_VMEXIT_FIELDS_ERROR         20                 /* VMCALL */
+#define VMCALL_WITH_INVALID_MSEG_MSR_ERROR          21                 /* VMCALL */
+#define VMCALL_WITH_INVALID_MSEG_REVISION_ERROR     22                 /* VMCALL */
+#define VMXOFF_WITH_CONFIGURED_SMM_MONITOR_ERROR    23                 /* VMXOFF */
+#define VMCALL_WITH_BAD_SMM_MONITOR_FEATURES_ERROR  24                 /* VMCALL */
+#define RETURN_FROM_SMM_WITH_BAD_VM_EXECUTION_CONTROLS_ERROR 25        /* Return from SMM */
+#define VMENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS_ERROR 26                 /* VMENTER */
+#define BAD_ERROR_CODE                              27                 /* Bad error code */
+#define INVALIDATION_WITH_INVALID_OPERAND           28                 /* INVEPT, INVVPID */
 
-    //Configuration errors
+//
+//  VMCS VM_INSTRUCTION_ERROR field.
+//
+#define STATUS_VM_ENTRY_WITH_INVALID_CONTROL_FIELDS                             VMX_STATUS(VMENTER_BAD_CONTROL_FIELD_ERROR)
+#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS                          VMX_STATUS(VMENTER_BAD_MONITOR_STATE_ERROR)
+#define STATUS_VM_ENTRY_WITH_INVALID_EXECUTIVE_VMCS_POINTER                     VMX_STATUS(VMENTRY_WITH_BAD_OSV_CONTROLLING_VMCS_ERROR)
+#define STATUS_VM_ENTRY_WITH_NON_LAUNCHED_EXECUTIVE_VMCS                        VMX_STATUS(VMENTRY_WITH_NON_LAUNCHED_OSV_CONTROLLING_VMCS_ERROR)
+#define STATUS_VM_ENTRY_WITH_EXECUTIVE_VMCS_POINTER_NOT_VMXON                   VMX_STATUS(VMENTRY_WITH_NON_ROOT_OSV_CONTROLLING_VMCS_ERROR)
+#define STATUS_VM_ENTRY_WITH_INVALID_VM_EXEC_CONTROL_FIELDS_IN_EXECUTIVE_VMCS   VMX_STATUS(RETURN_FROM_SMM_WITH_BAD_VM_EXECUTION_CONTROLS_ERROR)
+#define STATUS_VM_ENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS                           VMX_STATUS(VMENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS_ERROR)
+#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION                            VMX_STATUS(VMCALL_IN_ROOT_ERROR)
+#define STATUS_VMCALL_WITH_NON_CLEAR_VMCS                                       VMX_STATUS(VMCALL_WITH_NON_CLEAR_VMCS_ERROR)
+#define STATUS_VMCALL_WITH_INVALID_VM_EXIT_CONTROL_FIELDS                       VMX_STATUS(VMCALL_WITH_BAD_VMEXIT_FIELDS_ERROR)
+#define STATUS_VMCALL_WITH_INCORRECT_MSEG_REVISION_ID                           VMX_STATUS(VMCALL_WITH_INVALID_MSEG_REVISION_ERROR)
+#define STATUS_VMCALL_WITH_INVALID_SMM_MONITOR_FEATURES                         VMX_STATUS(VMCALL_WITH_BAD_SMM_MONITOR_FEATURES_ERROR)
+#define STATUS_VMPTRLD_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(VMPTRLD_INVALID_PHYSICAL_ADDRESS_ERROR)
+#define STATUS_VMPTRLD_WITH_VMXON_POINTER                                       VMX_STATUS(VMPTRLD_WITH_CURRENT_CONTROLLING_PTR_ERROR)
+#define STATUS_VMPTRLD_WITH_INCORRECT_VMCS_REVISION_IDENTIFIER                  VMX_STATUS(VMPTRLD_WITH_BAD_REVISION_ID_ERROR)
+#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(VMCLEAR_INVALID_PHYSICAL_ADDRESS_ERROR)
+#define STATUS_VMCLEAR_WITH_VMXON_POINTER                                       VMX_STATUS(VMCLEAR_WITH_CURRENT_CONTROLLING_PTR_ERROR)
+#define STATUS_VMLAUNCH_WITH_NON_CLEAR_VMCS                                     VMX_STATUS(VMLAUNCH_WITH_NON_CLEAR_VMCS_ERROR)
+#define STATUS_VMRESUME_WITH_NON_LAUNCHED_VMCS                                  VMX_STATUS(VMRESUME_WITH_NON_LAUNCHED_VMCS_ERROR)
+#define STATUS_VMRESUME_AFTER_VMXOFF                                            VMX_STATUS(VMRESUME_WITH_NON_CHILD_VMCS_ERROR)
+#define STATUS_VMREAD_VMWRITE_FROM_TO_UNSSUPORTED_VMCS_COMPONENT                VMX_STATUS(VMREAD_OR_VMWRITE_OF_UNSUPPORTED_COMPONENT_ERROR)
+#define STATUS_VMWRITE_TO_READONLY_VMCS_COMPONENT                               VMX_STATUS(VMWRITE_OF_READ_ONLY_COMPONENT_ERROR)
+#define STATUS_VMXON_EXECUTED_IN_VMX_ROOT_OPERATION                             VMX_STATUS(VMXON_IN_VMX_ROOT_OPERATION_ERROR)
+#define STATUS_VMXOFF_UNDER_DUAL_MONITOR                                        VMX_STATUS(VMXOFF_WITH_CONFIGURED_SMM_MONITOR_ERROR)
+#define STATUS_INVALID_OPERAND_TO_INVEPT_INVVPID                                VMX_STATUS(INVALIDATION_WITH_INVALID_OPERAND)
+
+//
+//  Configuration errors.
+//
 #define STATUS_VMX_NOT_SUPPORTED                                                VMX_STATUS(30)  //!< No virtualization technology present for Intel
 #define STATUS_VMX_BIOS_DISABLED                                                VMX_STATUS(31)  //!< Virtualization technology disabled in BIOS
 #define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS                                VMX_STATUS(32)  //!< Mixed environment with different kind of processors with different capabilities
 #define STATUS_VMX_EPT_NOT_SUPPORTED                                            VMX_STATUS(33)  //!< Mixed environment with different kind of processors with different capabilities
 
-
 //
-// VM Exits
+//  VM Exits.
 //
-#define EXIT_REASON_EXCEPTION_OR_NMI                  0
-#define EXIT_REASON_EXTERNAL_INTERRUPT                1
+#define EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI  0
+#define EXIT_REASON_HARDWARE_INTERRUPT                1
 #define EXIT_REASON_TRIPLE_FAULT                      2
 #define EXIT_REASON_INIT                              3
 #define EXIT_REASON_SIPI                              4
 #define EXIT_REASON_IO_SMI                            5
 #define EXIT_REASON_OTHER_SMI                         6
-#define EXIT_REASON_INTERRUPT_WINDOW                  7
+#define EXIT_REASON_PENDING_INTERRUPT                 7
 #define EXIT_REASON_NMI_WINDOW                        8
 #define EXIT_REASON_TASK_SWITCH                       9
 #define EXIT_REASON_CPUID                             10
@@ -85,13 +126,16 @@
 #define EXIT_REASON_IO_INSTRUCTION                    30
 #define EXIT_REASON_MSR_READ                          31
 #define EXIT_REASON_MSR_WRITE                         32
-#define EXIT_REASON_ENTRY_FAILURE_INVALID_GUEST_STATE 33
-#define EXIT_REASON_ENTRY_FAILURE_MSR_LOADING         34
+#define EXIT_REASON_FAILED_VMENTER_INVALID_GUEST_STATE 33
+#define EXIT_REASON_FAILED_VMENTER_MSR_LOADING        34
+#define EXIT_REASON_FAILED_VMEXIT                     35
 #define EXIT_REASON_MWAIT_INSTRUCTION                 36
 #define EXIT_REASON_MONITOR_TRAP_FLAG                 37
+#define EXIT_REASON_INVALID_VMEXIT_REASON1            38
 #define EXIT_REASON_MONITOR_INSTRUCTION               39
 #define EXIT_REASON_PAUSE_INSTRUCTION                 40
 #define EXIT_REASON_ENTRY_FAILURE_MACHINE_CHECK       41
+#define EXIT_REASON_INVALID_VMEXIT_REASON2            42
 #define EXIT_REASON_TPR_BELOW_THRESHOLD               43
 #define EXIT_REASON_APIC_ACCESS                       44
 #define EXIT_REASON_VIRTUALIZED_EOI                   45
@@ -108,16 +152,12 @@
 #define EXIT_REASON_APIC_WRITE                        56
 #define EXIT_REASON_RDRAND                            57
 #define EXIT_REASON_INVPCID                           58
-#define EXIT_REASON_VMFUNC                            59
+#define EXIT_REASON_INVALID_VMFUNC                    59
 #define EXIT_REASON_ENCLS                             60
 #define EXIT_REASON_RDSEED                            61
 #define EXIT_REASON_PML_FULL                          62
 #define EXIT_REASON_XSAVES                            63
 #define EXIT_REASON_XRSTORS                           64
-
-////////
-//VMCS//
-////////
 
 //VMCS Fields
 //Type
@@ -341,7 +381,7 @@ typedef enum _INTERRUPT_TYPE
     INTERRUPT_EXTERNAL             = 0,
     INTERRUPT_NMI                  = 2,
     INTERRUPT_HARDWARE_EXCEPTION   = 3,
-    INTERRUPT_SOFTWARE             = 4,
+    INTERRUPT_SOFTWARE_INTERRUPT   = 4,
     INTERRUPT_PRIVILIGED_EXCEPTION = 5,
     INTERRUPT_SOFTWARE_EXCEPTION   = 6,
     INTERRUPT_OTHER_EVENT          = 7
@@ -355,7 +395,7 @@ typedef enum _INTERRUPT_TYPE
 //
 //  Exception vectors.
 //
-typedef enum _VECTOR_EXCEPTION
+typedef enum _VMX_VECTOR_EXCEPTION
 {
     VECTOR_DIVIDE_ERROR_EXCEPTION          = 0,
     VECTOR_DEBUG_EXCEPTION                 = 1,
@@ -377,24 +417,24 @@ typedef enum _VECTOR_EXCEPTION
     VECTOR_MACHINE_CHECK_EXCEPTION         = 18,
     VECTOR_SIMD_FLOATING_POINT_EXCEPTION   = 19,
     VECTOR_VIRTUALIZATION_EXCEPTION        = 20
-} VECTOR_EXCEPTION;
+} VMX_VECTOR_EXCEPTION;
 
 #define INTR_INFO_VECTOR_MASK           0x4F
 
 typedef union {
     struct {
-        unsigned lock:1;
-        unsigned enableVmxonInSmx:1;
-        unsigned enableVmxonOutsideSmx:1;
-        unsigned _reserved0:5;
-        unsigned senterEnables:8;
-        unsigned _reserved1:16;
-        unsigned _reserved2:32;
+        UINT32 lock:1;
+        UINT32 enableVmxonInSmx:1;
+        UINT32 enableVmxonOutsideSmx:1;
+        UINT32 _reserved0:5;
+        UINT32 senterEnables:8;
+        UINT32 _reserved1:16;
+        UINT32 _reserved2:32;
     } Bits;
 
     struct {
-        unsigned lower;
-        unsigned upper;
+        UINT32 lower;
+        UINT32 upper;
     } AsUint32;
 
     UINT64 AsUint64;
@@ -407,16 +447,16 @@ typedef union _VMX_MSR_BASIC
 {
     struct
     {
-        unsigned revisionId               : 31; // 0 - 30
-        unsigned _reserved0               : 1;  // 31
-        unsigned vmcsRegionSize           : 13; // 32 - 44
-        unsigned _reserved1               : 3;  // 45 - 47
-        unsigned physicalAddressWidth     : 1;  // 48
-        unsigned dualMonitor              : 1;  // 49
-        unsigned vmcsMemoryType           : 4;  // 50 - 53
-        unsigned vmcsInstructionInfoValid : 1;  // 54
-        unsigned defaultSettings          : 1;  // 55
-        unsigned _reserved2               : 8;  // 56 - 63
+        UINT32 revisionId               : 31; // 0 - 30
+        UINT32 _reserved0               : 1;  // 31
+        UINT32 vmcsRegionSize           : 13; // 32 - 44
+        UINT32 _reserved1               : 3;  // 45 - 47
+        UINT32 physicalAddressWidth     : 1;  // 48
+        UINT32 dualMonitor              : 1;  // 49
+        UINT32 vmcsMemoryType           : 4;  // 50 - 53
+        UINT32 vmcsInstructionInfoValid : 1;  // 54
+        UINT32 defaultSettings          : 1;  // 55
+        UINT32 _reserved2               : 8;  // 56 - 63
     } Bits;
 
     UINT64 AsUint64;
@@ -435,15 +475,15 @@ typedef union _VMX_PIN_EXECUTION_CTLS
 {
     struct
     {
-        unsigned externalInterruptExiting : 1;  // 0
-        unsigned hostInterrupt           : 1;
-        unsigned init                     : 1;
-        unsigned nmiExiting               : 1;  // 3
-        unsigned sipi                     : 1;  // 4
-        unsigned virtualNmis              : 1;  // 5
-        unsigned activatePreemptionTimer  : 1;  // 6
-        unsigned processPostedInterrupts  : 1;  // 7
-        unsigned _reserved2               : 24; // 8 - 31
+        UINT32 externalInterruptExiting : 1;  // 0
+        UINT32 hostInterrupt           : 1;
+        UINT32 init                     : 1;
+        UINT32 nmiExiting               : 1;  // 3
+        UINT32 sipi                     : 1;  // 4
+        UINT32 virtualNmis              : 1;  // 5
+        UINT32 activatePreemptionTimer  : 1;  // 6
+        UINT32 processPostedInterrupts  : 1;  // 7
+        UINT32 _reserved2               : 24; // 8 - 31
     } Bits;
 
     UINT32 AsUint32;
@@ -471,38 +511,38 @@ typedef union _VMX_PROC_PRIMARY_CTLS
 {
     struct
     {
-        unsigned softwareInterrupt         : 1; // 0
-        unsigned tripleFault               : 1; // 1
-        unsigned interruptWindowExiting    : 1; // 2
-        unsigned useTscOffseting           : 1; // 3
-        unsigned taskSwitch                : 1; // 4
-        unsigned cpuid                     : 1; // 5
-        unsigned getSec                    : 1; // 6 
-        unsigned hltExiting                : 1; // 7
-        unsigned invdExiting               : 1; // 8
-        unsigned invlpgExiting             : 1; // 9
-        unsigned mwaitExiting              : 1; // 10
-        unsigned rdpmcExiting              : 1; // 11
-        unsigned rdtscExiting              : 1; // 12
-        unsigned rsm                       : 1; // 13
-        unsigned vmInstruction             : 1; // 14 
-        unsigned cr3LoadExiting            : 1; // 15
-        unsigned cr3StoreExiting           : 1; // 16
-        unsigned cr3Mask                   : 1; // 17
-        unsigned cr3Read_shadow            : 1; // 18
-        unsigned cr8LoadExiting            : 1; // 19
-        unsigned cr8StoreExiting           : 1; // 20
-        unsigned useTprShadow              : 1; // 21
-        unsigned nmiWindowExiting          : 1; // 22
-        unsigned movDrExiting              : 1; // 23
-        unsigned unconditionalIoExiting    : 1; // 24
-        unsigned useIoBitmaps              : 1; // 25
-        unsigned msrProtection             : 1; // 26
-        unsigned monitorTrapFlag           : 1; // 27
-        unsigned useMsrBitmaps             : 1; // 28
-        unsigned monitorExiting            : 1; // 29
-        unsigned pauseExiting              : 1; // 30
-        unsigned SecondaryControls         : 1; // 31
+        UINT32 softwareInterrupt         : 1; // 0
+        UINT32 tripleFault               : 1; // 1
+        UINT32 interruptWindowExiting    : 1; // 2
+        UINT32 useTscOffseting           : 1; // 3
+        UINT32 taskSwitch                : 1; // 4
+        UINT32 cpuid                     : 1; // 5
+        UINT32 getSec                    : 1; // 6 
+        UINT32 hltExiting                : 1; // 7
+        UINT32 invdExiting               : 1; // 8
+        UINT32 invlpgExiting             : 1; // 9
+        UINT32 mwaitExiting              : 1; // 10
+        UINT32 rdpmcExiting              : 1; // 11
+        UINT32 rdtscExiting              : 1; // 12
+        UINT32 rsm                       : 1; // 13
+        UINT32 vmInstruction             : 1; // 14 
+        UINT32 cr3LoadExiting            : 1; // 15
+        UINT32 cr3StoreExiting           : 1; // 16
+        UINT32 cr3Mask                   : 1; // 17
+        UINT32 cr3Read_shadow            : 1; // 18
+        UINT32 cr8LoadExiting            : 1; // 19
+        UINT32 cr8StoreExiting           : 1; // 20
+        UINT32 useTprShadow              : 1; // 21
+        UINT32 nmiWindowExiting          : 1; // 22
+        UINT32 movDrExiting              : 1; // 23
+        UINT32 unconditionalIoExiting    : 1; // 24
+        UINT32 useIoBitmaps              : 1; // 25
+        UINT32 msrProtection             : 1; // 26
+        UINT32 monitorTrapFlag           : 1; // 27
+        UINT32 useMsrBitmaps             : 1; // 28
+        UINT32 monitorExiting            : 1; // 29
+        UINT32 pauseExiting              : 1; // 30
+        UINT32 SecondaryControls         : 1; // 31
     } Bits;
     
     UINT32 AsUint32;
@@ -531,32 +571,32 @@ typedef union _VMX_PROC_SECONDARY_CTLS
 {
     struct
     {
-        unsigned virtualizeApicAccess       : 1;  // 0
-        unsigned enableEpt                  : 1;  // 1
-        unsigned descriptorTableExiting     : 1;  // 2
-        unsigned enableRdtscp               : 1;  // 3
-        unsigned virtualizeX2ApicMode       : 1;  // 4
-        unsigned enableVpid                 : 1;  // 5
-        unsigned wbinvdExiting              : 1;  // 6
-        unsigned unrestrictedGuest          : 1;  // 7
-        unsigned apicRegisterVirtualization : 1;  // 8
-        unsigned virtualInterruptDelivery   : 1;  // 9
-        unsigned pauseLoopExiting           : 1;  // 10
-        unsigned rdrandExiting              : 1;  // 11
-        unsigned enableInvpcid              : 1;  // 12
-        unsigned enableVmFunctions          : 1;  // 13
-        unsigned vmcsShadowing              : 1;  // 14
-        unsigned enableEnclsExiting         : 1;  // 15
-        unsigned rdseedExiting              : 1;  // 16
-        unsigned enablePml                  : 1;  // 17
-        unsigned eptVe                      : 1;  // 18
-        unsigned concealFromPT              : 1;  // 19
-        unsigned enableXsavesXrstors        : 1;  // 20
-        unsigned _reserved0                 : 1;  // 21
-        unsigned modeBasedExecuteControlEpt : 1;  // 22
-        unsigned _reserved1                 : 2;  // 23 - 24
-        unsigned useTscScaling              : 1;  // 25
-        unsigned _reserved2                 : 6;  // 26 - 31
+        UINT32 virtualizeApicAccess       : 1;  // 0
+        UINT32 enableEpt                  : 1;  // 1
+        UINT32 descriptorTableExiting     : 1;  // 2
+        UINT32 enableRdtscp               : 1;  // 3
+        UINT32 virtualizeX2ApicMode       : 1;  // 4
+        UINT32 enableVpid                 : 1;  // 5
+        UINT32 wbinvdExiting              : 1;  // 6
+        UINT32 unrestrictedGuest          : 1;  // 7
+        UINT32 apicRegisterVirtualization : 1;  // 8
+        UINT32 virtualInterruptDelivery   : 1;  // 9
+        UINT32 pauseLoopExiting           : 1;  // 10
+        UINT32 rdrandExiting              : 1;  // 11
+        UINT32 enableInvpcid              : 1;  // 12
+        UINT32 enableVmFunctions          : 1;  // 13
+        UINT32 vmcsShadowing              : 1;  // 14
+        UINT32 enableEnclsExiting         : 1;  // 15
+        UINT32 rdseedExiting              : 1;  // 16
+        UINT32 enablePml                  : 1;  // 17
+        UINT32 eptVe                      : 1;  // 18
+        UINT32 concealFromPT              : 1;  // 19
+        UINT32 enableXsavesXrstors        : 1;  // 20
+        UINT32 _reserved0                 : 1;  // 21
+        UINT32 modeBasedExecuteControlEpt : 1;  // 22
+        UINT32 _reserved1                 : 2;  // 23 - 24
+        UINT32 useTscScaling              : 1;  // 25
+        UINT32 _reserved2                 : 6;  // 26 - 31
     } Bits;
 
     UINT32 AsUint32;
@@ -588,32 +628,32 @@ typedef union _VMX_EXIT_CTLS
 {
     struct
     {
-        unsigned save_cr0_and_cr4            : 1;       // 0
-        unsigned save_cr3                    : 1;       // 1 
-        unsigned saveDebugControls           : 1;       // 2
-        unsigned save_segment_registers      : 1;       // 3
-        unsigned save_esp_eip_eflags         : 1;       // 4 
-        unsigned savePendingDebugExceptions  : 1;       // 5
-        unsigned saveInterruptibilityInformation : 1;   // 6
-        unsigned saveActivityState           : 1;       // 7
-        unsigned saveWorkingVmcsPointer      : 1;       // 8
-        unsigned hostAddressSpaceSize        : 1;       // 9
-        unsigned load_cr0_and_cr4            : 1;       // 10
-        unsigned load_cr3                    : 1;       // 11
-        unsigned loadIa32PerfGlobalControl   : 1;       // 12
-        unsigned loadSegmentRegisters        : 1;       // 13
-        unsigned load_esp_eip                : 1;       // 14
-        unsigned acknowledgeInterruptOnExit  : 1;       // 15
-        unsigned saveSysEnterMsrs            : 1;       // 16
-        unsigned loadSysEnterMsrs            : 1;       // 17
-        unsigned saveIa32Pat                 : 1;       // 18
-        unsigned loadIa32Pat                 : 1;       // 19
-        unsigned saveIa32Efer                : 1;       // 20
-        unsigned loadIa32Efer                : 1;       // 21
-        unsigned saveVmxPreemptionTimerValue : 1;       // 22
-        unsigned clearIa32Bndcgfs            : 1;       // 23
-        unsigned concealVmExitsFromPT        : 1;       // 24
-        unsigned _reserved0                  : 7;       // 25 - 31
+        UINT32 save_cr0_and_cr4            : 1;       // 0
+        UINT32 save_cr3                    : 1;       // 1 
+        UINT32 saveDebugControls           : 1;       // 2
+        UINT32 save_segment_registers      : 1;       // 3
+        UINT32 save_esp_eip_eflags         : 1;       // 4 
+        UINT32 savePendingDebugExceptions  : 1;       // 5
+        UINT32 saveInterruptibilityInformation : 1;   // 6
+        UINT32 saveActivityState           : 1;       // 7
+        UINT32 saveWorkingVmcsPointer      : 1;       // 8
+        UINT32 hostAddressSpaceSize        : 1;       // 9
+        UINT32 load_cr0_and_cr4            : 1;       // 10
+        UINT32 load_cr3                    : 1;       // 11
+        UINT32 loadIa32PerfGlobalControl   : 1;       // 12
+        UINT32 loadSegmentRegisters        : 1;       // 13
+        UINT32 load_esp_eip                : 1;       // 14
+        UINT32 acknowledgeInterruptOnExit  : 1;       // 15
+        UINT32 saveSysEnterMsrs            : 1;       // 16
+        UINT32 loadSysEnterMsrs            : 1;       // 17
+        UINT32 saveIa32Pat                 : 1;       // 18
+        UINT32 loadIa32Pat                 : 1;       // 19
+        UINT32 saveIa32Efer                : 1;       // 20
+        UINT32 loadIa32Efer                : 1;       // 21
+        UINT32 saveVmxPreemptionTimerValue : 1;       // 22
+        UINT32 clearIa32Bndcgfs            : 1;       // 23
+        UINT32 concealVmExitsFromPT        : 1;       // 24
+        UINT32 _reserved0                  : 7;       // 25 - 31
     } Bits;
     
     UINT32 AsUint32;
@@ -644,25 +684,25 @@ typedef union _VMX_ENTRY_CTLS
 {
     struct
     {
-        unsigned load_cr0_and_cr4           : 1;  // 0 
-        unsigned load_cr3                   : 1;  // 1 
-        unsigned loadDebugControls          : 1;  // 2
-        unsigned loadSegmentRegisters       : 1;  // 3
-        unsigned load_esp_eip_eflags        : 1;  // 4
-        unsigned loadPendingDebugExceptions : 1;  //5
-        unsigned loadInterruptibilityInformation : 1;  //6
-        unsigned loadActivityState          : 1;  // 7
-        unsigned loadWorkingVmcsPointer     : 1;  // 8
-        unsigned ia32eModeGuest             : 1;  // 9
-        unsigned entryToSmm                 : 1;  // 10
-        unsigned deactivateDualMonitor      : 1;  // 11
-        unsigned loadSysEnterMsrs           : 1;  // 12
-        unsigned loadIa32PerfGlobalControl  : 1;  // 13
-        unsigned loadIa32Pat                : 1;  // 14
-        unsigned loadIa32Efer               : 1;  // 15
-        unsigned loadIa32Bndcgfs            : 1;  // 16
-        unsigned concealVmEntriesFromPT     : 1;  // 17
-        unsigned _reserved30                : 14; // 18 - 31
+        UINT32 load_cr0_and_cr4           : 1;  // 0 
+        UINT32 load_cr3                   : 1;  // 1 
+        UINT32 loadDebugControls          : 1;  // 2
+        UINT32 loadSegmentRegisters       : 1;  // 3
+        UINT32 load_esp_eip_eflags        : 1;  // 4
+        UINT32 loadPendingDebugExceptions : 1;  //5
+        UINT32 loadInterruptibilityInformation : 1;  //6
+        UINT32 loadActivityState          : 1;  // 7
+        UINT32 loadWorkingVmcsPointer     : 1;  // 8
+        UINT32 ia32eModeGuest             : 1;  // 9
+        UINT32 entryToSmm                 : 1;  // 10
+        UINT32 deactivateDualMonitor      : 1;  // 11
+        UINT32 loadSysEnterMsrs           : 1;  // 12
+        UINT32 loadIa32PerfGlobalControl  : 1;  // 13
+        UINT32 loadIa32Pat                : 1;  // 14
+        UINT32 loadIa32Efer               : 1;  // 15
+        UINT32 loadIa32Bndcgfs            : 1;  // 16
+        UINT32 concealVmEntriesFromPT     : 1;  // 17
+        UINT32 _reserved30                : 14; // 18 - 31
     } Bits;
 
     UINT32 AsUint32;
@@ -694,19 +734,19 @@ typedef union _VMX_MISC
 {
     struct
     {
-        unsigned preemptionTimerLength             : 5;  // 0 - 4
-        unsigned unrestrictedGuest                 : 1;  // 5
-        unsigned entryInHaltStateSupported         : 1;  // 6
-        unsigned entryInShutdownStateSupported     : 1;  // 7
-        unsigned entryInWaitForSipiStateSupported  : 1;  // 8
-        unsigned _reserved0                        : 6;  // 9 - 14
-        unsigned canReadIa32SmbaseFromSmm          : 1;  // 15
-        unsigned numberOfCr3TargetValues           : 9;  // 16 - 24
-        unsigned msrListsMaxSize                   : 3;  // 25 - 27
-        unsigned canReadIa32SmmMonitorControl      : 1;  // 28
-        unsigned canWriteExitInfoFields            : 1;  // 29
-        unsigned _reserved1                        : 2;  // 30 - 31
-        unsigned msegRevisionId                    : 32; // 32 - 63
+        UINT32 preemptionTimerLength             : 5;  // 0 - 4
+        UINT32 unrestrictedGuest                 : 1;  // 5
+        UINT32 entryInHaltStateSupported         : 1;  // 6
+        UINT32 entryInShutdownStateSupported     : 1;  // 7
+        UINT32 entryInWaitForSipiStateSupported  : 1;  // 8
+        UINT32 _reserved0                        : 6;  // 9 - 14
+        UINT32 canReadIa32SmbaseFromSmm          : 1;  // 15
+        UINT32 numberOfCr3TargetValues           : 9;  // 16 - 24
+        UINT32 msrListsMaxSize                   : 3;  // 25 - 27
+        UINT32 canReadIa32SmmMonitorControl      : 1;  // 28
+        UINT32 canWriteExitInfoFields            : 1;  // 29
+        UINT32 _reserved1                        : 2;  // 30 - 31
+        UINT32 msegRevisionId                    : 32; // 32 - 63
     } Bits;
 
     UINT64 AsUint64;
@@ -726,42 +766,42 @@ typedef union _VMX_EPT_VPID_CAP
     struct
     {
         /* RWX support */
-        unsigned x_only                                   : 1;
-        unsigned w_only                                   : 1;
-        unsigned w_and_x_only                             : 1;
+        UINT32 x_only                                   : 1;
+        UINT32 w_only                                   : 1;
+        UINT32 w_and_x_only                             : 1;
         /* gaw support */
-        unsigned gaw_21_bit                               : 1;
-        unsigned gaw_30_bit                               : 1;
-        unsigned gaw_39_bit                               : 1;
-        unsigned gaw_48_bit                               : 1;
-        unsigned gaw_57_bit                               : 1;
+        UINT32 gaw_21_bit                               : 1;
+        UINT32 gaw_30_bit                               : 1;
+        UINT32 gaw_39_bit                               : 1;
+        UINT32 gaw_48_bit                               : 1;
+        UINT32 gaw_57_bit                               : 1;
         /* EMT support */
-        unsigned uc                                       : 1;
-        unsigned wc                                       : 1;
-        unsigned _reserved0                               : 2;
-        unsigned wt                                       : 1;
-        unsigned wp                                       : 1;
-        unsigned wb                                       : 1;
-        unsigned reserved1                                : 1;
+        UINT32 uc                                       : 1;
+        UINT32 wc                                       : 1;
+        UINT32 _reserved0                               : 2;
+        UINT32 wt                                       : 1;
+        UINT32 wp                                       : 1;
+        UINT32 wb                                       : 1;
+        UINT32 reserved1                                : 1;
         /* SP support */
-        unsigned sp_21_bit                                : 1;
-        unsigned sp_30_bit                                : 1;
-        unsigned sp_39_bit                                : 1;
-        unsigned sp_48_bit                                : 1;
-        unsigned supportInvept                            : 1;  // 20
-        unsigned supportDirtyAccessedBits                 : 1;  // 21
-        unsigned _reserved1                               : 2;  // 22 - 23
-        unsigned SupportInveptIndividualAddress           : 1;  // 24
-        unsigned supportInveptSingleContext               : 1;  // 25
-        unsigned supportInveptAllContext                  : 1;  // 26
-        unsigned _reserved2                               : 5;  // 27 - 31
-        unsigned supportInvvpid                           : 1;  // 32
-        unsigned _reserved3                               : 7;  // 33 - 39
-        unsigned supportInvvpidIndividualAddress          : 1;  // 40
-        unsigned supportInvvpidSingleContext              : 1;  // 41
-        unsigned supportInvvpidAllContext                 : 1;  // 42
-        unsigned supportInvvpidSingleContextRetainGlobals : 1;  // 43
-        unsigned _reserved4                               : 20; // 44 - 63
+        UINT32 sp_21_bit                                : 1;
+        UINT32 sp_30_bit                                : 1;
+        UINT32 sp_39_bit                                : 1;
+        UINT32 sp_48_bit                                : 1;
+        UINT32 supportInvept                            : 1;  // 20
+        UINT32 supportDirtyAccessedBits                 : 1;  // 21
+        UINT32 _reserved1                               : 2;  // 22 - 23
+        UINT32 SupportInveptIndividualAddress           : 1;  // 24
+        UINT32 supportInveptSingleContext               : 1;  // 25
+        UINT32 supportInveptAllContext                  : 1;  // 26
+        UINT32 _reserved2                               : 5;  // 27 - 31
+        UINT32 supportInvvpid                           : 1;  // 32
+        UINT32 _reserved3                               : 7;  // 33 - 39
+        UINT32 supportInvvpidIndividualAddress          : 1;  // 40
+        UINT32 supportInvvpidSingleContext              : 1;  // 41
+        UINT32 supportInvvpidAllContext                 : 1;  // 42
+        UINT32 supportInvvpidSingleContextRetainGlobals : 1;  // 43
+        UINT32 _reserved4                               : 20; // 44 - 63
     } Bits;
 
     UINT64 AsUint64;
@@ -776,9 +816,9 @@ typedef union
 {
     struct
     {
-        unsigned eptpSwitching  : 1;
-        unsigned _reserved0     : 31;
-        unsigned _reserved1     : 32;
+        UINT32 eptpSwitching  : 1;
+        UINT32 _reserved0     : 31;
+        UINT32 _reserved1     : 32;
     }  Bits;
 
     UINT64 AsUint64;
@@ -810,23 +850,16 @@ typedef struct _EXIT_GUEST_INTERRUPTIBILITY_STATE
 
         struct
         {
-            unsigned blockingBySti       : 1;  // 0
-            unsigned blockingByMovSs     : 1;  // 1
-            unsigned blockingBySmi       : 1;  // 2
-            unsigned blockingByNmi       : 1;  // 3
-            unsigned enclaveInterruption : 1;  // 4
-            unsigned _reserved           : 27;  // 5 - 31
+            UINT32 blockingBySti       : 1;  // 0
+            UINT32 blockingByMovSs     : 1;  // 1
+            UINT32 blockingBySmi       : 1;  // 2
+            UINT32 blockingByNmi       : 1;  // 3
+            UINT32 enclaveInterruption : 1;  // 4
+            UINT32 _reserved           : 27;  // 5 - 31
         } f;
     } u;
 } EXIT_GUEST_INTERRUPTIBILITY_STATE, *PEXIT_GUEST_INTERRUPTIBILITY_STATE;
-//////////////////////////////
-//END GUEST ADDITIONAL STATE//
-//////////////////////////////
 
-
-///////////////////////
-//EXIT QUALIFICATIONS// //27.2.1
-///////////////////////
 typedef struct _EXIT_QUALIFICATION_DEBUG_EXCEPTION
 {
     union
@@ -835,16 +868,16 @@ typedef struct _EXIT_QUALIFICATION_DEBUG_EXCEPTION
 
         struct
         {
-            unsigned B0              : 1;  // 0
-            unsigned B1              : 1;  // 1
-            unsigned B2              : 1;  // 2
-            unsigned B3              : 1;  // 3
-            unsigned _reserved0      : 9;  // 4 - 12
-            unsigned BD              : 1;  // 13 
-            unsigned BS              : 1;  // 14 
-            unsigned _reserved2      : 17;  // 15 - 31
+            UINT32 B0              : 1;  // 0
+            UINT32 B1              : 1;  // 1
+            UINT32 B2              : 1;  // 2
+            UINT32 B3              : 1;  // 3
+            UINT32 _reserved0      : 9;  // 4 - 12
+            UINT32 BD              : 1;  // 13 
+            UINT32 BS              : 1;  // 14 
+            UINT32 _reserved2      : 17;  // 15 - 31
 #ifdef _WIN64
-            unsigned _reserved3      : 32; // 32 - 63
+            UINT32 _reserved3      : 32; // 32 - 63
 #endif
         } f;
     } u;
@@ -858,11 +891,11 @@ typedef struct _EXIT_QUALIFICATION_TASK_SWITCH
 
         struct
         {
-            unsigned tssSelector     : 16;  // 0  - 15
-            unsigned _reserved0      : 14;  // 16 - 29
-            unsigned source          : 2;   // 30 - 31 
+            UINT32 tssSelector     : 16;  // 0  - 15
+            UINT32 _reserved0      : 14;  // 16 - 29
+            UINT32 source          : 2;   // 30 - 31 
 #ifdef _WIN64
-            unsigned _reserved1      : 32; // 32 - 63
+            UINT32 _reserved1      : 32; // 32 - 63
 #endif
         } f;
     } u;
@@ -873,26 +906,24 @@ typedef struct _EXIT_QUALIFICATION_TASK_SWITCH
 #define TASK_SWITCH_SOURCE_JMP              2
 #define TASK_SWITCH_SOURCE_IDT_TASK_GATE    3
 
-typedef struct _EXIT_QUALIFICATION_CR
+typedef union _EXIT_QUALIFICATION_CR
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            unsigned number          : 4;  // 0 - 3
-            unsigned accessType      : 2;  // 4 - 5
-            unsigned lmswOperandType : 1;  // 6 
-            unsigned _reserved0      : 1;  // 7 
-            unsigned moveGpr         : 4;  // 8 - 11
-            unsigned _reserved1      : 4;  // 12 - 15
-            unsigned lmswSourceData  : 16; // 16 - 31
+        UINT32 Number : 4;
+        UINT32 AccessType : 2;
+        UINT32 LmswType : 1;
+        UINT32 Rsvd7 : 1;
+        UINT32 MoveGp : 4;
+        UINT32 Rsvd12To15 : 4;
+        UINT32 LmswSource : 16;
 #ifdef _WIN64
-            unsigned _reserved2      : 32; // 32 - 63
+        UINT32 Rsvd32To63 : 32;
 #endif
-        } cr;
-    } u;
+    } CrAccess;
+
+    UINT_PTR AsUintN;
+  
 } EXIT_QUALIFICATION_CR, *PEXIT_QUALIFICATION_CR;
 
 #define CR_ACCESS_TYPE_MOV_TO_CR    0
@@ -911,14 +942,14 @@ typedef struct _EXIT_QUALIFICATION_DR
 
         struct
         {
-            unsigned dr         : 3;  // 0 - 2
-            unsigned _reserved0 : 1;  // 3
-            unsigned accessType : 1;  // 4
-            unsigned _reserved1 : 3;  // 5 - 7
-            unsigned gpr        : 4;  // 8 - 11
-            unsigned _reserved2 : 20; // 12 - 31
+            UINT32 dr         : 3;  // 0 - 2
+            UINT32 _reserved0 : 1;  // 3
+            UINT32 accessType : 1;  // 4
+            UINT32 _reserved1 : 3;  // 5 - 7
+            UINT32 gpr        : 4;  // 8 - 11
+            UINT32 _reserved2 : 20; // 12 - 31
 #ifdef _WIN64
-            unsigned _reserved3 : 32; // 32 - 63
+            UINT32 _reserved3 : 32; // 32 - 63
 #endif
         } f;
     } u;
@@ -935,15 +966,15 @@ typedef struct _EXIT_QUALIFICATION_IO
 
         struct
         {
-            unsigned size                : 3;  // 0 - 2
-            unsigned direction           : 1;  // 3
-            unsigned isStringInstruction : 1;  // 4 
-            unsigned hasRepPrefix        : 1;  // 5 
-            unsigned operandEncoding     : 1;  // 6
-            unsigned _reserved0          : 9;  // 7 - 15
-            unsigned port                : 16; // 16 - 31
+            UINT32 size                : 3;  // 0 - 2
+            UINT32 direction           : 1;  // 3
+            UINT32 isStringInstruction : 1;  // 4 
+            UINT32 hasRepPrefix        : 1;  // 5 
+            UINT32 operandEncoding     : 1;  // 6
+            UINT32 _reserved0          : 9;  // 7 - 15
+            UINT32 port                : 16; // 16 - 31
 #ifdef _WIN64
-            unsigned _reserved1          : 32; // 32 - 63
+            UINT32 _reserved1          : 32; // 32 - 63
 #endif
         } f;
     } u;
@@ -957,11 +988,11 @@ typedef struct _EXIT_QUALIFICATION_APIC
 
         struct
         {
-            unsigned apicPageOffset    : 12;  // 0  - 11
-            unsigned accessType        : 4;   // 12 - 15
-            unsigned _reserved1        : 16;  // 16 - 31
+            UINT32 apicPageOffset    : 12;  // 0  - 11
+            UINT32 accessType        : 4;   // 12 - 15
+            UINT32 _reserved1        : 16;  // 16 - 31
 #ifdef _WIN64
-            unsigned _reserved2        : 32; // 32 - 63
+            UINT32 _reserved2        : 32; // 32 - 63
 #endif
         } f;
     } u;
@@ -982,52 +1013,74 @@ typedef struct _EXIT_QUALIFICATION_SLAT
 
         struct
         {
-            unsigned read              : 1;  // 0
-            unsigned write             : 1;  // 1
-            unsigned execute           : 1;  // 2
-            unsigned couldRead         : 1;  // 3
-            unsigned couldWrite        : 1;  // 4
-            unsigned couldExecute      : 1;  // 5
-            unsigned _reserved0        : 1;  // 6
-            unsigned guestLinearValid  : 1;  // 7
-            unsigned notPagingAccess   : 1;  // 8
-            unsigned _reserved1        : 3;  // 9 - 11
-            unsigned nmiUnblocking     : 1;  // 12
-            unsigned _reserved2        : 19; // 13 - 31
+            UINT32 read              : 1;  // 0
+            UINT32 write             : 1;  // 1
+            UINT32 execute           : 1;  // 2
+            UINT32 couldRead         : 1;  // 3
+            UINT32 couldWrite        : 1;  // 4
+            UINT32 couldExecute      : 1;  // 5
+            UINT32 _reserved0        : 1;  // 6
+            UINT32 guestLinearValid  : 1;  // 7
+            UINT32 notPagingAccess   : 1;  // 8
+            UINT32 _reserved1        : 3;  // 9 - 11
+            UINT32 nmiUnblocking     : 1;  // 12
+            UINT32 _reserved2        : 19; // 13 - 31
 #ifdef _WIN64
-            unsigned _reserved3        : 32; // 32 - 63
+            UINT32 _reserved3        : 32; // 32 - 63
 #endif
         } f;
     } u;
 } EXIT_QUALIFICATION_SLAT, *PEXIT_QUALIFICATION_SLAT;
 
-//27.2.2
-typedef struct _INTERRUPT_INFORMATION
+typedef union _VMX_EXIT_INTERRUPT_INFO
 {
-    union
+    struct
     {
-        UINT32 raw;
+        UINT32 Vector : 8;
+        UINT32 InterruptType : 3;
+        UINT32 ErrorCodeValid : 1;
+        UINT32 NmiUnblockingDueToIret : 1;
+        UINT32 Rsvd13To30 : 18;
+        UINT32 Valid : 1;
+    } Bits;
 
-        struct
-        {
-            unsigned vector        : 8;  // 0 - 7
-            unsigned type          : 3;  // 8 - 10
-            unsigned deliverCode   : 1;  // 11
-            unsigned nmiUnblocking : 1;  // 12
-            unsigned _reserved0    : 18; // 13 - 30
-            unsigned valid         : 1;  // 31
-        } f;
-    } u;
-} INTERRUPT_INFORMATION, *PINTERRUPT_INFORMATION;
+    UINT32 AsUint32;
+} VMX_EXIT_INTERRUPT_INFO;
+
+typedef union _VM_ENTRY_CONTROL_INTERRUPT {
+    
+    struct
+    {
+        UINT32 Vector : 8;
+        UINT32 InterruptType : 3;
+        UINT32 DeliverErrorCode : 1;
+        UINT32 Rsvd12To30 : 19;
+        UINT32 Valid : 1;
+    } Bits;
+
+    UINT32 AsUint32;
+} VM_ENTRY_CONTROL_INTERRUPT;
+
+typedef union _VMX_IDT_VECTORING_INFORMATION {
+
+    struct
+    {
+        UINT32 Vector : 8;
+        UINT32 InterruptType : 3;
+        UINT32 ErrorCodeValid : 1;
+        UINT32 Rsvd12To30 : 19;
+        UINT32 Valid : 1;
+
+    } Bits;
+
+    UINT32 AsUint32;
+} VMX_IDT_VECTORING_INFORMATION;
 
 #define INTERRUPT_TYPE_EXTERNAL             0
 #define INTERRUPT_TYPE_NMI                  2
 #define INTERRUPT_TYPE_HARDWARE_EXCEPTION   3
 #define INTERRUPT_TYPE_SOFTWARE_EXCEPTION   6 //#BP - INT3  #OF - INTO
 
-////////////////////////////
-// END EXIT QUALIFICATIONS//
-////////////////////////////
 
 ///////////////////////////
 //INSTRUCTION INFORMATION// //27.2.4
@@ -1040,11 +1093,11 @@ typedef struct _INSTRUCTION_INFORMATION_IO
 
         struct
         {
-            unsigned _reserved0  : 7;  // 0 - 6
-            unsigned addressSize : 3;  // 7 - 9
-            unsigned _reserved1  : 5;  // 10 - 14
-            unsigned segment     : 3;  // 15 - 17
-            unsigned _reserved2  : 14; // 18 - 31
+            UINT32 _reserved0  : 7;  // 0 - 6
+            UINT32 addressSize : 3;  // 7 - 9
+            UINT32 _reserved1  : 5;  // 10 - 14
+            UINT32 segment     : 3;  // 15 - 17
+            UINT32 _reserved2  : 14; // 18 - 31
         } f;
     } u;
 } INSTRUCTION_INFORMATION_IO, *PINSTRUCTION_INFORMATION_IO;
@@ -1057,16 +1110,16 @@ typedef struct _INSTRUCTION_INFORMATION_SLAT
 
         struct
         {
-            unsigned scaling      : 2;  // 0  - 1
-            unsigned _reserved0   : 5;  // 2  - 6
-            unsigned addressSize  : 2;  // 7  - 9
-            unsigned _reserved1   : 5;  // 10 - 14
-            unsigned segment      : 3;  // 15 - 17
-            unsigned index        : 4;  // 18 - 21
-            unsigned indexInvalid : 1;  // 22
-            unsigned base         : 4;  // 23 - 26
-            unsigned baseInvalid  : 1;  // 27
-            unsigned reg2         : 1;  // 28 - 31
+            UINT32 scaling      : 2;  // 0  - 1
+            UINT32 _reserved0   : 5;  // 2  - 6
+            UINT32 addressSize  : 2;  // 7  - 9
+            UINT32 _reserved1   : 5;  // 10 - 14
+            UINT32 segment      : 3;  // 15 - 17
+            UINT32 index        : 4;  // 18 - 21
+            UINT32 indexInvalid : 1;  // 22
+            UINT32 base         : 4;  // 23 - 26
+            UINT32 baseInvalid  : 1;  // 27
+            UINT32 reg2         : 1;  // 28 - 31
         } f;
     } u;
 } INSTRUCTION_INFORMATION_SLAT, *PINSTRUCTION_INFORMATION_SLAT;
@@ -1080,19 +1133,19 @@ typedef struct _INSTRUCTION_INFORMATION_XDT
 
         struct
         {
-            unsigned scaling      : 2; // 0 - 1
-            unsigned _reserved0   : 5; // 2 - 6
-            unsigned addressSize  : 3; // 7 - 9
-            unsigned _zero        : 1; // 10
-            unsigned operandSize  : 1; // 11
-            unsigned _reserved1   : 3; // 12 - 14
-            unsigned segment      : 3; // 15 - 17
-            unsigned index        : 4; // 18 - 21
-            unsigned indexInvalid : 1; // 22
-            unsigned base         : 4; // 23 - 26
-            unsigned baseInvalid  : 1; // 27
-            unsigned instruction  : 2; // 28 - 29
-            unsigned _reserved2   : 2; // 30 - 31
+            UINT32 scaling      : 2; // 0 - 1
+            UINT32 _reserved0   : 5; // 2 - 6
+            UINT32 addressSize  : 3; // 7 - 9
+            UINT32 _zero        : 1; // 10
+            UINT32 operandSize  : 1; // 11
+            UINT32 _reserved1   : 3; // 12 - 14
+            UINT32 segment      : 3; // 15 - 17
+            UINT32 index        : 4; // 18 - 21
+            UINT32 indexInvalid : 1; // 22
+            UINT32 base         : 4; // 23 - 26
+            UINT32 baseInvalid  : 1; // 27
+            UINT32 instruction  : 2; // 28 - 29
+            UINT32 _reserved2   : 2; // 30 - 31
         } f;
     } u;
 } INSTRUCTION_INFORMATION_XDT, *PINSTRUCTION_INFORMATION_XDT;
@@ -1106,19 +1159,19 @@ typedef struct _INSTRUCTION_INFORMATION_XTR
 
         struct
         {
-            unsigned scaling      : 2; // 0 - 1
-            unsigned _reserved0   : 1; // 2
-            unsigned reg1         : 4; // 3 - 6
-            unsigned addressSize  : 3; // 7 - 9
-            unsigned memReg       : 1; // 10
-            unsigned _reserved1   : 4; // 11 - 14
-            unsigned segment      : 3; // 15 - 17
-            unsigned index        : 4; // 18 - 21
-            unsigned indexInvalid : 1; // 22
-            unsigned base         : 4; // 23 - 26
-            unsigned baseInvalid  : 1; // 27
-            unsigned instruction  : 2; // 28 - 29
-            unsigned _reserved2   : 2; // 30 - 31
+            UINT32 scaling      : 2; // 0 - 1
+            UINT32 _reserved0   : 1; // 2
+            UINT32 reg1         : 4; // 3 - 6
+            UINT32 addressSize  : 3; // 7 - 9
+            UINT32 memReg       : 1; // 10
+            UINT32 _reserved1   : 4; // 11 - 14
+            UINT32 segment      : 3; // 15 - 17
+            UINT32 index        : 4; // 18 - 21
+            UINT32 indexInvalid : 1; // 22
+            UINT32 base         : 4; // 23 - 26
+            UINT32 baseInvalid  : 1; // 27
+            UINT32 instruction  : 2; // 28 - 29
+            UINT32 _reserved2   : 2; // 30 - 31
         } f;
     } u;
 } INSTRUCTION_INFORMATION_XTR, *PINSTRUCTION_INFORMATION_XTR;
@@ -1131,11 +1184,11 @@ typedef struct _INSTRUCTION_INFORMATION_RD
 
         struct
         {
-            unsigned _reserved0   : 3;  // 0  - 2
-            unsigned destination  : 4;  // 3  - 6
-            unsigned _reserved1   : 4;  // 7  - 10
-            unsigned operandSize  : 2;  // 11 - 12
-            unsigned _reserved2   : 19; // 13 - 31
+            UINT32 _reserved0   : 3;  // 0  - 2
+            UINT32 destination  : 4;  // 3  - 6
+            UINT32 _reserved1   : 4;  // 7  - 10
+            UINT32 operandSize  : 2;  // 11 - 12
+            UINT32 _reserved2   : 19; // 13 - 31
         } f;
     } u;
 } INSTRUCTION_INFORMATION_RD, *PINSTRUCTION_INFORMATION_RD;
@@ -1417,19 +1470,19 @@ VmxAllowed(
 * Reads a field from the VMCS. All VMCS fields index are 32 bits. Data might be 16, 32 or 64 bit wide.
 */
 UINT16
-VmxVmcsRead16(
+VmxRead16(
     _In_ UINT32 field
 );
 UINT32
-VmxVmcsRead32(
+VmxRead32(
     _In_ UINT32 field
 );
 UINT64
-VmxVmcsRead64(
+VmxRead64(
     _In_ UINT32 field
 );
 UINT_PTR
-VmxVmcsReadPlatform(
+VmxReadPlatform(
     _In_ UINT32 field
 );
 
@@ -1438,22 +1491,22 @@ VmxVmcsReadPlatform(
 * This also holds true in 64 although in 64 the write could be done in one step.
 */
 BOOLEAN
-VmxVmcsWrite16(
+VmxWrite16(
     _In_ UINT32 field,
     _In_ UINT16 data
 );
 BOOLEAN
-VmxVmcsWrite32(
+VmxWrite32(
     _In_ UINT32 field,
     _In_ UINT32 data
 );
 BOOLEAN
-VmxVmcsWrite64(
+VmxWrite64(
     _In_ UINT32 field,
     _In_ UINT64 data
 );
 BOOLEAN
-VmxVmcsWritePlatform(
+VmxWritePlatform(
     _In_ UINT32   field,
     _In_ UINT_PTR data
 );
@@ -1529,7 +1582,12 @@ InjectUndefinedOpcodeException(
 
 VOID
 InjectHardwareException(
-    _In_ INTERRUPT_INFORMATION InterruptInfo
+    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
+    );
+
+VOID
+InjectInterruptOrException(
+    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     );
 
 #endif

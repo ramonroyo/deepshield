@@ -30,7 +30,7 @@ IdtInstallService(
     //
     tmp.u.raw          = 0;
     tmp.u.f.offsetLow  = ((UINT32)handler) & 0x0000FFFF;
-    tmp.u.f.selector   = __readcs();
+    tmp.u.f.selector   = AsmReadCs();
 #ifdef _WIN64
     //tmp.u.f.ist      = entry->u.f.ist;
     tmp.u.f.ist        = 0;
@@ -172,8 +172,8 @@ DescriptorAccessRights(
     return accessRights;
 }
 
-extern VOID __stdcall __sgdt(PVOID memory);
-extern VOID __stdcall __lgdt(PVOID memory);
+extern VOID __stdcall AsmReadGdtr(PVOID memory);
+extern VOID __stdcall AsmWriteGdtr(PVOID memory);
 
 UINT_PTR
 sgdt_base(
@@ -182,7 +182,7 @@ sgdt_base(
 {
     UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
 
-    __sgdt(&gdt);
+    AsmReadGdtr(&gdt);
 
     return *(PUINT_PTR)((PUINT8)&gdt + 2);
 }
@@ -195,7 +195,7 @@ sgdt_limit(
 {
     UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
 
-    __sgdt(&gdt);
+    AsmReadGdtr(&gdt);
 
     return *(PUINT16)&gdt;
 }
@@ -212,7 +212,7 @@ lgdt(
     *(PUINT16)  ((PUINT8)&gdt + 0) = limit;
     *(PUINT_PTR)((PUINT8)&gdt + 2) = base;
     
-    __lgdt(&gdt);
+    AsmWriteGdtr(&gdt);
 }
 
 
@@ -289,7 +289,7 @@ writecr(
     switch (cr)
     {
         case 0: __writecr0(value); break;
-        case 2: __writecr2(value); break;
+        case 2: AsmWriteCr2(value); break;
         case 3: __writecr3(value); break;
         case 4: __writecr4(value); break;
 #ifdef _WIN64

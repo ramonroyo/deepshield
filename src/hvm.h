@@ -4,7 +4,7 @@
 #include "x86.h"
 #include "sync.h"
 
-typedef struct DECLSPEC_ALIGN(16) _REGISTERS
+typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
 {
     UINT_PTR rax;
     UINT_PTR rcx;
@@ -35,7 +35,7 @@ typedef struct DECLSPEC_ALIGN(16) _REGISTERS
     UINT_PTR rip;
     FLAGS_REGISTER rflags;
 
-} REGISTERS, *PREGISTERS;
+} GP_REGISTERS, *PGP_REGISTERS;
 
 typedef struct _DESCRIPTOR_TABLE_REGISTER
 {
@@ -89,7 +89,7 @@ typedef struct _EXIT_INFO
 typedef struct _HVM_EVENT
 {
     EXIT_INFO info;
-    REGISTERS regs;
+    GP_REGISTERS Registers;
 } HVM_EVENT, *PHVM_EVENT;
 
 #define MAX_NUMBER_OF_LOGGED_EXIT_EVENTS 4
@@ -106,7 +106,7 @@ typedef
 VOID(*PHVM_EXIT_HANDLER)(
     _In_ UINT32     exitReason,
     _In_ PHVM_VCPU  Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
     );
 
 typedef VOID(*PHVM_SETUP_VMCS)(
@@ -120,14 +120,14 @@ typedef struct _HVM_VCPU
     //
     //  This field must be the first.
     //
-    REGISTERS GuestRegisters;
+    GP_REGISTERS GuestRegisters;
     UINT32 Index;
     PHVM Hvm;
     HOST_SAVED_STATE SavedState;
     PVOID VmxOnRegionHva;
-    PVOID VmxOnRegionHpa;
+    PHYSICAL_ADDRESS VmxOnRegionHpa;
     PVOID VmcsRegionHva;
-    PVOID VmcsRegionHpa;
+    PHYSICAL_ADDRESS VmcsRegionHpa;
     PVOID Stack;
     UINT_PTR Rsp;
     PHVM_EXIT_HANDLER ExitHandler;
@@ -255,7 +255,7 @@ BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
     _In_ UINT32     exitReason,
     _In_ PHVM_VCPU  Vcpu,
-    _In_ PREGISTERS regs
+    _In_ PGP_REGISTERS Registers
 );
 
 #endif

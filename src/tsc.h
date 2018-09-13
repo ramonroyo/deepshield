@@ -34,7 +34,7 @@ typedef struct _TSC_ENTRY {
 VOID
 RdtscEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs,
+    _In_ PGP_REGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 );
@@ -42,22 +42,10 @@ RdtscEmulate(
 VOID
 RdtscpEmulate(
     _In_ PLOCAL_CONTEXT Local,
-    _In_ PREGISTERS     Regs,
+    _In_ PGP_REGISTERS     Regs,
     _In_ UINT_PTR       Process,
     _In_ PUINT8         Mapping
 );
-
-VOID
-EnableUserTimeStamp(
-    VOID
-);
-
-
-VOID
-DisableUserTimeStamp(
-    VOID
-);
-
 
 // TODO: export function only for testing purposes
 // #ifdef DEBUG

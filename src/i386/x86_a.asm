@@ -3,159 +3,138 @@
 
 .CODE
 
-__readcs@0 PROC
+AsmCpuPause@0 PROC
+    pause
+    ret
+AsmCpuPause@0 ENDP
+
+AsmReadCs@0 PROC
     xor eax, eax
     mov ax, cs
     ret
-__readcs@0 ENDP
+AsmReadCs@0 ENDP
 
-
-__readss@0 PROC
-    xor eax, eax
-    mov ax, ss
-    ret
-__readss@0 ENDP
-
-
-__readds@0 PROC
+AsmReadDs@0 PROC
     xor eax, eax
     mov ax, ds
     ret
-__readds@0 ENDP
+AsmReadDs@0 ENDP
 
+AsmReadSs@0 PROC
+    xor eax, eax
+    mov ax, ss
+    ret
+AsmReadSs@0 ENDP
 
-__reades@0 PROC
+AsmReadEs@0 PROC
     xor eax, eax
     mov ax, es
     ret
-__reades@0 ENDP
+AsmReadEs@0 ENDP
 
-
-__readfs@0 PROC
+AsmReadFs@0 PROC
     xor eax, eax
     mov ax, fs
     ret
-__readfs@0 ENDP
+AsmReadFs@0 ENDP
 
-
-__readgs@0 PROC
+AsmReadGs@0 PROC
     xor eax, eax
     mov ax, gs
     ret
-__readgs@0 ENDP
+AsmReadGs@0 ENDP
 
-
-__str@0 PROC
-    xor eax, eax
-    str ax
-    ret
-__str@0 ENDP
-
-
-__sldt@0 PROC
-    xor eax, eax
-    sldt ax
-    ret
-__sldt@0 ENDP
-
-
-__writess@4 PROC
-    mov eax, [esp + 4]
-    mov ss, ax
-    ret 4
-__writess@4 ENDP
-
-
-__writeds@4 PROC
-    mov eax, [esp + 4]
-    mov ds, ax
-    ret 4
-__writeds@4 ENDP
-
-
-__writees@4 PROC
-    mov eax, [esp + 4]
-    mov es, ax
-    ret 4
-__writees@4 ENDP
-
-
-__writefs@4 PROC
-    mov eax, [esp + 4]
-    mov fs, ax
-    ret 4
-__writefs@4 ENDP
-
-
-__writegs@4 PROC
-    mov eax, [esp + 4]
-    mov gs, ax
-    ret 4
-__writegs@4 ENDP
-
-
-__ltr@4 PROC
-    mov eax, [esp + 4]
-    ltr ax
-    ret 4
-__ltr@4 ENDP
-
-
-DescriptorLimit@4 PROC
+AsmReadSegmentLimit@4 PROC
     mov ecx, [esp + 4]
     lsl eax, ecx
     ret 4
-DescriptorLimit@4 ENDP
+AsmReadSegmentLimit@4 ENDP
 
-
-__readsp@0 PROC
-    mov eax, esp
+AsmReadTr@0 PROC
+    xor eax, eax
+    str ax
     ret
-__readsp@0 ENDP
+AsmReadTr@0 ENDP
 
-
-__readflags@0 PROC
-    pushfd
-    pop eax
-    ret
-__readflags@0 ENDP
-
-
-__writecr2@4 PROC
-    mov eax, [esp + 4]
-    mov cr2, eax
-    ret 4
-__writecr2@4 ENDP
-
-
-__cli@0 PROC
-    cli
-    ret
-__cli@0 ENDP
-
-
-__sti@0 PROC
-    sti
-    ret
-__sti@0 ENDP
-
-
-__pause@0 PROC
-    pause
-    ret
-__pause@0 ENDP
-
-
-__sgdt@4 PROC
+AsmReadGdtr@4 PROC
     mov eax, [esp + 4]
     sgdt [eax]
     ret 4
-__sgdt@4 ENDP
+AsmReadGdtr@4 ENDP
 
-__lgdt@4 PROC
+AsmReadLdtr@0 PROC
+    xor eax, eax
+    sldt ax
+    ret
+AsmReadLdtr@0 ENDP
+
+AsmReadFlags@0 PROC
+    pushfd
+    pop eax
+    ret
+AsmReadFlags@0 ENDP
+
+AsmWriteDs@4 PROC
+    mov eax, [esp + 4]
+    mov ds, ax
+    ret 4
+AsmWriteDs@4 ENDP
+
+AsmWriteSs@4 PROC
+    mov eax, [esp + 4]
+    mov ss, ax
+    ret 4
+AsmWriteSs@4 ENDP
+
+AsmWriteEs@4 PROC
+    mov eax, [esp + 4]
+    mov es, ax
+    ret 4
+AsmWriteEs@4 ENDP
+
+AsmWriteFs@4 PROC
+    mov eax, [esp + 4]
+    mov fs, ax
+    ret 4
+AsmWriteFs@4 ENDP
+
+AsmWriteGs@4 PROC
+    mov eax, [esp + 4]
+    mov gs, ax
+    ret 4
+AsmWriteGs@4 ENDP
+
+AsmWriteTr@4 PROC
+    mov eax, [esp + 4]
+    ltr ax
+    ret 4
+AsmWriteTr@4 ENDP
+
+AsmReadSp@0 PROC
+    mov eax, esp
+    ret
+AsmReadSp@0 ENDP
+
+AsmWriteCr2@4 PROC
+    mov eax, [esp + 4]
+    mov cr2, eax
+    ret 4
+AsmWriteCr2@4 ENDP
+
+AsmWriteGdtr@4 PROC
     mov eax, [esp + 4]
     lgdt fword ptr [eax]
     ret 4
-__lgdt@4 ENDP
+AsmWriteGdtr@4 ENDP
+
+AsmEnableInterrupts@0 PROC
+    sti
+    ret
+AsmEnableInterrupts@0 ENDP
+
+AsmDisableInterrupts@0 PROC
+    cli
+    ret
+AsmDisableInterrupts@0 ENDP
 
 END

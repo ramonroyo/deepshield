@@ -167,7 +167,7 @@ HvmpStartAsm@4 ENDP
 
 
 ;
-; VOID __stdcall HvmpStopAsm(_In_ UINT_PTR iret, _In_ UINT_PTR regs);
+; VOID __stdcall HvmpStopAsm(_In_ UINT_PTR iret, _In_ UINT_PTR Registers);
 ;
 HvmpStopAsm@8 PROC
     mov esp, [esp + 4]

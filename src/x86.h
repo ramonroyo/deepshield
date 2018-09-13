@@ -23,6 +23,51 @@
 #define IA32_TSC_AUX            0xC0000103
 #define IA32_MSR_EFER           0xC0000080
 
+#define RFLAGS_CF   1u
+#define RFLAGS_ZF   (1u << 6)
+#define RFLAGS_TF   (1u << 8)
+#define RFLAGS_IF   (1u << 9)
+#define RFLAGS_DF   (1u << 10)
+#define RFLAGS_IOPL (3u << 12)
+#define RFLAGS_NT   (1u << 14)
+#define RFLAGS_RF   (1u << 16)
+#define RFLAGS_VM   (1u << 17)
+#define RFLAGS_AC   (1u << 18)
+#define RFLAGS_VIF  (1u << 19)
+#define RFLAGS_VIP  (1u << 20)
+
+//
+//  IA-32 Control Register #0 (CR0)
+//
+
+#define CR0_PE    1u
+#define CR0_TS    (1u << 3)
+#define CR0_NE    (1u << 5)
+#define CR0_WP    (1u << 16)
+#define CR0_NW    (1u << 29)
+#define CR0_CD    (1u << 30)
+#define CR0_PG    (1u << 31)
+
+//
+//  IA-32 Control Register #0 (CR4)
+//
+
+#define CR4_VME          1u
+#define CR4_TSD          (1u << 2)
+#define CR4_PSE          (1u << 4)
+#define CR4_PAE          (1u << 5)
+#define CR4_PGE          (1u << 7)
+#define CR4_OSFXSR       (1u << 9)
+#define CR4_OSXMMEXCPT   (1u << 10)
+#define CR4_VMXE         (1u << 13)
+#define CR4_SMXE         (1u << 14)
+#define CR4_OSXSAVE      (1u << 18)
+
+#define CPUID_BASIC_INFORMATION                   0x0
+#define CPUID_FEATURE_INFORMATION                 0x1
+#define CPUID_PROCESSOR_EXTENDED_STATE_EMULATION  0xD
+#define CPUID_EXTENDED_INFORMATION                0x80000000
+#define CPUID_EXTENDED_ADDRESS_SIZE               0x80000008
 
 #pragma warning( disable : 4214 ) //Bit field types other than int
 
@@ -34,30 +79,30 @@ typedef struct _FLAGS_REGISTER
 
         struct
         {
-            unsigned cf         : 1;   // 0 - Carry flag
-            unsigned _reserved0 : 1;   // 1 - Always 1
-            unsigned pf         : 1;   // 2 - Parity flag
-            unsigned _reserved1 : 1;   // 3 - Always 0
-            unsigned af         : 1;   // 4 - Borrow flag
-            unsigned _reserved2 : 1;   // 5 - Always 0
-            unsigned zf         : 1;   // 6 - Zero flag
-            unsigned sf         : 1;   // 7 - Sign flag
-            unsigned tf         : 1;   // 8 - Trap flag
-            unsigned intf       : 1;   // 9 - Interrupt flag
-            unsigned df         : 1;   // 10 - Direction flag
-            unsigned of         : 1;   // 11 - Overflow flag
-            unsigned iopl       : 2;   // 12 - 13 - I/O privilege level
-            unsigned nt         : 1;   // 14 - Nested task flag
-            unsigned _reserved3 : 1;   // 15 - Always 0
-            unsigned rf         : 1;   // 16 - Resume flag
-            unsigned vm         : 1;   // 17 - Virtual 8086 mode
-            unsigned ac         : 1;   // 18 - Alignment check
-            unsigned vif        : 1;   // 19 - Virtual interrupt flag
-            unsigned vip        : 1;   // 20 - Virtual interrupt pending
-            unsigned id         : 1;   // 21 - Identification flag
-            unsigned _reserved4 : 10;  // 22 - 31 - Always 0
+            UINT32 cf         : 1;   // 0 - Carry flag
+            UINT32 _reserved0 : 1;   // 1 - Always 1
+            UINT32 pf         : 1;   // 2 - Parity flag
+            UINT32 _reserved1 : 1;   // 3 - Always 0
+            UINT32 af         : 1;   // 4 - Borrow flag
+            UINT32 _reserved2 : 1;   // 5 - Always 0
+            UINT32 zf         : 1;   // 6 - Zero flag
+            UINT32 sf         : 1;   // 7 - Sign flag
+            UINT32 tf         : 1;   // 8 - Trap flag
+            UINT32 intf       : 1;   // 9 - Interrupt flag
+            UINT32 df         : 1;   // 10 - Direction flag
+            UINT32 of         : 1;   // 11 - Overflow flag
+            UINT32 iopl       : 2;   // 12 - 13 - I/O privilege level
+            UINT32 nt         : 1;   // 14 - Nested task flag
+            UINT32 _reserved3 : 1;   // 15 - Always 0
+            UINT32 rf         : 1;   // 16 - Resume flag
+            UINT32 vm         : 1;   // 17 - Virtual 8086 mode
+            UINT32 ac         : 1;   // 18 - Alignment check
+            UINT32 vif        : 1;   // 19 - Virtual interrupt flag
+            UINT32 vip        : 1;   // 20 - Virtual interrupt pending
+            UINT32 id         : 1;   // 21 - Identification flag
+            UINT32 _reserved4 : 10;  // 22 - 31 - Always 0
 #ifdef _WIN64
-            unsigned _zero0     : 32;  // 32 - 63 - Must be zero od #PG
+            UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
 #endif
         } f;
     } u;
@@ -72,22 +117,22 @@ typedef struct _CR0_REGISTER
 
         struct
         {
-            unsigned pe         : 1;   // 0 - Protected Mode Enabled
-            unsigned mp         : 1;   // 1 - Monitor Coprocessor
-            unsigned em         : 1;   // 2 - Emulate
-            unsigned ts         : 1;   // 3 - Task Switched
-            unsigned et         : 1;   // 4 - Extension Type
-            unsigned ne         : 1;   // 5 - Numeric Error
-            unsigned _reserved0 : 10;  // 6 - 15
-            unsigned wp         : 1;   // 16 - Write Protect
-            unsigned _reserved1 : 1;   // 17
-            unsigned am         : 1;   // 18 - Alignment Mask
-            unsigned _reserved2 : 10;  // 19 - 28
-            unsigned nw         : 1;   // 29 - Not Write-Through
-            unsigned cd         : 1;   // 30 - Cache Disable
-            unsigned pg         : 1;   // 31 - Paging Enabled
+            UINT32 pe         : 1;   // 0 - Protected Mode Enabled
+            UINT32 mp         : 1;   // 1 - Monitor Coprocessor
+            UINT32 em         : 1;   // 2 - Emulate
+            UINT32 ts         : 1;   // 3 - Task Switched
+            UINT32 et         : 1;   // 4 - Extension Type
+            UINT32 ne         : 1;   // 5 - Numeric Error
+            UINT32 _reserved0 : 10;  // 6 - 15
+            UINT32 wp         : 1;   // 16 - Write Protect
+            UINT32 _reserved1 : 1;   // 17
+            UINT32 am         : 1;   // 18 - Alignment Mask
+            UINT32 _reserved2 : 10;  // 19 - 28
+            UINT32 nw         : 1;   // 29 - Not Write-Through
+            UINT32 cd         : 1;   // 30 - Cache Disable
+            UINT32 pg         : 1;   // 31 - Paging Enabled
 #ifdef _WIN64
-            unsigned _zero0     : 32;  // 32 - 63 - Must be zero od #PG
+            UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
 #endif
         } f;
     } u;
@@ -115,43 +160,40 @@ typedef struct _CR3_REGISTER
 } CR3_REGISTER;
 
 
-typedef struct _CR4_REGISTER
+typedef union _CR4_REGISTER
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            unsigned vme        : 1;  // 0 - Virtual Mode Extensions
-            unsigned pvi        : 1;  // 1 - Protected-Mode Virtual Interrupts
-            unsigned tsd        : 1;  // 2 - Time Stamp Disable
-            unsigned de         : 1;  // 3 - Debugging Extensions
-            unsigned pse        : 1;  // 4 - Page Size Extensions
-            unsigned pae        : 1;  // 5 - Physical Address Extension
-            unsigned mce        : 1;  // 6 - Machine-Check Enable
-            unsigned pge        : 1;  // 7 - Page Global Enable
-            unsigned pce        : 1;  // 8 - Performance-Monitoring Counter Enable
-            unsigned osfxsr     : 1;  // 9 - OS Support for FXSAVE/FXRSTOR
-            unsigned osxmmexcpt : 1;  // 10 - OS Support for Unmasked SIMD Exceptions
-            unsigned umip       : 1;  // 11 - User mode instruction prevention
-            unsigned _reserved0 : 1;  // 12
-            unsigned vmxe       : 1;  // 13 - Virtual Machine Extensions Enabled
-            unsigned smxe       : 1;  // 14 - SMX-Enable Bit
-            unsigned _reserved1 : 1;  // 15
-            unsigned fsgsbase   : 1;  // 16 - FS/GS R/W Instructions enable
-            unsigned pcide      : 1;  // 17 - PCID Enable
-            unsigned osxsave    : 1;  // 18 - XSAVE and Processor Extended States-Enable
-            unsigned _reserved2 : 1;  // 19
-            unsigned smep       : 1;  // 20 - Supervisor Mode Execution Protection Enable
-            unsigned smap       : 1;  // 21 - Supervisor Mode Access Protection Enable
-            unsigned pke        : 1;  // 22 - Protection Key Enable
-            unsigned _reserved3 : 9;  // 23 - 31
+        UINT32 vme        : 1;  // 0 - Virtual Mode Extensions
+        UINT32 pvi        : 1;  // 1 - Protected-Mode Virtual Interrupts
+        UINT32 tsd        : 1;  // 2 - Time Stamp Disable
+        UINT32 de         : 1;  // 3 - Debugging Extensions
+        UINT32 pse        : 1;  // 4 - Page Size Extensions
+        UINT32 pae        : 1;  // 5 - Physical Address Extension
+        UINT32 mce        : 1;  // 6 - Machine-Check Enable
+        UINT32 pge        : 1;  // 7 - Page Global Enable
+        UINT32 pce        : 1;  // 8 - Performance-Monitoring Counter Enable
+        UINT32 osfxsr     : 1;  // 9 - OS Support for FXSAVE/FXRSTOR
+        UINT32 osxmmexcpt : 1;  // 10 - OS Support for Unmasked SIMD Exceptions
+        UINT32 umip       : 1;  // 11 - User mode instruction prevention
+        UINT32 _reserved0 : 1;  // 12
+        UINT32 vmxe       : 1;  // 13 - Virtual Machine Extensions Enabled
+        UINT32 smxe       : 1;  // 14 - SMX-Enable Bit
+        UINT32 _reserved1 : 1;  // 15
+        UINT32 fsgsbase   : 1;  // 16 - FS/GS R/W Instructions enable
+        UINT32 pcide      : 1;  // 17 - PCID Enable
+        UINT32 osxsave    : 1;  // 18 - XSAVE and Processor Extended States-Enable
+        UINT32 _reserved2 : 1;  // 19
+        UINT32 smep       : 1;  // 20 - Supervisor Mode Execution Protection Enable
+        UINT32 smap       : 1;  // 21 - Supervisor Mode Access Protection Enable
+        UINT32 pke        : 1;  // 22 - Protection Key Enable
+        UINT32 _reserved3 : 9;  // 23 - 31
 #ifdef _WIN64
-            unsigned _zero0     : 32; // 32 - 63 - Must be zero od #PG
+        UINT32 _zero0     : 32; // 32 - 63 - Must be zero od #PG
 #endif
-        } f;
-    } u;
+    } Bits;
+
+    UINT_PTR AsUintN;
 } CR4_REGISTER, VMX_MSR_CR4;
 
 
@@ -163,31 +205,31 @@ typedef struct _DR7_REGISTER
 
         struct
         {
-            unsigned L0     : 1;  // 0 - Local Breakpoint Enable 0
-            unsigned G0     : 1;  // 1 - Global Breakpoint Enable 0
-            unsigned L1     : 1;  // 2 - Local Breakpoint Enable 1
-            unsigned G1     : 1;  // 3 - Global Breakpoint Enable 1
-            unsigned L2     : 1;  // 4 - Local Breakpoint Enable 2
-            unsigned G2     : 1;  // 5 - Global Breakpoint Enable 2
-            unsigned L3     : 1;  // 6 - Local Breakpoint Enable 3
-            unsigned G3     : 1;  // 7 - Global Breakpoint Enable 3
-            unsigned LE     : 1;  // 8 - Local Exact Breakpoint Enable
-            unsigned GE     : 1;  // 9 - Global Exact Breakpoint Enable
-            unsigned _one0  : 1;  // 10 - Always 1
-            unsigned RTM    : 1;  // 11 - Restricted Transactional Memory
-            unsigned _zero0 : 1;  // 12 - Always zero
-            unsigned GD     : 1;  // 13 - General Detect Enable
-            unsigned _zero1 : 2;  // 14 - 15 - Always zero
-            unsigned RW0    : 2;  // 16 - 17 - Condition BP0
-            unsigned LEN0   : 2;  // 18 - 19 - Length BP0
-            unsigned RW1    : 2;  // 20 - 21 - Condition BP1
-            unsigned LEN1   : 2;  // 22 - 23 - Length BP1
-            unsigned RW2    : 2;  // 24 - 25 - Condition BP2
-            unsigned LEN2   : 2;  // 26 - 27 - Length BP2
-            unsigned RW3    : 2;  // 28 - 29 - Condition BP3
-            unsigned LEN3   : 2;  // 30 - 31 - Length BP3
+            UINT32 L0     : 1;  // 0 - Local Breakpoint Enable 0
+            UINT32 G0     : 1;  // 1 - Global Breakpoint Enable 0
+            UINT32 L1     : 1;  // 2 - Local Breakpoint Enable 1
+            UINT32 G1     : 1;  // 3 - Global Breakpoint Enable 1
+            UINT32 L2     : 1;  // 4 - Local Breakpoint Enable 2
+            UINT32 G2     : 1;  // 5 - Global Breakpoint Enable 2
+            UINT32 L3     : 1;  // 6 - Local Breakpoint Enable 3
+            UINT32 G3     : 1;  // 7 - Global Breakpoint Enable 3
+            UINT32 LE     : 1;  // 8 - Local Exact Breakpoint Enable
+            UINT32 GE     : 1;  // 9 - Global Exact Breakpoint Enable
+            UINT32 _one0  : 1;  // 10 - Always 1
+            UINT32 RTM    : 1;  // 11 - Restricted Transactional Memory
+            UINT32 _zero0 : 1;  // 12 - Always zero
+            UINT32 GD     : 1;  // 13 - General Detect Enable
+            UINT32 _zero1 : 2;  // 14 - 15 - Always zero
+            UINT32 RW0    : 2;  // 16 - 17 - Condition BP0
+            UINT32 LEN0   : 2;  // 18 - 19 - Length BP0
+            UINT32 RW1    : 2;  // 20 - 21 - Condition BP1
+            UINT32 LEN1   : 2;  // 22 - 23 - Length BP1
+            UINT32 RW2    : 2;  // 24 - 25 - Condition BP2
+            UINT32 LEN2   : 2;  // 26 - 27 - Length BP2
+            UINT32 RW3    : 2;  // 28 - 29 - Condition BP3
+            UINT32 LEN3   : 2;  // 30 - 31 - Length BP3
 #ifdef _WIN64
-            unsigned _zero2 : 32;  // 32 - 63 - Must be zero od #PG
+            UINT32 _zero2 : 32;  // 32 - 63 - Must be zero od #PG
 #endif
         } f;
     } u;
@@ -202,19 +244,19 @@ typedef struct _DR6_REGISTER
 
         struct
         {
-            unsigned B0     : 1;  // 0 - Breakpoint Condition Detected 0
-            unsigned B1     : 1;  // 1 - Breakpoint Condition Detected 1
-            unsigned B2     : 1;  // 2 - Breakpoint Condition Detected 2
-            unsigned B3     : 1;  // 3 - Breakpoint Condition Detected 3
-            unsigned _one0  : 8;  // 4 - 11 - Always 1
-            unsigned _zero0 : 1;  // 12 - Always 0
-            unsigned BD     : 1;  // 13 - DR access detected
-            unsigned BS     : 1;  // 14 - Single step
-            unsigned BT     : 1;  // 15 - Task switch
-            unsigned RTM    : 1;  // 16 - Restricted transactional memory
-            unsigned _one1  : 15; // 17 - 31 - Always 1
+            UINT32 B0     : 1;  // 0 - Breakpoint Condition Detected 0
+            UINT32 B1     : 1;  // 1 - Breakpoint Condition Detected 1
+            UINT32 B2     : 1;  // 2 - Breakpoint Condition Detected 2
+            UINT32 B3     : 1;  // 3 - Breakpoint Condition Detected 3
+            UINT32 _one0  : 8;  // 4 - 11 - Always 1
+            UINT32 _zero0 : 1;  // 12 - Always 0
+            UINT32 BD     : 1;  // 13 - DR access detected
+            UINT32 BS     : 1;  // 14 - Single step
+            UINT32 BT     : 1;  // 15 - Task switch
+            UINT32 RTM    : 1;  // 16 - Restricted transactional memory
+            UINT32 _one1  : 15; // 17 - 31 - Always 1
 #ifdef _WIN64
-            unsigned _zero1 : 32; // 32 - 63 - Must be zero od #PG
+            UINT32 _zero1 : 32; // 32 - 63 - Must be zero od #PG
 #endif
         } f;
     } u;
@@ -229,18 +271,18 @@ typedef struct _IDT_ENTRY
 
         struct
         {
-            unsigned offsetLow    : 16;
-            unsigned selector     : 16;
+            UINT32 offsetLow    : 16;
+            UINT32 selector     : 16;
 #ifdef _WIN64
-            unsigned ist          : 3;
-            unsigned _reserved0   : 5;
+            UINT32 ist          : 3;
+            UINT32 _reserved0   : 5;
 #else
-            unsigned _reserved0   : 8;
+            UINT32 _reserved0   : 8;
 #endif
-            unsigned type         : 5;
-            unsigned dpl          : 2;
-            unsigned present      : 1;
-            unsigned offsetHigh   : 16;
+            UINT32 type         : 5;
+            UINT32 dpl          : 2;
+            UINT32 present      : 1;
+            UINT32 offsetHigh   : 16;
         } f;
     } u;
 #ifdef _WIN64
@@ -258,9 +300,9 @@ typedef struct _SEGMENT_SELECTOR
 
         struct 
         {
-            unsigned rpl   : 2;
-            unsigned ti    : 1;
-            unsigned index : 13;
+            UINT32 rpl   : 2;
+            UINT32 ti    : 1;
+            UINT32 index : 13;
         } f;
     } u;
 } SEGMENT_SELECTOR, *PSEGMENT_SELECTOR;
@@ -273,19 +315,19 @@ typedef struct _SEGMENT_DESCRIPTOR
 
         struct
         {
-            unsigned limitLow  : 16;
-            unsigned baseLow   : 16;
-            unsigned baseMid   : 8;
-            unsigned type      : 4;
-            unsigned system    : 1;
-            unsigned dpl       : 2;
-            unsigned present   : 1;
-            unsigned limitHigh : 4;
-            unsigned avl       : 1;
-            unsigned l         : 1;  // 64-bit code segment (IA-32e mode only)
-            unsigned db        : 1;
-            unsigned gran      : 1;
-            unsigned baseHigh  : 8;
+            UINT32 limitLow  : 16;
+            UINT32 baseLow   : 16;
+            UINT32 baseMid   : 8;
+            UINT32 type      : 4;
+            UINT32 system    : 1;
+            UINT32 dpl       : 2;
+            UINT32 present   : 1;
+            UINT32 limitHigh : 4;
+            UINT32 avl       : 1;
+            UINT32 l         : 1;  // 64-bit code segment (IA-32e mode only)
+            UINT32 db        : 1;
+            UINT32 gran      : 1;
+            UINT32 baseHigh  : 8;
         } f;
     } u;
 #ifdef _WIN64
@@ -353,25 +395,25 @@ IdtRestoreEntry(
 /**
 * Segment selector reading.
 */
-UINT16 __readcs(VOID);
-UINT16 __readss(VOID);
-UINT16 __readds(VOID);
-UINT16 __reades(VOID);
-UINT16 __readfs(VOID);
-UINT16 __readgs(VOID);
-UINT16 __str   (VOID);
-UINT16 __sldt  (VOID);
+UINT16 AsmReadCs(VOID);
+UINT16 AsmReadSs(VOID);
+UINT16 AsmReadDs(VOID);
+UINT16 AsmReadEs(VOID);
+UINT16 AsmReadFs(VOID);
+UINT16 AsmReadGs(VOID);
+UINT16 AsmReadTr   (VOID);
+UINT16 AsmReadLdtr  (VOID);
 
 /**
 * Segment selector writing.
 * All receive a 16-bit-wide value containing the selector.
 */
-VOID __stdcall __writess(_In_ UINT16 selector);
-VOID __stdcall __writeds(_In_ UINT16 selector);
-VOID __stdcall __writees(_In_ UINT16 selector);
-VOID __stdcall __writefs(_In_ UINT16 selector);
-VOID __stdcall __writegs(_In_ UINT16 selector);
-VOID __stdcall __ltr    (_In_ UINT16 selector);
+VOID __stdcall AsmWriteSs(_In_ UINT16 selector);
+VOID __stdcall AsmWriteDs(_In_ UINT16 selector);
+VOID __stdcall AsmWriteEs(_In_ UINT16 selector);
+VOID __stdcall AsmWriteFs(_In_ UINT16 selector);
+VOID __stdcall AsmWriteGs(_In_ UINT16 selector);
+VOID __stdcall AsmWriteTr    (_In_ UINT16 selector);
 
 /**
 * Segment descriptor reading.
@@ -380,7 +422,7 @@ VOID __stdcall __ltr    (_In_ UINT16 selector);
 * Those attributes are base, limit, and access rights of the descriptor.
 */
 UINT_PTR __stdcall DescriptorBase        (_In_ UINT16 selector);
-UINT32   __stdcall DescriptorLimit       (_In_ UINT16 selector);
+UINT32   __stdcall AsmReadSegmentLimit       (_In_ UINT16 selector);
 UINT32   __stdcall DescriptorAccessRights(_In_ UINT16 selector);
 
 /**
@@ -404,17 +446,17 @@ VOID     lidt      (_In_ UINT_PTR base, _In_ UINT16 limit);
 /**
 * Retrieve the value of the stack pointer (esp/rsp).
 */
-UINT_PTR __stdcall __readsp(VOID);
+UINT_PTR __stdcall AsmReadSp(VOID);
 
 /**
 * Retrieve the value of the flags register (eflags/rflags).
 */
-UINT_PTR __stdcall __readflags(VOID);
+UINT_PTR __stdcall AsmReadFlags(VOID);
 
 /**
 * Write to cr2 (page-fault address recording register).
 */
-VOID __stdcall __writecr2(_In_ UINT_PTR cr2);
+VOID __stdcall AsmWriteCr2(_In_ UINT_PTR cr2);
 
 
 /**
@@ -432,13 +474,13 @@ VOID     writedr(_In_ UINT32 dr, _In_ UINT_PTR value);
 * cli and sti instructions instrinsics.
 * Inhibit and habilitate interrupts in the executing Vcpu.
 */
-VOID __cli(VOID);
-VOID __sti(VOID);
+VOID AsmDisableInterrupts(VOID);
+VOID AsmEnableInterrupts(VOID);
 
 /**
 * Pause instruction instrinsic.
 * Used in synchonization bucles.
 */
-VOID __pause(VOID);
+VOID AsmCpuPause(VOID);
 
 #endif
