@@ -42,7 +42,7 @@ InstrMsrWriteEmulate(
 
 VOID
 InstrInvlpgEmulate(
-    _In_ UINT_PTR exitQualification
+    _In_ UINTN exitQualification
 );
 
 VOID
@@ -64,14 +64,14 @@ InstrCr3Emulate(
 //
 VOID
 InstrDrEmulate(
-    _In_ UINT_PTR   exitQualification,
+    _In_ UINTN   exitQualification,
     _In_ PGP_REGISTERS Registers
 );
 */
 
 VOID
 InstrIoEmulate(
-    _In_ UINT_PTR   exitQualification,
+    _In_ UINTN   exitQualification,
     _In_ PGP_REGISTERS Registers
 );
 

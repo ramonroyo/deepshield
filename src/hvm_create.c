@@ -5,14 +5,27 @@
 #include "smp.h"
 #include "vmcsinit.h"
 
-PHVM gHvm = 0;
+NTSTATUS
+HvmInitializePerCpu(
+    _Inout_ PHVM Hvm,
+    _In_ UINT32 StackPages,
+    _In_ PHVM_EXIT_HANDLER ExitHandlerCb,
+    _In_ PHVM_SETUP_VMCS SetupVmcsCb
+    );
+
+VOID
+HvmDeletePerCpu(
+    _Inout_ PHVM Hvm
+    );
+
+PHVM gHvm = NULL;
 
 BOOLEAN
 HvmInitialized(
     VOID
     )
 {
-    return gHvm != 0;
+    return (gHvm != NULL);
 }
 
 BOOLEAN
@@ -20,7 +33,7 @@ HvmLaunched(
     VOID
     )
 {
-    return HvmInitialized() && AtomicRead(&gHvm->launched);
+    return HvmInitialized() && AtomicRead( &gHvm->launched );
 }
 
 VOID
@@ -28,34 +41,204 @@ HvmDestroy(
     VOID
     )
 {
-    UINT32 i;
-
     if (!gHvm) {
         return;
     }
 
-    if (gHvm->VcpuArray)
-    {
-        for (i = 0; i < SmpActiveProcessorCount(); i++)
-        {
-            if (gHvm->VcpuArray[i].Stack)
-                MemFree(gHvm->VcpuArray[i].Stack);
+    HvmDeletePerCpu( gHvm );
+    MemFree( gHvm );
 
-            if (gHvm->VcpuArray[i].VmcsRegionHva )
-                MemFree(gHvm->VcpuArray[i].VmcsRegionHva );
-
-            if (gHvm->VcpuArray[i].VmxOnRegionHva )
-                MemFree(gHvm->VcpuArray[i].VmxOnRegionHva );
-        }
-
-        MemFree(gHvm->VcpuArray);
-    }
-
-    MemFree(gHvm);
-    gHvm = 0;
+    gHvm = NULL;
 }
 
-#define XMM_REGISTER_ALIGNMENT_SIZE 16
+NTSTATUS
+HvmInitializeVmxOn(
+    _Inout_ PHVM_VCPU Vcpu
+    )
+{
+    NTSTATUS Status = STATUS_NO_MEMORY;
+
+    Vcpu->VmxOnHva = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+    if (Vcpu->VmxOnHva) {
+
+        *(PUINT32)Vcpu->VmxOnHva = VMCS_REVISION;
+
+        Vcpu->VmxOnHpa = MmGetPhysicalAddress( Vcpu->VmxOnHva );
+        Status = STATUS_SUCCESS;
+    }
+
+    return Status;
+}
+
+VOID
+HvmDeleteVmxOn(
+    _Inout_ PHVM_VCPU Vcpu
+    )
+{
+    MemFree( Vcpu->VmxOnHva );
+}
+
+NTSTATUS
+HvmInitializeVmcs(
+    _Inout_ PHVM_VCPU Vcpu
+    )
+{
+    NTSTATUS Status = STATUS_NO_MEMORY;
+
+    Vcpu->VmcsHva = VmcsAllocateRegion( VMCS_REGION_SIZE );
+    if (Vcpu->VmcsHva) {
+
+        Vcpu->VmcsHpa = MmGetPhysicalAddress( Vcpu->VmcsHva );
+        Status = STATUS_SUCCESS;
+    }
+
+    return Status;
+}
+
+VOID
+HvmDeleteVmcs(
+    _Inout_ PHVM_VCPU Vcpu
+    )
+{
+    MemFree( Vcpu->VmcsHva );
+}
+
+NTSTATUS
+HvmInitializeStack(
+    _Inout_ PHVM_VCPU Vcpu,
+    _In_ UINT32 StackSize
+    )
+{
+    NTSTATUS Status = STATUS_NO_MEMORY;
+    PUCHAR StackFrame;
+
+    StackFrame = (PUCHAR)MemAllocAligned( StackSize, PAGE_SIZE );
+    if (StackFrame) {
+
+        //
+        //  Store the VCPU at the start of the stack frame.
+        //
+        *(PUINT_PTR)(&StackFrame[StackSize - sizeof(UINTN)]) = (UINTN)&Vcpu;
+
+        Vcpu->Stack = StackFrame;
+        Status = STATUS_SUCCESS;
+    }
+
+    return Status;
+}
+
+VOID
+HvmDeleteStack(
+    _Inout_ PHVM_VCPU Vcpu
+    )
+{
+    MemFree( Vcpu->Stack );
+}
+
+#define XMM_ALIGNMENT_SIZE 16
+
+NTSTATUS
+HvmInitializePerCpu(
+    _Inout_ PHVM Hvm,
+    _In_ UINT32 StackPages,
+    _In_ PHVM_EXIT_HANDLER ExitHandlerCb,
+    _In_ PHVM_SETUP_VMCS SetupVmcsCb
+    )
+{
+    NTSTATUS Status = STATUS_NO_MEMORY;
+    PHVM_VCPU CurrentVcpu;
+    UINT32 StackSize;
+    UINT32 RequestSize;
+    UINT32 CpuCount;
+    UINT32 CpuIdx;
+       
+    CpuCount = SmpActiveProcessorCount();
+    RequestSize = CpuCount * sizeof( HVM_VCPU );
+
+    Hvm->VcpuArray = MemAllocAligned( RequestSize, XMM_ALIGNMENT_SIZE );
+    if (Hvm->VcpuArray == NULL) {
+        return Status;
+    }
+
+    RtlZeroMemory( Hvm->VcpuArray, RequestSize );
+
+    for (CpuIdx = 0; CpuIdx < CpuCount; CpuIdx++) {
+
+        CurrentVcpu = &Hvm->VcpuArray[CpuIdx];
+
+        CurrentVcpu->Hvm = Hvm;
+        CurrentVcpu->Index = CpuIdx;
+        CurrentVcpu->SetupVmcs = SetupVmcsCb;
+        CurrentVcpu->ExitHandler = ExitHandlerCb;
+        CurrentVcpu->Launched = FALSE;
+        
+        Status = HvmInitializeVmxOn( CurrentVcpu );
+        if (!NT_SUCCESS( Status )) {
+            goto RoutineExit;
+        }
+
+        Status = HvmInitializeVmcs( CurrentVcpu );
+        if (!NT_SUCCESS( Status )) {
+            goto RoutineExit;
+        }
+
+        StackSize = StackPages * PAGE_SIZE;
+
+        Status = HvmInitializeStack( CurrentVcpu, StackSize );
+        if (!NT_SUCCESS( Status )) {
+            goto RoutineExit;
+        }
+
+        //
+        //  The stack frame must be 16-byte aligned for ABI compatibility
+        //  with AMD64.
+        //
+        CurrentVcpu->Rsp = (UINTN)CurrentVcpu->Stack + StackSize - 0x40;
+        NT_ASSERT( (CurrentVcpu->Rsp % 16) == 0 );
+    }
+
+    Status = STATUS_SUCCESS;
+
+RoutineExit:
+
+    if (!NT_SUCCESS( Status )) {
+        HvmDeletePerCpu( Hvm );
+    }
+
+    return Status;
+}
+
+VOID
+HvmDeletePerCpu(
+    _Inout_ PHVM Hvm
+    )
+{
+    PHVM_VCPU CurrentVcpu;
+    UINT32 CpuCount;
+    UINT32 CpuIdx;
+
+    if (Hvm->VcpuArray) {
+        CpuCount = SmpActiveProcessorCount();
+
+        for (CpuIdx = 0; CpuIdx < CpuCount; CpuIdx) {
+            CurrentVcpu = &Hvm->VcpuArray[CpuIdx];
+
+            if (CurrentVcpu->Stack) {
+                HvmDeleteStack(CurrentVcpu);
+            }
+
+            if (CurrentVcpu->VmcsHva) {
+                HvmDeleteVmcs(CurrentVcpu);
+            }
+
+            if (CurrentVcpu->VmxOnHva) {
+                HvmDeleteVmxOn(CurrentVcpu);
+            }
+        }
+
+        MemFree( Hvm->VcpuArray );
+    }
+}
 
 NTSTATUS
 HvmInitialize(
@@ -64,93 +247,43 @@ HvmInitialize(
     _In_ PHVM_SETUP_VMCS SetupVmcsCb
     )
 {
-    UINT32 i;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    PHVM Hvm = NULL;
 
-    if (!NT_SUCCESS( VmxIsSupported() )) {
+    if (!NT_SUCCESS( VmxVerifySupport() )) {
         return STATUS_NOT_SUPPORTED;
     }
 
-    if (gHvm != 0) {
+    if (HvmInitialized()) {
         if (AtomicRead( &gHvm->launched ) == TRUE) {
-            return STATUS_UNSUCCESSFUL;
+            return Status;
         }
 
-        HvmDestroy();
+        NT_ASSERT( FALSE );
     }
 
-    gHvm = MemAlloc(sizeof( HVM ) );
-    if (!gHvm) {
-        return STATUS_UNSUCCESSFUL;
-    }
+    Hvm = MemAlloc( sizeof( HVM ) );
+    if (Hvm) {
 
-    RtlZeroMemory( gHvm, sizeof( HVM ) );
-
-    gHvm->VcpuArray = MemAllocAligned( SmpActiveProcessorCount() * sizeof( HVM_VCPU ),
-                                       XMM_REGISTER_ALIGNMENT_SIZE );
-    if (gHvm->VcpuArray == NULL)
-    {
-        MemFree(gHvm);
-        gHvm = 0;
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    RtlZeroMemory( gHvm->VcpuArray, SmpActiveProcessorCount() * sizeof( HVM_VCPU ) );
-
-    for (i = 0; i < SmpActiveProcessorCount(); i++)
-    {
-        PUINT_PTR VcpuStackPointer;
-
-        gHvm->VcpuArray[i].Index = i;
-        gHvm->VcpuArray[i].Hvm   = gHvm;
-
-        gHvm->VcpuArray[i].VmxOnRegionHva = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
-        if (!gHvm->VcpuArray[i].VmxOnRegionHva ) {
-            goto failure;
+        RtlZeroMemory( Hvm, sizeof( HVM ) );
+        Status = HvmInitializePerCpu( Hvm,
+                                      StackPages,
+                                      ExitHandlerCb,
+                                      SetupVmcsCb );
+        if (NT_SUCCESS( Status )) {
+            gHvm = Hvm;
         }
+    }
+    
+    if (!NT_SUCCESS( Status )) {
+        NT_ASSERT( FALSE == HvmInitialized() );
 
-        MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
-
-        gHvm->VcpuArray[i].VmcsRegionHva = VmcsAllocateRegion( VMCS_REGION_SIZE );
-        if (!gHvm->VcpuArray[i].VmcsRegionHva) {
-            goto failure;
+        if (Hvm) {
+            MemFree( Hvm );
         }
-
-        gHvm->VcpuArray[i].VmcsRegionHpa = 
-            MmGetPhysicalAddress( gHvm->VcpuArray[ i ].VmcsRegionHva );
-
-        gHvm->VcpuArray[i].Stack = MemAllocAligned( StackPages * PAGE_SIZE, PAGE_SIZE );
-        if (!gHvm->VcpuArray[i].Stack) {
-            goto failure;
-        }
-
-        VcpuStackPointer = (PUINT_PTR)((UINT_PTR)gHvm->VcpuArray[i].Stack
-                         + (StackPages * PAGE_SIZE)
-                         - sizeof( UINT_PTR ));
-        
-        //
-        //  Store the Vcpu at the end of the stack.
-        //
-        *VcpuStackPointer = (UINT_PTR)&gHvm->VcpuArray[i];
-
-        //
-        //  The stack must be 16-byte aligned for ABI compatibility with AMD64.
-        //
-        gHvm->VcpuArray[i].Rsp = ((UINT_PTR)gHvm->VcpuArray[i].Stack
-                           + (StackPages * PAGE_SIZE) - 0x40);
-
-        NT_ASSERT( (gHvm->VcpuArray[i].Rsp % 16) == 0 );
-
-        gHvm->VcpuArray[i].ExitHandler = ExitHandlerCb;
-        gHvm->VcpuArray[i].SetupVmcs = SetupVmcsCb;
-        gHvm->VcpuArray[i].Launched  = FALSE;
     }
 
-    return STATUS_SUCCESS;
-
-failure:
-
-    HvmDestroy();
-    return STATUS_UNSUCCESSFUL;
+    return Status;
 }
 
 NTSTATUS

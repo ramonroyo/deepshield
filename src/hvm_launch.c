@@ -10,85 +10,85 @@ extern PHVM gHvm;
 
 typedef struct DECLSPEC_ALIGN( 16 ) _IRET_FRAME
 {
-    UINT_PTR rip;
-    UINT_PTR cs;
-    UINT_PTR rflags;
+    UINTN rip;
+    UINTN cs;
+    UINTN rflags;
 #ifdef _WIN64
-    UINT_PTR rsp;
-    UINT_PTR ss;
-    UINT_PTR align;
+    UINTN rsp;
+    UINTN ss;
+    UINTN align;
 #endif
 } IRET_FRAME, *PIRET_FRAME;
 
 #define HVM_INTERNAL_SERVICE_STOP   0
 
 extern NTSTATUS __stdcall
-HvmInternalCallAsm(
-    _In_ UINT_PTR service,
-    _In_ UINT_PTR data
+AsmHvmHyperCall(
+    _In_ UINTN service,
+    _In_ UINTN data
 );
 
 extern NTSTATUS __stdcall
-HvmpStartAsm(
+AsmHvmLaunch(
     _In_ PHVM_VCPU Vcpu
 );
 
 extern VOID __stdcall
-HvmpStopAsm(
-    _In_ UINT_PTR iret,
-    _In_ UINT_PTR Registers
+AsmHvmpStop(
+    _In_ UINTN iret,
+    _In_ UINTN Registers
 );
 
 extern VOID
-HvmpExitHandlerAsm(
+AsmHvmpExitHandler(
     VOID
 );
 
-
 VOID
 HvmpSaveHostState(
-    _In_ PHOST_SAVED_STATE state
-)
+    _In_ PHOST_SAVED_STATE HostState
+    )
 {
-    state->cr0.u.raw   = __readcr0();
-    state->cr4.AsUintN = __readcr4();
-    state->cs.u.raw    = AsmReadCs();
-    state->ss.u.raw    = AsmReadSs();
-    state->ds.u.raw    = AsmReadDs();
-    state->es.u.raw    = AsmReadEs();
-    state->fs.u.raw    = AsmReadFs();
+    HostState->Cr0.AsUintN = __readcr0();
+    HostState->Cr4.AsUintN = __readcr4();
+    HostState->Cs.AsUint16 = AsmReadCs();
+    HostState->Ss.AsUint16 = AsmReadSs();
+    HostState->Ds.AsUint16 = AsmReadDs();
+    HostState->Es.AsUint16 = AsmReadEs();
+    
+    HostState->Fs.AsUint16 = AsmReadFs();
 #ifndef _WIN64
-    state->fsBase      = DescriptorBase(AsmReadFs());
+    HostState->FsBase      = BaseFromSelector(AsmReadFs());
 #else
-    state->fsBase      = __readmsr(IA32_FS_BASE);
-#endif    
-    state->gs.u.raw    = AsmReadGs();
+    HostState->FsBase      = __readmsr(IA32_FS_BASE);
+#endif
+
+    HostState->Gs.AsUint16    = AsmReadGs();
 #ifndef _WIN64
-    state->gsBase      = DescriptorBase(AsmReadGs());
+    HostState->GsBase      = BaseFromSelector(AsmReadGs());
 #else
-    state->gsBase      = __readmsr(IA32_GS_BASE);
-#endif    
-    state->tr.u.raw    = AsmReadTr();
-    state->trBase      = DescriptorBase(AsmReadTr());
-    state->gdt.base    = sgdt_base();
-    state->gdt.limit   = sgdt_limit();
-    state->idt.base    = sidt_base();
-    state->idt.limit   = sidt_limit();
-    state->sysenterCs  = (UINT32)  __readmsr(IA32_SYSENTER_CS);
-    state->sysenterEsp = (UINT_PTR)__readmsr(IA32_SYSENTER_ESP);
-    state->sysenterEip = (UINT_PTR)__readmsr(IA32_SYSENTER_EIP);
-    //state->perfGlobalCtrl;
-    //state->pat;
-    //state->efer;
+    HostState->GsBase      = __readmsr(IA32_GS_BASE);
+#endif
+
+    HostState->Tr.AsUint16 = AsmReadTr();
+    HostState->TrBase      = BaseFromSelector(AsmReadTr());
+    AsmReadGdtr( &HostState->Gdt );
+    HostState->Idt.Base    = GetIdtrBase();
+    HostState->Idt.Limit   = GetIdtrLimit();
+    HostState->SysenterCs  = (UINT32)__readmsr(IA32_SYSENTER_CS);
+    HostState->SysenterEsp = (UINTN)__readmsr(IA32_SYSENTER_ESP);
+    HostState->SysenterEip = (UINTN)__readmsr(IA32_SYSENTER_EIP);
+    //HostState->perfGlobalCtrl;
+    //HostState->pat;
+    //HostState->efer;
 }
 
 NTSTATUS
 VmxpEnable(
-    PVOID vmxOn
-)
+    PHYSICAL_ADDRESS VmxOn
+    )
 {
     CR4_REGISTER Cr4;
-    PHYSICAL_ADDRESS VmxOnPhysical;
 
     //
     //  Activate VMX enable bit.
@@ -96,11 +96,9 @@ VmxpEnable(
 
     Cr4.AsUintN = __readcr4();
     Cr4.Bits.vmxe = 1;
-    __writecr4(Cr4.AsUintN );
+    __writecr4( Cr4.AsUintN );
 
-    VmxOnPhysical = MmuGetPhysicalAddress( 0, vmxOn );
-
-    if (VmxOn( (UINT64*)&VmxOnPhysical) != 0 ) {
+    if (AsmVmxOn( (PUINT64)&VmxOn) != 0 ) {
 
         Cr4.Bits.vmxe = 0;
         __writecr4( Cr4.AsUintN );
@@ -113,16 +111,16 @@ VmxpEnable(
 
 VOID
 VmxpDisable(
-    _In_ PHYSICAL_ADDRESS VmcsHpa
+    _In_ PHYSICAL_ADDRESS Vmcs
     )
 {
     CR4_REGISTER cr4;
-    BOOLEAN ClearResult;
+    BOOLEAN Result;
 
-    ClearResult = VmcsClear( VmcsHpa );
-    NT_ASSERT( ClearResult );
+    Result = (AsmVmxClear((PUINT64)&Vmcs) == 0);
+    NT_ASSERT( Result );
 
-    VmxOff();
+    AsmVmxOff();
 
     cr4.AsUintN = __readcr4();
     cr4.Bits.vmxe = 0;
@@ -137,60 +135,59 @@ HvmpStartVcpu(
 {
     PHVM hvm;
     PHVM_VCPU Vcpu;
-    NTSTATUS status;
+    NTSTATUS Status;
 
     hvm = (PHVM)context;
     Vcpu = &hvm->VcpuArray[VcpuId];
 
     AsmDisableInterrupts();
 
-    status = HvmpStartAsm( Vcpu );
+    Status = AsmHvmLaunch( Vcpu );
 
     AsmEnableInterrupts();
 
-    return status;
+    return Status;
 }
 
 NTSTATUS __stdcall
 HvmpEnterRoot(
-    _In_ UINT_PTR Code,
-    _In_ UINT_PTR Stack,
-    _In_ UINT_PTR Flags,
+    _In_ UINTN Code,
+    _In_ UINTN Stack,
+    _In_ UINTN Flags,
     _In_ PHVM_VCPU Vcpu
     )
 {
     NTSTATUS Status;
-    FLAGS_REGISTER rflags;
-    VMX_MSR_BASIC BasicVmx;
+    FLAGS_REGISTER RegFlags;
 
     NT_ASSERT( Vcpu );
-    rflags.u.raw = Flags;
+    RegFlags.AsUintN = Flags;
 
-    BasicVmx.AsUint64 = VmxCapability( IA32_VMX_BASIC );
+    HvmpSaveHostState( &Vcpu->HostState );
 
-    *(PUINT32) Vcpu->VmxOnRegionHva = BasicVmx.Bits.revisionId;
-
-    HvmpSaveHostState( &Vcpu->SavedState );
-
-    Status = VmxpEnable( Vcpu->VmxOnRegionHva );
+    Status = VmxpEnable( Vcpu->VmxOnHpa );
     
     if (!NT_SUCCESS( Status )) {
         return Status;
     }
 
-    if (!VmcsClear( Vcpu->VmcsRegionHpa )) {
+    //
+    // Load current VMCS, after that we can access VMCS region.
+    //
+
+    if (AsmVmxClear((PUINT64)&Vcpu->VmcsHpa) != 0) {
         goto RoutineExit;
     }
 
-    if (!VmcsLoad( Vcpu->VmcsRegionHpa )) {
+    if (AsmVmxPtrLoad((PUINT64)&Vcpu->VmcsHpa) != 0) {
         goto RoutineExit;
     }
 
     Vcpu->SetupVmcs( Vcpu );
 
     VmxWritePlatform( HOST_RSP, Vcpu->Rsp );
-    VmxWritePlatform( HOST_RIP, (UINT_PTR)HvmpExitHandlerAsm );
-    VmcsConfigureCommonEntry( Code, Stack, rflags );
+    VmxWritePlatform( HOST_RIP, (UINTN)AsmHvmpExitHandler );
+    VmcsConfigureCommonEntry( Code, Stack, RegFlags );
    
     //
     //  TODO: but it is not launched indeed!
@@ -200,7 +197,7 @@ HvmpEnterRoot(
 RoutineExit:
 
     if (!NT_SUCCESS( Status )) {
-        VmxpDisable( Vcpu->VmcsRegionHpa );
+        VmxpDisable( Vcpu->VmcsHpa );
     }
     
     return Status;
@@ -212,18 +209,18 @@ HvmpFailure(
     _In_ BOOLEAN   valid
     )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
 
     UNREFERENCED_PARAMETER(Vcpu);
 
     if (valid) {
-        status = VMX_STATUS(VmxRead32( VM_INSTRUCTION_ERROR ));
+        Status = VMX_STATUS(VmxRead32( VM_INSTRUCTION_ERROR ));
     }
     else {
-        status = STATUS_UNSUCCESSFUL;
+        Status = STATUS_UNSUCCESSFUL;
     }
 
-    return status;
+    return Status;
 }
 
 NTSTATUS __stdcall
@@ -232,14 +229,14 @@ HvmpStartFailure(
     _In_ BOOLEAN valid
     )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
 
     AtomicWrite( &Vcpu->Launched, FALSE );
-    status = HvmpFailure( Vcpu, valid );
+    Status = HvmpFailure( Vcpu, valid );
     
-    VmxpDisable( Vcpu->VmcsRegionHpa );
+    VmxpDisable( Vcpu->VmcsHpa );
 
-    return status;
+    return Status;
 }
 
 NTSTATUS __stdcall
@@ -251,11 +248,11 @@ HvmpStopVcpu(
     UNREFERENCED_PARAMETER(VcpuId);
     UNREFERENCED_PARAMETER(context);
 
-    return HvmInternalCallAsm( HVM_INTERNAL_SERVICE_STOP, 0 );
+    return AsmHvmHyperCall( HVM_INTERNAL_SERVICE_STOP, 0 );
 }
 
 VOID
-HvmpRestore(
+HvmpRestoreHostState(
     _In_ PHVM_VCPU Vcpu
     )
 {
@@ -265,22 +262,23 @@ HvmpRestore(
     //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
     //
 
-    AsmWriteDs( Vcpu->SavedState.ds.u.raw );
-    AsmWriteEs( Vcpu->SavedState.es.u.raw );
-    AsmWriteFs( Vcpu->SavedState.fs.u.raw );
+    AsmWriteDs( Vcpu->HostState.Fs.AsUint16);
+    AsmWriteEs( Vcpu->HostState.Es.AsUint16);
+    AsmWriteFs( Vcpu->HostState.Fs.AsUint16);
+
 #ifndef _WIN64
-    AsmWriteSs( Vcpu->SavedState.ss.u.raw );
-    AsmWriteGs( Vcpu->SavedState.gs.u.raw );
+    AsmWriteSs( Vcpu->HostState.Ss.AsUint16);
+    AsmWriteGs( Vcpu->HostState.Gs.AsUint16);
 #endif
 
-    lgdt( Vcpu->SavedState.gdt.base, Vcpu->SavedState.gdt.limit );
-    lidt( Vcpu->SavedState.idt.base, Vcpu->SavedState.idt.limit );
+    AsmWriteGdtr( &Vcpu->HostState.Gdt );
+    __lidt( &Vcpu->HostState.Idt );
 
     //
     //  Disable TSD monitoring.
     //
     Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
-    Cr4.Bits.tsd = 0;
+    Cr4.Bits.Tsd = 0;
     __writecr4( Cr4.AsUintN );
 
     //
@@ -299,41 +297,41 @@ HvmpStop(
 #ifdef _WIN64
     IRET_FRAME iret;
 
-    iret.rip = Registers->rip;
-    iret.cs = Vcpu->SavedState.cs.u.raw;
-    iret.rflags = Registers->rflags.u.raw;
-    iret.rsp = Registers->rsp;
-    iret.ss = Vcpu->SavedState.ss.u.raw;
+    iret.rip = Registers->Rip;
+    iret.cs = Vcpu->HostState.Cs.AsUint16;
+    iret.rflags = Registers->Rflags.AsUintN;
+    iret.rsp = Registers->Rsp;
+    iret.ss = Vcpu->HostState.Ss.AsUint16;
 #else
 
     PIRET_FRAME iretx86;
 
     iretx86 = (PIRET_FRAME) 
         ((PUINT_PTR) VmxReadPlatform( GUEST_RSP )
-                     - (sizeof( IRET_FRAME ) / sizeof( UINT_PTR )));
+                     - (sizeof( IRET_FRAME ) / sizeof( UINTN )));
 
-    iretx86->rip = Registers->rip;
-    iretx86->cs = Vcpu->SavedState.cs.u.raw;
-    iretx86->rflags = Registers->rflags.u.raw;
+    iretx86->rip = Registers->Rip;
+    iretx86->cs = Vcpu->HostState.Cs.AsUint16;
+    iretx86->rflags = Registers->Rflags.AsUintN;
 #endif
     
     //
     //  Restore segments, IDT and GDT from the saved state.
     //
-    HvmpRestore( Vcpu );
+    HvmpRestoreHostState( Vcpu );
 
     //
     //  This deactivates VMX operation in the processor.
     //
-    VmxpDisable( Vcpu->VmcsRegionHpa );
+    VmxpDisable( Vcpu->VmcsHpa );
 
     //
     //  Restore registers and return from the interrupt.
     //
 #ifdef _WIN64
-    HvmpStopAsm((UINT_PTR)&iret, (UINT_PTR) Registers );
+    AsmHvmpStop((UINTN)&iret, (UINTN) Registers );
 #else
-    HvmpStopAsm( (UINT_PTR)&iretx86, (UINT_PTR) Registers );
+    AsmHvmpStop( (UINTN)&iretx86, (UINTN) Registers );
 #endif
 
 }
@@ -343,25 +341,21 @@ HvmStart(
     VOID
     )
 {
-    NTSTATUS status;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
 
-    status = STATUS_UNSUCCESSFUL;
-
-    if (gHvm == 0) {
-        return status;
-    }
+    NT_ASSERT(gHvm);
 
     if (AtomicRead( &gHvm->launched ) == TRUE) {
-        return status;
+        return Status;
     }
 
-    status = SmpExecuteOnAllProcessors( HvmpStartVcpu, gHvm );
+    Status = SmpRunPerProcessor( HvmpStartVcpu, gHvm );
 
-    if (NT_SUCCESS( status )) {
+    if (NT_SUCCESS( Status )) {
         AtomicWrite( &gHvm->launched, TRUE );
     }
 
-    return status;
+    return Status;
 }
 
 NTSTATUS
@@ -369,23 +363,23 @@ HvmStop(
     VOID
     )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
 
-    status = STATUS_UNSUCCESSFUL;
+    Status = STATUS_UNSUCCESSFUL;
 
     if (gHvm == 0) {
-        return status;
+        return Status;
     }
 
     if (AtomicRead( &gHvm->launched ) == FALSE) {
-        return status;
+        return Status;
     }
 
-    status = SmpExecuteOnAllProcessors( HvmpStopVcpu, 0 );
+    Status = SmpRunPerProcessor( HvmpStopVcpu, 0 );
 
-    if (NT_SUCCESS( status )) {
+    if (NT_SUCCESS( Status )) {
         AtomicWrite(&gHvm->launched, FALSE);
     }
 
-    return status;
+    return Status;
 }

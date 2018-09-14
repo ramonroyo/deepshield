@@ -344,9 +344,7 @@
 #define IO_RDI                                               VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM,   3)
 #define IO_RIP                                               VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_PLATFORM,   4)
 #define VM_INSTRUCTION_ERROR                                 VMCS_FIELD(TYPE_EXIT_INFORMATION,     WIDTH_32,         0)
-////////////
-//END VMCS//
-////////////
+
 
 // FEATURE CONTROL MSR
 #define IA32_FEATURE_CONTROL                            0x3a
@@ -447,16 +445,16 @@ typedef union _VMX_MSR_BASIC
 {
     struct
     {
-        UINT32 revisionId               : 31; // 0 - 30
-        UINT32 _reserved0               : 1;  // 31
-        UINT32 vmcsRegionSize           : 13; // 32 - 44
-        UINT32 _reserved1               : 3;  // 45 - 47
-        UINT32 physicalAddressWidth     : 1;  // 48
-        UINT32 dualMonitor              : 1;  // 49
-        UINT32 vmcsMemoryType           : 4;  // 50 - 53
-        UINT32 vmcsInstructionInfoValid : 1;  // 54
-        UINT32 defaultSettings          : 1;  // 55
-        UINT32 _reserved2               : 8;  // 56 - 63
+        UINT32 RevisionId : 31;
+        UINT32 Rsvd31 : 1;
+        UINT32 VmcsRegionSize : 13;
+        UINT32 Rsvd45To47 : 3;
+        UINT32 VmcsAddrWidth : 1;
+        UINT32 DualMonitorTreatment : 1;
+        UINT32 VmcsMemoryType : 4;
+        UINT32 VmExitInstructionInformation : 1;
+        UINT32 VmxControlDefaultClear : 1;
+        UINT32 Rsvd56To63 : 8;
     } Bits;
 
     UINT64 AsUint64;
@@ -475,15 +473,15 @@ typedef union _VMX_PIN_EXECUTION_CTLS
 {
     struct
     {
-        UINT32 externalInterruptExiting : 1;  // 0
-        UINT32 hostInterrupt           : 1;
-        UINT32 init                     : 1;
-        UINT32 nmiExiting               : 1;  // 3
-        UINT32 sipi                     : 1;  // 4
-        UINT32 virtualNmis              : 1;  // 5
-        UINT32 activatePreemptionTimer  : 1;  // 6
-        UINT32 processPostedInterrupts  : 1;  // 7
-        UINT32 _reserved2               : 24; // 8 - 31
+        UINT32 ExternalInterrupt : 1;
+        UINT32 HostInterrupt : 1;
+        UINT32 Init : 1;
+        UINT32 NmiExiting : 1;
+        UINT32 Sipi : 1;
+        UINT32 VirtualNmi : 1;
+        UINT32 VmxPreemptionTimer : 1;
+        UINT32 PostedInterrupts : 1;
+        UINT32 Rsvd8To31 : 24;
     } Bits;
 
     UINT32 AsUint32;
@@ -511,38 +509,38 @@ typedef union _VMX_PROC_PRIMARY_CTLS
 {
     struct
     {
-        UINT32 softwareInterrupt         : 1; // 0
-        UINT32 tripleFault               : 1; // 1
-        UINT32 interruptWindowExiting    : 1; // 2
-        UINT32 useTscOffseting           : 1; // 3
-        UINT32 taskSwitch                : 1; // 4
-        UINT32 cpuid                     : 1; // 5
-        UINT32 getSec                    : 1; // 6 
-        UINT32 hltExiting                : 1; // 7
-        UINT32 invdExiting               : 1; // 8
-        UINT32 invlpgExiting             : 1; // 9
-        UINT32 mwaitExiting              : 1; // 10
-        UINT32 rdpmcExiting              : 1; // 11
-        UINT32 rdtscExiting              : 1; // 12
-        UINT32 rsm                       : 1; // 13
-        UINT32 vmInstruction             : 1; // 14 
-        UINT32 cr3LoadExiting            : 1; // 15
-        UINT32 cr3StoreExiting           : 1; // 16
-        UINT32 cr3Mask                   : 1; // 17
-        UINT32 cr3Read_shadow            : 1; // 18
-        UINT32 cr8LoadExiting            : 1; // 19
-        UINT32 cr8StoreExiting           : 1; // 20
-        UINT32 useTprShadow              : 1; // 21
-        UINT32 nmiWindowExiting          : 1; // 22
-        UINT32 movDrExiting              : 1; // 23
-        UINT32 unconditionalIoExiting    : 1; // 24
-        UINT32 useIoBitmaps              : 1; // 25
-        UINT32 msrProtection             : 1; // 26
-        UINT32 monitorTrapFlag           : 1; // 27
-        UINT32 useMsrBitmaps             : 1; // 28
-        UINT32 monitorExiting            : 1; // 29
-        UINT32 pauseExiting              : 1; // 30
-        UINT32 SecondaryControls         : 1; // 31
+        UINT32 SoftwareInterrupt : 1;
+        UINT32 TripleFault : 1;
+        UINT32 InterruptWindow : 1;
+        UINT32 TscOffsetting : 1;
+        UINT32 TaskSwitch : 1;
+        UINT32 Cpuid : 1;
+        UINT32 GetSec : 1;
+        UINT32 HltExiting : 1;
+        UINT32 InvdExiting : 1;
+        UINT32 InvlpgExiting : 1;
+        UINT32 MwaitExiting : 1;
+        UINT32 RdpmcExiting : 1;
+        UINT32 RdtscExiting : 1;
+        UINT32 Rsm : 1;
+        UINT32 VmInstruction : 1; 
+        UINT32 Cr3LoadExiting : 1;
+        UINT32 Cr3StoreExiting : 1;
+        UINT32 Cr3Mask : 1;
+        UINT32 Cr3ReadShadow : 1; 
+        UINT32 Cr8LoadExiting : 1;
+        UINT32 Cr8StoreExiting : 1;
+        UINT32 TprShadow : 1;
+        UINT32 NmiWindowExiting : 1;
+        UINT32 MovDrExiting : 1;
+        UINT32 UnconditionalIoExiting : 1;
+        UINT32 UseIoBitmap : 1; 
+        UINT32 MsrProtection : 1;
+        UINT32 MonitorTrapFlag : 1;
+        UINT32 UseMsrBitmap : 1; 
+        UINT32 MonitorExiting : 1;
+        UINT32 PauseExiting : 1;
+        UINT32 SecondaryControl : 1; 
     } Bits;
     
     UINT32 AsUint32;
@@ -571,36 +569,35 @@ typedef union _VMX_PROC_SECONDARY_CTLS
 {
     struct
     {
-        UINT32 virtualizeApicAccess       : 1;  // 0
-        UINT32 enableEpt                  : 1;  // 1
-        UINT32 descriptorTableExiting     : 1;  // 2
-        UINT32 enableRdtscp               : 1;  // 3
-        UINT32 virtualizeX2ApicMode       : 1;  // 4
-        UINT32 enableVpid                 : 1;  // 5
-        UINT32 wbinvdExiting              : 1;  // 6
-        UINT32 unrestrictedGuest          : 1;  // 7
-        UINT32 apicRegisterVirtualization : 1;  // 8
-        UINT32 virtualInterruptDelivery   : 1;  // 9
-        UINT32 pauseLoopExiting           : 1;  // 10
-        UINT32 rdrandExiting              : 1;  // 11
-        UINT32 enableInvpcid              : 1;  // 12
-        UINT32 enableVmFunctions          : 1;  // 13
-        UINT32 vmcsShadowing              : 1;  // 14
-        UINT32 enableEnclsExiting         : 1;  // 15
-        UINT32 rdseedExiting              : 1;  // 16
-        UINT32 enablePml                  : 1;  // 17
-        UINT32 eptVe                      : 1;  // 18
-        UINT32 concealFromPT              : 1;  // 19
-        UINT32 enableXsavesXrstors        : 1;  // 20
-        UINT32 _reserved0                 : 1;  // 21
-        UINT32 modeBasedExecuteControlEpt : 1;  // 22
-        UINT32 _reserved1                 : 2;  // 23 - 24
-        UINT32 useTscScaling              : 1;  // 25
-        UINT32 _reserved2                 : 6;  // 26 - 31
+        UINT32 VirtualApic : 1;
+        UINT32 EnableEpt : 1;
+        UINT32 DescriptorTableExiting : 1;
+        UINT32 EnableRdtscp : 1;
+        UINT32 VirtualizeX2Apic : 1;
+        UINT32 EnableVpid : 1;
+        UINT32 WbinvdExiting : 1;
+        UINT32 UnrestrictedGuest : 1;
+        UINT32 ApicRegisterVirtualization : 1;
+        UINT32 VirtualInterruptDelivery : 1;
+        UINT32 PauseLoopExiting : 1;
+        UINT32 RdrandExiting : 1;
+        UINT32 EnableInvpcid : 1;
+        UINT32 EnableVmFunctions : 1;
+        UINT32 VmcsShadowing : 1;
+        UINT32 EnableEnclsExiting : 1;
+        UINT32 RdseedExiting : 1;
+        UINT32 EnablePml : 1;
+        UINT32 EptVe : 1;
+        UINT32 ConcealFromPT : 1;
+        UINT32 EnableXsavesXrstors : 1;
+        UINT32 Rsvd22 : 1;
+        UINT32 ModeBasedExecuteControlEpt : 1;
+        UINT32 Rsvd24 : 2;
+        UINT32 UseTscScaling  : 1;
+        UINT32 Rsvd26To31 : 6;
     } Bits;
 
     UINT32 AsUint32;
-
 } VMX_PROC_SECONDARY_CTLS;
 
 typedef union
@@ -628,36 +625,35 @@ typedef union _VMX_EXIT_CTLS
 {
     struct
     {
-        UINT32 save_cr0_and_cr4            : 1;       // 0
-        UINT32 save_cr3                    : 1;       // 1 
-        UINT32 saveDebugControls           : 1;       // 2
-        UINT32 save_segment_registers      : 1;       // 3
-        UINT32 save_esp_eip_eflags         : 1;       // 4 
-        UINT32 savePendingDebugExceptions  : 1;       // 5
-        UINT32 saveInterruptibilityInformation : 1;   // 6
-        UINT32 saveActivityState           : 1;       // 7
-        UINT32 saveWorkingVmcsPointer      : 1;       // 8
-        UINT32 hostAddressSpaceSize        : 1;       // 9
-        UINT32 load_cr0_and_cr4            : 1;       // 10
-        UINT32 load_cr3                    : 1;       // 11
-        UINT32 loadIa32PerfGlobalControl   : 1;       // 12
-        UINT32 loadSegmentRegisters        : 1;       // 13
-        UINT32 load_esp_eip                : 1;       // 14
-        UINT32 acknowledgeInterruptOnExit  : 1;       // 15
-        UINT32 saveSysEnterMsrs            : 1;       // 16
-        UINT32 loadSysEnterMsrs            : 1;       // 17
-        UINT32 saveIa32Pat                 : 1;       // 18
-        UINT32 loadIa32Pat                 : 1;       // 19
-        UINT32 saveIa32Efer                : 1;       // 20
-        UINT32 loadIa32Efer                : 1;       // 21
-        UINT32 saveVmxPreemptionTimerValue : 1;       // 22
-        UINT32 clearIa32Bndcgfs            : 1;       // 23
-        UINT32 concealVmExitsFromPT        : 1;       // 24
-        UINT32 _reserved0                  : 7;       // 25 - 31
+        UINT32 SaveCr0AndCr4 : 1;
+        UINT32 SaveCr3 : 1;
+        UINT32 SaveDebugControls : 1;
+        UINT32 SaveSegmentRegisters : 1;
+        UINT32 SaveEspEipEflags : 1;
+        UINT32 SavePendingDebugExceptions : 1;
+        UINT32 SaveInterruptibilityInformation : 1;
+        UINT32 SaveActivityState : 1;
+        UINT32 SaveWorkingVmcsPointer : 1;
+        UINT32 Ia32eHost : 1;
+        UINT32 LoadCr0AndCr4 : 1;
+        UINT32 LoadCr3 : 1;
+        UINT32 LoadIa32PerfGlobalControl : 1;
+        UINT32 LoadSegmentRegisters : 1;
+        UINT32 LoadEspEip : 1;
+        UINT32 AcknowledgeInterrupt : 1;
+        UINT32 SaveSysEnterMsrs : 1;
+        UINT32 LoadSysEnterMsrs : 1;
+        UINT32 SaveIa32Pat : 1;
+        UINT32 LoadIa32Pat : 1;
+        UINT32 SaveIa32Efer : 1;
+        UINT32 LoadIa32Efer : 1;
+        UINT32 SaveVmxPreemptionTimerValue : 1;
+        UINT32 ClearIa32Bndcgfs : 1;
+        UINT32 ConcealVmExitsFromPT : 1;
+        UINT32 Rsvd25To310 : 7;
     } Bits;
     
     UINT32 AsUint32;
-
 } VMX_EXIT_CTLS, *PVMX_EXIT_CTLS;
 
 typedef union
@@ -684,29 +680,28 @@ typedef union _VMX_ENTRY_CTLS
 {
     struct
     {
-        UINT32 load_cr0_and_cr4           : 1;  // 0 
-        UINT32 load_cr3                   : 1;  // 1 
-        UINT32 loadDebugControls          : 1;  // 2
-        UINT32 loadSegmentRegisters       : 1;  // 3
-        UINT32 load_esp_eip_eflags        : 1;  // 4
-        UINT32 loadPendingDebugExceptions : 1;  //5
-        UINT32 loadInterruptibilityInformation : 1;  //6
-        UINT32 loadActivityState          : 1;  // 7
-        UINT32 loadWorkingVmcsPointer     : 1;  // 8
-        UINT32 ia32eModeGuest             : 1;  // 9
-        UINT32 entryToSmm                 : 1;  // 10
-        UINT32 deactivateDualMonitor      : 1;  // 11
-        UINT32 loadSysEnterMsrs           : 1;  // 12
-        UINT32 loadIa32PerfGlobalControl  : 1;  // 13
-        UINT32 loadIa32Pat                : 1;  // 14
-        UINT32 loadIa32Efer               : 1;  // 15
-        UINT32 loadIa32Bndcgfs            : 1;  // 16
-        UINT32 concealVmEntriesFromPT     : 1;  // 17
-        UINT32 _reserved30                : 14; // 18 - 31
+        UINT32 LoadCr0AndCr4 : 1;
+        UINT32 LoadCr3 : 1; 
+        UINT32 LoadDebugControls : 1;
+        UINT32 LoadSegmentRegisters : 1;
+        UINT32 LoadEspEipEflags : 1;
+        UINT32 LoadPendingDebugExceptions : 1;
+        UINT32 LoadInterruptibilityInformation : 1;
+        UINT32 LoadActivityState : 1;
+        UINT32 LoadWorkingVmcsPointer : 1;
+        UINT32 Ia32eGuest : 1;
+        UINT32 EntryToSmm : 1;
+        UINT32 DeactivateDualMonitor : 1;
+        UINT32 loadSysEnterMsrs : 1;
+        UINT32 LoadIa32PerfGlobalControl  : 1;
+        UINT32 LoadIa32Pat                : 1;
+        UINT32 LoadIa32Efer               : 1;
+        UINT32 LoadIa32Bndcgfs            : 1;
+        UINT32 ConcealVmEntriesFromPT     : 1;
+        UINT32 Rsvd18To31 : 14;
     } Bits;
 
     UINT32 AsUint32;
-
 } VMX_ENTRY_CTLS, *PVMX_ENTRY_CTLS;
 
 typedef union
@@ -720,6 +715,19 @@ typedef union
     UINT64 AsUint64;
 }  VMX_ENTRY_CTLS_MAYBE;
 
+typedef union
+{
+    struct {
+        UINT32 Reason : 16;
+        UINT32 Rsvd16To27 : 12;
+        UINT32 PendingMtf : 1;
+        UINT32 FromVmxRootOperation : 1;
+        UINT32 Rsvd30 : 1;
+        UINT32 VmEntryFail : 1;
+    } Bits;
+
+    UINT32 AsUint32;
+} VM_INFO_BASIC;
 
 //
 //  VMX Miscellaneous
@@ -734,19 +742,19 @@ typedef union _VMX_MISC
 {
     struct
     {
-        UINT32 preemptionTimerLength             : 5;  // 0 - 4
-        UINT32 unrestrictedGuest                 : 1;  // 5
-        UINT32 entryInHaltStateSupported         : 1;  // 6
-        UINT32 entryInShutdownStateSupported     : 1;  // 7
-        UINT32 entryInWaitForSipiStateSupported  : 1;  // 8
-        UINT32 _reserved0                        : 6;  // 9 - 14
-        UINT32 canReadIa32SmbaseFromSmm          : 1;  // 15
-        UINT32 numberOfCr3TargetValues           : 9;  // 16 - 24
-        UINT32 msrListsMaxSize                   : 3;  // 25 - 27
-        UINT32 canReadIa32SmmMonitorControl      : 1;  // 28
-        UINT32 canWriteExitInfoFields            : 1;  // 29
-        UINT32 _reserved1                        : 2;  // 30 - 31
-        UINT32 msegRevisionId                    : 32; // 32 - 63
+        UINT32 VmxPreemptionTimerRate : 5;
+        UINT32 Ia32eToEFER : 1;
+        UINT32 ActivityStateSupportHlt : 1;
+        UINT32 ActivityStateSupportShutdown : 1;
+        UINT32 ActivityStateSupportWaitForSipi : 1;
+        UINT32 Rsvd9To14 : 6;
+        UINT32 CanReadIa32SmbaseFromSmm : 1;
+        UINT32 NumberOfCr3TargetValue : 9;
+        UINT32 MaxNumberOfMsrInStoreList : 3;
+        UINT32 VmxOffUnblockSmiSupport : 1;
+        UINT32 CanWriteExitInfoFields : 1;
+        UINT32 Rsvd30To31 : 2;
+        UINT32 MsegRevisionId : 32;
     } Bits;
 
     UINT64 AsUint64;
@@ -805,9 +813,7 @@ typedef union _VMX_EPT_VPID_CAP
     } Bits;
 
     UINT64 AsUint64;
-
 } VMX_EPT_VPID_CAP;
-
 
 //
 //  VMX MSR Structure - VMX_VMFUNC_CTL - Index 0x491
@@ -816,13 +822,12 @@ typedef union
 {
     struct
     {
-        UINT32 eptpSwitching  : 1;
-        UINT32 _reserved0     : 31;
-        UINT32 _reserved1     : 32;
+        UINT32 EptpSwitching  : 1;
+        UINT32 Rsvd1To3 : 31;
+        UINT32 Rsvd32To63 : 32;
     }  Bits;
 
     UINT64 AsUint64;
-
 } VMX_VMFUNC_CTL;
 
 //
@@ -839,67 +844,56 @@ typedef union
 #define IA32_VMX_CR4_FIXED0 0x488
 #define IA32_VMX_CR4_FIXED1 0x489
 
-//////////////////////////
-//GUEST ADDITIONAL STATE// //24.4.2
-//////////////////////////
-typedef struct _EXIT_GUEST_INTERRUPTIBILITY_STATE
+typedef union _EXIT_GUEST_INTERRUPTIBILITY_STATE
 {
-    union
+    struct
     {
-        UINT32 raw;
+        UINT32 BlockingBySti : 1;
+        UINT32 BlockingByMovSs : 1;
+        UINT32 BlockingBySmi : 1;
+        UINT32 BlockingByNmi : 1;
+        UINT32 EnclaveInterruption : 1;
+        UINT32 Rsvd5To31 : 27;
+    } Bits;
 
-        struct
-        {
-            UINT32 blockingBySti       : 1;  // 0
-            UINT32 blockingByMovSs     : 1;  // 1
-            UINT32 blockingBySmi       : 1;  // 2
-            UINT32 blockingByNmi       : 1;  // 3
-            UINT32 enclaveInterruption : 1;  // 4
-            UINT32 _reserved           : 27;  // 5 - 31
-        } f;
-    } u;
-} EXIT_GUEST_INTERRUPTIBILITY_STATE, *PEXIT_GUEST_INTERRUPTIBILITY_STATE;
+    UINT32 AsUint32;
+} EXIT_GUEST_INTERRUPTIBILITY_STATE;
 
-typedef struct _EXIT_QUALIFICATION_DEBUG_EXCEPTION
+typedef union _EXIT_QUALIFICATION_DEBUG_EXCEPTION
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 B0              : 1;  // 0
-            UINT32 B1              : 1;  // 1
-            UINT32 B2              : 1;  // 2
-            UINT32 B3              : 1;  // 3
-            UINT32 _reserved0      : 9;  // 4 - 12
-            UINT32 BD              : 1;  // 13 
-            UINT32 BS              : 1;  // 14 
-            UINT32 _reserved2      : 17;  // 15 - 31
+        UINT32 Bp0 : 1;
+        UINT32 Bp1 : 1;
+        UINT32 Bp2 : 1;
+        UINT32 Bp3 : 1;
+        UINT32 Rsvd4To11 : 8;
+        UINT32 EnableBreakpoint : 1;
+        UINT32 Bd : 1;
+        UINT32 Bs : 1;
+        UINT32 Rsvd15To31 : 17;
 #ifdef _WIN64
-            UINT32 _reserved3      : 32; // 32 - 63
+        UINT32 Rsvd32To63 : 32;
 #endif
-        } f;
-    } u;
-} EXIT_QUALIFICATION_DEBUG_EXCEPTION, *PEXIT_QUALIFICATION_DEBUG_EXCEPTION;
+    } Bits;
 
-typedef struct _EXIT_QUALIFICATION_TASK_SWITCH
+    UINTN AsUintN;
+} EXIT_QUALIFICATION_DEBUG_EXCEPTION;
+
+typedef union _EXIT_QUALIFICATION_TASK_SWITCH
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 tssSelector     : 16;  // 0  - 15
-            UINT32 _reserved0      : 14;  // 16 - 29
-            UINT32 source          : 2;   // 30 - 31 
+        UINT32 Tss : 16;
+        UINT32 Rsvd16To29 : 14;
+        UINT32 TaskType : 2;
 #ifdef _WIN64
-            UINT32 _reserved1      : 32; // 32 - 63
+        UINT32 Rsvd32To63 : 32;
 #endif
-        } f;
-    } u;
-} EXIT_QUALIFICATION_TASK_SWITCH, *PEXIT_QUALIFICATION_TASK_SWITCH;
+    } Bits;
+
+    UINTN AsUintN;
+} EXIT_QUALIFICATION_TASK_SWITCH;
 
 #define TASK_SWITCH_SOURCE_CALL             0
 #define TASK_SWITCH_SOURCE_IRET             1
@@ -922,7 +916,7 @@ typedef union _EXIT_QUALIFICATION_CR
 #endif
     } CrAccess;
 
-    UINT_PTR AsUintN;
+    UINTN AsUintN;
   
 } EXIT_QUALIFICATION_CR, *PEXIT_QUALIFICATION_CR;
 
@@ -934,57 +928,51 @@ typedef union _EXIT_QUALIFICATION_CR
 #define CR_ACCESS_TYPE_LMSW_OPERAND_REGISTER    0
 #define CR_ACCESS_TYPE_LMSW_OPERAND_MEMORY      1
 
-typedef struct _EXIT_QUALIFICATION_DR
+typedef union _EXIT_QUALIFICATION_DR
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 dr         : 3;  // 0 - 2
-            UINT32 _reserved0 : 1;  // 3
-            UINT32 accessType : 1;  // 4
-            UINT32 _reserved1 : 3;  // 5 - 7
-            UINT32 gpr        : 4;  // 8 - 11
-            UINT32 _reserved2 : 20; // 12 - 31
+        UINT32 Number : 3;
+        UINT32 Rsvd3 : 1;
+        UINT32 Direction : 1;
+        UINT32 Rsvd5To7 : 3;
+        UINT32 MoveGp : 4;
+        UINT32 Rsvd12To31 : 20;
 #ifdef _WIN64
-            UINT32 _reserved3 : 32; // 32 - 63
+        UINT32 Rsvd32To63 : 32;
 #endif
-        } f;
-    } u;
-} EXIT_QUALIFICATION_DR, *PEXIT_QUALIFICATION_DR;
+    } Bits;
+
+    UINTN AsUintN;
+} EXIT_QUALIFICATION_DR;
 
 #define DR_ACCESS_TYPE_MOV_TO_DR    0
 #define DR_ACCESS_TYPE_MOV_FROM_DR  1
 
-typedef struct _EXIT_QUALIFICATION_IO
+typedef union _EXIT_QUALIFICATION_IO
 {
-    union
+   struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 size                : 3;  // 0 - 2
-            UINT32 direction           : 1;  // 3
-            UINT32 isStringInstruction : 1;  // 4 
-            UINT32 hasRepPrefix        : 1;  // 5 
-            UINT32 operandEncoding     : 1;  // 6
-            UINT32 _reserved0          : 9;  // 7 - 15
-            UINT32 port                : 16; // 16 - 31
+        UINT32 Size : 3;
+        UINT32 Direction : 1;
+        UINT32 StringInstruction : 1;
+        UINT32 Rep : 1;
+        UINT32 OperandEncoding : 1;
+        UINT32 Rsvd7To15 : 9;
+        UINT32 PortNum : 16;
 #ifdef _WIN64
-            UINT32 _reserved1          : 32; // 32 - 63
+        UINT32 Rsvd32To63 : 32;
 #endif
-        } f;
-    } u;
-} EXIT_QUALIFICATION_IO, *PEXIT_QUALIFICATION_IO;
+    } Bits;
+
+    UINTN AsUintN;
+} EXIT_QUALIFICATION_IO;
 
 typedef struct _EXIT_QUALIFICATION_APIC
 {
     union
     {
-        UINT_PTR raw;
+        UINTN raw;
 
         struct
         {
@@ -1009,7 +997,7 @@ typedef struct _EXIT_QUALIFICATION_SLAT
 {
     union
     {
-        UINT_PTR raw;
+        UINTN raw;
 
         struct
         {
@@ -1082,9 +1070,6 @@ typedef union _VMX_IDT_VECTORING_INFORMATION {
 #define INTERRUPT_TYPE_SOFTWARE_EXCEPTION   6 //#BP - INT3  #OF - INTO
 
 
-///////////////////////////
-//INSTRUCTION INFORMATION// //27.2.4
-///////////////////////////
 typedef struct _INSTRUCTION_INFORMATION_IO
 {
     union
@@ -1240,14 +1225,7 @@ typedef struct _INSTRUCTION_INFORMATION_RD
 #define INSTRUCTION_INFORMATION_IDENTITY_STR  1
 #define INSTRUCTION_INFORMATION_IDENTITY_LLDT 2
 #define INSTRUCTION_INFORMATION_IDENTITY_LTR  3
-////////////////////////////////
-// END INSTRUCTION INFORMATION//
-////////////////////////////////
 
-
-////////////////////////////
-//     EPT STRUCTURES     //
-////////////////////////////
 #pragma warning( disable : 4214 ) //Bitfield type distinct from int
 
 //24.6.11
@@ -1410,9 +1388,6 @@ typedef struct _VE_INFO_AREA
     UINT16 eptpIndex;
 } VE_INFO_AREA, *PVE_INFO_AREA;
 #pragma pack(pop)
-////////////////////////////
-//  END EPT STRUCTURES    //
-////////////////////////////
 
 typedef enum _INVPID_TYPE
 {
@@ -1433,7 +1408,7 @@ typedef struct _VPID_CTX
 * Indicates if current processor supports VMX operation mode.
 */
 NTSTATUS
-VmxIsSupported(
+VmxVerifySupport(
     VOID
 );
 
@@ -1481,7 +1456,7 @@ UINT64
 VmxRead64(
     _In_ UINT32 field
 );
-UINT_PTR
+UINTN
 VmxReadPlatform(
     _In_ UINT32 field
 );
@@ -1508,7 +1483,7 @@ VmxWrite64(
 BOOLEAN
 VmxWritePlatform(
     _In_ UINT32   field,
-    _In_ UINT_PTR data
+    _In_ UINTN data
 );
 
 
@@ -1523,8 +1498,8 @@ VmxWritePlatform(
 */
 NTSTATUS __stdcall
 VmxCall(
-    _In_ UINT_PTR service,
-    _In_ UINT_PTR data
+    _In_ UINTN service,
+    _In_ UINTN data
 );
 
 /**
@@ -1538,8 +1513,8 @@ VmxCall(
 */
 NTSTATUS __stdcall
 VmxFunc(
-    _In_ UINT_PTR service,
-    _In_ UINT_PTR data
+    _In_ UINTN service,
+    _In_ UINTN data
 );
 
 /**
@@ -1547,31 +1522,32 @@ VmxFunc(
 * Return values:
 *  - 0 = The operation succeeded.
 *  - 1 = The operation failed with extended status available in the VM - instruction error field of the current VMCS.
-*  - 2 = The operation failed without status available.
+*  - 2 = The operation failed without Status available.
 */
 #ifndef _WIN64
 
-UINT8 __stdcall VmxOn     (PUINT64 vmxOnAddress);
-#define VmxOff __vmx_off
-UINT8 __stdcall VmxVmClear(PUINT64 vmcsAddress);
-UINT8 __stdcall VmxVmPtrLd(PUINT64 vmcsAddress);
-UINT8 __stdcall VmxVmPtrSt(PUINT64 vmcsAddress);
-UINT8 __stdcall VmxVmRead (UINT32 field, PUINT_PTR data);
-UINT8 __stdcall VmxVmWrite(UINT32 field, UINT_PTR  data);
-UINT8 __stdcall VmxInvEpt (UINT_PTR type, PVOID eptPointer);
-UINT8 __stdcall VmxInvVpid(IVVPID_TYPE type, PVPID_CTX vpidContext );
+UINT8 __stdcall AsmVmxOn     (PUINT64 vmxOnAddress);
+#define AsmVmxOff __vmx_off
+UINT8 __stdcall AsmVmxClear(PUINT64 vmcsAddress);
+UINT8 __stdcall AsmVmxPtrLoad(PUINT64 vmcsAddress);
+UINT8 __stdcall AsmVmxPtrStore(PUINT64 vmcsAddress);
+UINT8 __stdcall AsmVmxRead (UINT32 field, PUINT_PTR data);
+UINT8 __stdcall AsmVmxWrite(UINT32 field, UINTN  data);
+UINT8 __stdcall VmxInvEpt (UINTN type, PVOID eptPointer);
+UINT8 __stdcall AsmVmxInvVpid(IVVPID_TYPE type, PVPID_CTX vpidContext );
 
 #else
 
-#define VmxOn       __vmx_on
-#define VmxOff      __vmx_off
-#define VmxVmClear  __vmx_vmclear
-#define VmxVmPtrLd  __vmx_vmptrld
-#define VmxVmPtrSt  __vmx_vmptrst
-#define VmxVmRead   __vmx_vmread
-#define VmxVmWrite  __vmx_vmwrite
-UINT8 VmxInvEpt(_In_ UINT_PTR type, _In_ PVOID eptPointer);
-UINT8 VmxInvVpid(_In_ IVVPID_TYPE type, _In_ PVPID_CTX vpidContext );
+#define AsmVmxOn __vmx_on
+#define AsmVmxOff __vmx_off
+#define AsmVmxClear __vmx_vmclear
+#define AsmVmxPtrLoad __vmx_vmptrld
+#define AsmVmxPtrStore __vmx_vmptrst
+#define AsmVmxRead __vmx_vmread
+#define AsmVmxWrite __vmx_vmwrite
+UINT8 AsmVmxInvVpid(_In_ IVVPID_TYPE type, _In_ PVPID_CTX vpidContext);
+UINT8 VmxInvEpt(_In_ UINTN type, _In_ PVOID eptPointer);
+
 
 #endif
 

@@ -3,9 +3,9 @@
 
 VOID 
 IdtInstallService(
-    _In_      UINT_PTR   idt,
+    _In_      UINTN   idt,
     _In_      UINT8      service,
-    _In_      UINT_PTR   handler,
+    _In_      UINTN   handler,
     _Out_opt_ PIDT_ENTRY old
 )
 {
@@ -63,12 +63,12 @@ IdtGetEntryFromServiceNumber(
     return table + service;
 }
 
-UINT_PTR
+UINTN
 IdtReadServiceAddressFromEntry(
     _In_ PIDT_ENTRY entry
 )
 {
-    UINT_PTR address;
+    UINTN address;
 
     address = (UINT32)((entry->u.f.offsetHigh << 16) | entry->u.f.offsetLow);
 
@@ -81,8 +81,8 @@ IdtReadServiceAddressFromEntry(
 
 VOID 
 IdtRestoreEntry(
-    _In_ UINT_PTR   idt,
-    _In_ UINT8      service,
+    _In_ UINTN idt,
+    _In_ UINT8 service,
     _In_ PIDT_ENTRY old
 )
 {
@@ -99,169 +99,126 @@ IdtRestoreEntry(
     memcpy(entry, old, sizeof(IDT_ENTRY));
 }
 
-
-UINT_PTR __stdcall
-DescriptorBase(
-    _In_ UINT16 selector
-)
+UINTN
+BaseFromSelector(
+    _In_ UINT16 Selector
+     )
 {
-    SEGMENT_SELECTOR    segment;
-    PSEGMENT_DESCRIPTOR descriptor;
-    UINT_PTR            base;
+    IA32_SEGMENT_SELECTOR Segment;
+    PIA32_SEGMENT_DESCRIPTOR Descriptor;
+    UINTN Base = 0;
 
-    //
-    // descriptor = GDT[_selector]
-    //
-    segment.u.raw = selector;
+    Segment.AsUint16 = Selector;
 
-    descriptor = (PSEGMENT_DESCRIPTOR)((PUINT64)sgdt_base() + segment.u.f.index);
-
-    //
-    // base[24:31] = descriptor[56:63]
-    // base[16:23] = descriptor[31:40]
-    // base[0 :15] = descriptor[16:31]
-    //
-    base = (UINT_PTR)(descriptor->u.f.baseLow | (descriptor->u.f.baseMid << 16) | (descriptor->u.f.baseHigh << 24));
-
-#ifdef _WIN64
-    //
-    // If bit S(44) == 0 ==> SYSTEM descriptor... in x64 only system descriptors are expanded to 64 bits bases
-    //
-    if (descriptor->u.f.system == 0)
-    {
-        //
-        // base[32:63] = highDescriptor
-        //
-        base |= (((UINT64)descriptor->baseUpper) << 32);
+    if (Selector == 0 || Segment.Bits.Ti != 0) {
+        return Base;
     }
+
+    Descriptor = (PIA32_SEGMENT_DESCRIPTOR) 
+                        ((UINTN)GetGdtrBase() + Segment.Bits.Index);
+
+    //
+    //  Base[24:31] = Descriptor[56:63]
+    //  Base[16:23] = Descriptor[31:40]
+    //  Base[0 :15] = Descriptor[16:31]
+    //
+
+    Base = (UINT32) (Descriptor->BaseLow
+                  | (Descriptor->Bytes.BaseMiddle << 16)
+                  | (Descriptor->Bytes.BaseHigh << 24));
+#ifdef _WIN64
+    Base |= (Descriptor->Bits.S == 0) ?
+            ((UINT64)Descriptor->BaseUpper << 32) : 0;
 #endif
-
-    return base;
+    return Base;
 }
 
-
-UINT32 __stdcall
-DescriptorAccessRights(
-    _In_ UINT16 selector
-)
+UINT32
+ArFromSelector(
+    _In_ UINT16 Selector
+    )
 {
-    SEGMENT_SELECTOR    segment;
-    PSEGMENT_DESCRIPTOR descriptor;
-    UINT32              accessRights;
+    IA32_SEGMENT_SELECTOR Segment;
+    PIA32_SEGMENT_DESCRIPTOR Descriptor;
+    UINT32 AccessRights;
+
+    Segment.AsUint16 = Selector;
+
+    if (Selector == 0 || Segment.Bits.Ti != 0) {
+        return 0x10000;
+    }
+
+    Descriptor = (PIA32_SEGMENT_DESCRIPTOR)
+                        ((UINTN)GetGdtrBase() + Segment.Bits.Index);
 
     //
-    // descriptor = GDT[_selector]
+    //  AccessRights[0 : 7] = Descriptor[40:47]
+    //  AccessRights[8 :11] = 0
+    //  AccessRights[12:15] = Descriptor[52:55]
     //
-    segment.u.raw = selector;
 
-    descriptor = (PSEGMENT_DESCRIPTOR)((PUINT64)sgdt_base() + segment.u.f.index);
-
-    //
-    // accessRights[0:7]   = descriptor[40:47]
-    // accessRights[8:11]  = 0
-    // accessRights[12:15] = descriptor[52:55]
-    //
-    accessRights = (UINT32)((descriptor->u.raw & 0x00F0FF0000000000) >> 40);
-
-    //
-    // If null selector is used, accessRights are marked as invalid
-    //
-    if (!selector)
-        accessRights |= 0x10000;
-
-    return accessRights;
+    AccessRights = (UINT32)((Descriptor->DataLow & 0x00F0FF0000000000) >> 40);
+    return AccessRights;
 }
 
-extern VOID __stdcall AsmReadGdtr(PVOID memory);
-extern VOID __stdcall AsmWriteGdtr(PVOID memory);
-
-UINT_PTR
-sgdt_base(
+UINTN
+GetGdtrBase(
     VOID
-)
+    )
 {
-    UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
+    IA32_DESCRIPTOR Gdt;
 
-    AsmReadGdtr(&gdt);
-
-    return *(PUINT_PTR)((PUINT8)&gdt + 2);
-}
-
-
-UINT16
-sgdt_limit(
-    VOID
-)
-{
-    UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
-
-    AsmReadGdtr(&gdt);
-
-    return *(PUINT16)&gdt;
-}
-
-
-VOID
-lgdt(
-    _In_ UINT_PTR base,
-    _In_ UINT16   limit
-)
-{
-    UINT8 gdt[sizeof(UINT16) + sizeof(UINT_PTR)];
-
-    *(PUINT16)  ((PUINT8)&gdt + 0) = limit;
-    *(PUINT_PTR)((PUINT8)&gdt + 2) = base;
-    
-    AsmWriteGdtr(&gdt);
-}
-
-
-UINT_PTR
-sidt_base(
-    VOID
-)
-{
-    UINT8 idt[sizeof(UINT16) + sizeof(UINT_PTR)];
-
-    __sidt(&idt);
-
-    return *(PUINT_PTR)((PUINT8)&idt + 2);
+    AsmReadGdtr( &Gdt );
+    return Gdt.Base;
 }
 
 UINT16
-sidt_limit(
+GetGdtrLimit(
     VOID
-)
+    )
 {
-    UINT8 idt[sizeof(UINT16) + sizeof(UINT_PTR)] = { 0 };
+    IA32_DESCRIPTOR Gdt;
 
-    __sidt(&idt);
-
-    return *(PUINT16)&idt;
+    AsmReadGdtr( &Gdt );
+    return Gdt.Limit;
 }
 
+UINTN
+GetIdtrBase(
+    VOID
+    )
+{
+    IA32_DESCRIPTOR Idt;
+
+    __sidt( &Idt );
+    return Idt.Base;
+}
+
+UINT16
+GetIdtrLimit(
+    VOID
+    )
+{
+    IA32_DESCRIPTOR Idt;
+
+    __sidt( &Idt );
+    return Idt.Limit;
+}
 
 VOID
-lidt(
-    _In_ UINT_PTR base,
-    _In_ UINT16   limit
-)
+WriteIdtr(
+    _In_ IA32_DESCRIPTOR Idt
+    )
 {
-    UINT8 idt[sizeof(UINT16) + sizeof(UINT_PTR)];
-
-    *(PUINT16)  ((PUINT8)&idt + 0) = limit;
-    *(PUINT_PTR)((PUINT8)&idt + 2) = base;
-
-    __lidt(&idt);
+    __lidt( &Idt );
 }
 
-
-UINT_PTR
+UINTN
 readcr(
     _In_ UINT32 cr
-)
+    )
 {
-    UINT_PTR value;
+    UINTN value;
 
     value = 0;
 
@@ -283,7 +240,7 @@ _IRQL_raises_(value)
 VOID
 writecr(
     _In_ UINT32   cr,
-    _In_ UINT_PTR value
+    _In_ UINTN value
 )
 {
     switch (cr)
@@ -299,12 +256,12 @@ writecr(
 }
 
 
-UINT_PTR
+UINTN
 readdr(
     _In_ UINT32 dr
 )
 {
-    UINT_PTR value;
+    UINTN value;
 
     value = 0;
 
@@ -325,7 +282,7 @@ readdr(
 VOID
 writedr(
     _In_ UINT32   dr,
-    _In_ UINT_PTR value
+    _In_ UINTN value
 )
 {
     switch (dr)

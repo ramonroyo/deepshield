@@ -3,8 +3,8 @@
 #include "smp.h"
 
 extern UINT8 __stdcall
-VmxInvEptImpl(
-    _In_ UINT_PTR type,
+AsmVmxInvEpt(
+    _In_ UINTN type,
     _In_ PVOID    eptPointer
 );
 
@@ -78,99 +78,107 @@ const UINT16 ExceptionType[64] = {
     INTERRUPT_HARDWARE_EXCEPTION
 };
 
-/**
-* Intel VMX config read in a given Vcpu.
-* Used to compare capabilities across diferent processors.
-*/
-typedef struct _VMX_SUPPORT
+//
+//  Compare capabilities across diferent processors.
+//
+typedef struct _VMX_VERIFY_INFO
 {
-    UINT32 revisionID;
-    UINT32 supportedPinCtls;
-    UINT32 supportedProcPrimaryCtls;
-    UINT32 supportedProcSecondaryCtls;
-    UINT32 supportedExitCtls;
-    UINT32 supportedEntryCtls;
-} VMX_SUPPORT, *PVMX_SUPPORT;
+    UINT32 RevisionId;
+    UINT32 PinCtls;
+    UINT32 ProcPrimaryCtls;
+    UINT32 ProcSecondaryCtls;
+    UINT32 ExitCtls;
+    UINT32 EntryCtls;
+} VMX_VERIFY_INFO, *PVMX_VERIFY_INFO;
 
 NTSTATUS
 VmxpCheckSupport(
     VOID
-)
+    )
 {
     int Registers[4] = { 0 };
 
     //
     // Checking the CPUID on each logical processor to ensure VMX is supported and that the overall feature set of each logical processor is compatible.
     //
-    __cpuid(Registers, 1);
+    __cpuid( Registers, 1 );
 
     //
     // Check ECX[5] = 1
     //
-    if (!(Registers[2] & (1 << 5)))
+    if (!(Registers[2] & (1 << 5))) {
         return STATUS_VMX_NOT_SUPPORTED;
+    }
 
     //
     // Check bit 2 and 0 of IA32_FEATURE_CONTROL are enabled
     //
-    if ((__readmsr(IA32_FEATURE_CONTROL) & 5) != 5)
+    if ((__readmsr(IA32_FEATURE_CONTROL) & 5) != 5) {
         return STATUS_VMX_BIOS_DISABLED;
+    }
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS
 VmxpCompareCapabilities(
-    _In_ PVMX_SUPPORT support
+    _In_ PVMX_VERIFY_INFO VerifyInfo
 )
 {
-    VMX_MSR_BASIC vmxBasic;
+    VMX_MSR_BASIC VmxBasic;
 
-    vmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
+    VmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
 
     //
     // Checking VMCS revision identifiers on each logical processor.
     //
-    if (support->revisionID != vmxBasic.Bits.revisionId)
+    if (VerifyInfo->RevisionId != VmxBasic.Bits.RevisionId) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
     //
-    // Checking each of the “allowed - 1” or “allowed - 0” fields of the VMX capability MSR’s on each processor.
+    //  Checking each of the “allowed - 1” or “allowed - 0” fields of 
+    //  the VMX capability MSR’s on each processor.
     //
-    if (support->supportedPinCtls != VmxAllowed(IA32_VMX_PIN_CTLS))
+    if (VerifyInfo->PinCtls != VmxAllowed(IA32_VMX_PIN_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
-    if (support->supportedProcPrimaryCtls != VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS))
+    if (VerifyInfo->ProcPrimaryCtls != VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
-    if (support->supportedProcSecondaryCtls != VmxAllowed(IA32_VMX_PROC_SECONDARY_CTLS))
+    if (VerifyInfo->ProcSecondaryCtls != VmxAllowed(IA32_VMX_PROC_SECONDARY_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
-    if (support->supportedExitCtls != VmxAllowed(IA32_VMX_EXIT_CTLS))
+    if (VerifyInfo->ExitCtls != VmxAllowed(IA32_VMX_EXIT_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
-    if (support->supportedEntryCtls != VmxAllowed(IA32_VMX_ENTRY_CTLS))
+    if (VerifyInfo->EntryCtls != VmxAllowed(IA32_VMX_ENTRY_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
-    if (support->supportedEntryCtls != VmxAllowed(IA32_VMX_ENTRY_CTLS))
+    if (VerifyInfo->EntryCtls != VmxAllowed(IA32_VMX_ENTRY_CTLS)) {
         return STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS;
+    }
 
     return STATUS_SUCCESS;
 }
 
-
 NTSTATUS __stdcall
-VmxpSupport(
+VmxpVerifySupportPerCpu(
     _In_  UINT32 VcpuId,
-    _In_opt_ PVOID  context
+    _In_opt_ PVOID Context
     )
 {
     NTSTATUS Status;
-    PVMX_SUPPORT VmxSupport;
+    PVMX_VERIFY_INFO VmxVerify;
 
     UNREFERENCED_PARAMETER( VcpuId );
     
-    VmxSupport = (PVMX_SUPPORT)context;
+    VmxVerify = (PVMX_VERIFY_INFO)Context;
 
     Status = VmxpCheckSupport();
     
@@ -178,7 +186,7 @@ VmxpSupport(
         return Status;
     }
 
-    Status = VmxpCompareCapabilities( VmxSupport );
+    Status = VmxpCompareCapabilities( VmxVerify );
     
     if (!NT_SUCCESS( Status )) {
         return Status;
@@ -188,29 +196,26 @@ VmxpSupport(
 }
 
 NTSTATUS
-VmxIsSupported(
+VmxVerifySupport(
     VOID
     )
 {
-    VMX_SUPPORT support;
-    VMX_MSR_BASIC vmxBasic;
+    VMX_VERIFY_INFO VerifyInfo;
+    VMX_MSR_BASIC VmxBasic;
 
     //
-    // Prepare revision and capabilities
+    //  Prepare revision and capabilities
     //
-    vmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
+    VmxBasic.AsUint64 = __readmsr( IA32_VMX_BASIC );
 
-    support.revisionID                 = vmxBasic.Bits.revisionId;
-    support.supportedPinCtls           = VmxAllowed(IA32_VMX_PIN_CTLS);
-    support.supportedProcPrimaryCtls   = VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS);
-    support.supportedProcSecondaryCtls = VmxAllowed(IA32_VMX_PROC_SECONDARY_CTLS);
-    support.supportedExitCtls          = VmxAllowed(IA32_VMX_EXIT_CTLS);
-    support.supportedEntryCtls         = VmxAllowed(IA32_VMX_ENTRY_CTLS);
+    VerifyInfo.RevisionId = VmxBasic.Bits.RevisionId;
+    VerifyInfo.PinCtls = VmxAllowed( IA32_VMX_PIN_CTLS );
+    VerifyInfo.ProcPrimaryCtls = VmxAllowed( IA32_VMX_PROC_PRIMARY_CTLS );
+    VerifyInfo.ProcSecondaryCtls = VmxAllowed( IA32_VMX_PROC_SECONDARY_CTLS );
+    VerifyInfo.ExitCtls = VmxAllowed( IA32_VMX_EXIT_CTLS );
+    VerifyInfo.EntryCtls = VmxAllowed( IA32_VMX_ENTRY_CTLS );
     
-    //
-    // Test on every processor
-    //
-    return SmpExecuteOnAllProcessors(VmxpSupport, &support);
+    return SmpRunPerProcessor( VmxpVerifySupportPerCpu, &VerifyInfo );
 }
 
 BOOLEAN
@@ -225,34 +230,37 @@ VmxIsIntel(
     //
     // GenuineIntel
     //
-    return Registers[2] == 'letn' && Registers[3] == 'Ieni' && Registers[1] == 'uneG';
+    return Registers[2] == 'letn' && 
+           Registers[3] == 'Ieni' &&
+           Registers[1] == 'uneG';
 }
 
 
 
 UINT64
 VmxCapability(
-    _In_ UINT32 capability
-)
+    _In_ UINT32 Capability
+    )
 {
-    switch (capability)
+    switch (Capability)
     {
         case IA32_VMX_BASIC:
         case IA32_VMX_MISC:
-            return __readmsr(capability);
+            return __readmsr(Capability);
 
         case IA32_VMX_EPT_VPID_CAP:
         {
-            VMX_PROC_PRIMARY_CTLS vmxProcPrimary;
+            VMX_PROC_PRIMARY_CTLS VmxProcPrimary;
 
-            vmxProcPrimary.AsUint32 = VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS);
-            if (vmxProcPrimary.Bits.SecondaryControls )
-            {
-                VMX_PROC_SECONDARY_CTLS vmxProcSecondary;
+            VmxProcPrimary.AsUint32 = VmxAllowed( IA32_VMX_PROC_PRIMARY_CTLS );
 
-                vmxProcSecondary.AsUint32 = VmxAllowed(IA32_VMX_PROC_SECONDARY_CTLS);
-                if(vmxProcSecondary.Bits.enableEpt || vmxProcSecondary.Bits.enableVpid)
-                    return __readmsr(capability);
+            if (VmxProcPrimary.Bits.SecondaryControl ){
+                VMX_PROC_SECONDARY_CTLS VmxProcSecondary;
+
+                VmxProcSecondary.AsUint32 = VmxAllowed( IA32_VMX_PROC_SECONDARY_CTLS );
+                if (VmxProcSecondary.Bits.EnableEpt || VmxProcSecondary.Bits.EnableVpid) {
+                    return __readmsr( Capability );
+                }
             }
             break;
         }
@@ -264,18 +272,18 @@ VmxCapability(
 
 UINT32
 VmxAllowed(
-    _In_ UINT32 control
-)
+    _In_ UINT32 VmxMsr
+    )
 {
-    switch (control)
+    switch (VmxMsr)
     {
         case IA32_VMX_PROC_SECONDARY_CTLS:
         {
-            VMX_PROC_PRIMARY_CTLS vmxProcPrimary;
+            VMX_PROC_PRIMARY_CTLS VmxProcPrimary;
 
-            vmxProcPrimary.AsUint32 = VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS);
+            VmxProcPrimary.AsUint32 = VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS);
 
-            if (!vmxProcPrimary.Bits.SecondaryControls ) {
+            if (!VmxProcPrimary.Bits.SecondaryControl ) {
                 return 0;
             }
         }
@@ -284,7 +292,7 @@ VmxAllowed(
         case IA32_VMX_EXIT_CTLS:
         case IA32_VMX_ENTRY_CTLS:
         {
-            VMX_MSR_BASIC vmxBasic;
+            VMX_MSR_BASIC VmxBasic;
             UINT64    caps;
             UINT32    def0;
             UINT32    def1;
@@ -293,13 +301,18 @@ VmxAllowed(
             //
             // Use TRUE controls if supported
             //
-            vmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
+            VmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
 
-            if (vmxBasic.Bits.defaultSettings && (control != IA32_VMX_PROC_SECONDARY_CTLS)) {
-                control += 0xC; //From IA32_VMX_XXXX_CTLS to IA32_VMX_TRUE_XXXX_CTLS
+            if (VmxBasic.Bits.VmxControlDefaultClear 
+                && (VmxMsr != IA32_VMX_PROC_SECONDARY_CTLS)) {
+
+                //
+                //  From IA32_VMX_XXXX_CTLS to IA32_VMX_TRUE_XXXX_CTLS.
+                //
+                VmxMsr += 0xC;
             }
 
-            caps = __readmsr(control);
+            caps = __readmsr(VmxMsr);
             def0 = LOW32(caps);
             def1 = HIGH32(caps);
 
@@ -314,16 +327,18 @@ VmxAllowed(
 UINT16
 VmxRead16(
     _In_ UINT32 field
-)
+    )
 {
-    UINT_PTR data;
+    UINTN data;
 
-    if (VMCS_FIELD_WIDTH(field) != WIDTH_16)
+    if (VMCS_FIELD_WIDTH(field) != WIDTH_16) {
         return 0;
+    }
 
     data = 0;
-    if (VmxVmRead(field, &data))
+    if (AsmVmxRead( field, &data )) {
         return 0;
+    }
     
     return (UINT16)data;
 }
@@ -333,14 +348,16 @@ VmxRead32(
     _In_ UINT32 field
 )
 {
-    UINT_PTR data;
+    UINTN data;
 
-    if (VMCS_FIELD_WIDTH(field) != WIDTH_32)
+    if (VMCS_FIELD_WIDTH( field ) != WIDTH_32) {
         return 0;
+    }
 
     data = 0;
-    if (VmxVmRead(field, &data))
+    if (AsmVmxRead( field, &data )) {
         return 0;
+    }
 
     return (UINT32)data;
 }
@@ -348,7 +365,7 @@ VmxRead32(
 UINT64
 VmxRead64(
     _In_ UINT32 field
-)
+    )
 {
 #ifndef _WIN64
     UINT32 low;
@@ -356,17 +373,20 @@ VmxRead64(
 #endif
     UINT64 data;
 
-    if (VMCS_FIELD_WIDTH(field) != WIDTH_64)
+    if (VMCS_FIELD_WIDTH( field ) != WIDTH_64) {
         return 0;
+    }
 
 #ifndef _WIN64
     low = 0;
-    if (VmxVmRead(field, &low))
+    if (AsmVmxRead( field, &low )) {
         return 0;
+    }
 
     high = 0;
-    if (VmxVmRead(VMCS_FIELD_HIGH(field), &high))
+    if (AsmVmxRead( VMCS_FIELD_HIGH( field ), &high )) {
         return 0;
+    }
 
     data  = ((UINT64)high) << 32;
     data |= low;
@@ -374,95 +394,119 @@ VmxRead64(
     return data;
 #else
     data = 0;
-    if (VmxVmRead(field, &data))
+    if (AsmVmxRead( field, &data )) {
         return 0;
+    }
 
     return data;
 #endif
 }
 
-UINT_PTR
+UINTN
 VmxReadPlatform(
     _In_ UINT32 field
-)
+    )
 {
-    UINT_PTR data;
+    UINTN data;
 
-    if (VMCS_FIELD_WIDTH(field) != WIDTH_PLATFORM)
+    if (VMCS_FIELD_WIDTH( field ) != WIDTH_PLATFORM) {
         return 0;
+    }
 
     data = 0;
-    if (VmxVmRead(field, &data))
+    if (AsmVmxRead( field, &data )) {
         return 0;
+    }
 
     return data;
 }
-
 
 BOOLEAN
 VmxWrite16(
     _In_ UINT32 field,
     _In_ UINT16 data
-)
+    )
 {
-    UINT_PTR toWrite;
+    UINTN toWrite;
 
-    if (VMCS_FIELD_WIDTH(field) != WIDTH_16)
+    if (VMCS_FIELD_WIDTH( field ) != WIDTH_16) {
         return FALSE;
+    }
 
-    toWrite = (UINT_PTR)data;
-    return VmxVmWrite(field, toWrite) == 0;
+    toWrite = (UINTN)data;
+    return AsmVmxWrite( field, toWrite ) == 0;
 }
 
 static VOID 
 VmxpNormalizeControls(
     _In_ UINT32  field,
     _In_ PUINT32 data
-)
+    )
 {
-    UINT32 control = 0;
+    UINT32 VmxMsr = 0;
 
     switch (field)
     {
-        case VM_EXEC_CONTROLS_PIN_BASED:        control = IA32_VMX_PIN_CTLS;            break;
-        case VM_EXEC_CONTROLS_PROC_PRIMARY:     control = IA32_VMX_PROC_PRIMARY_CTLS;   break;
-        case VM_EXEC_CONTROLS_PROC_SECONDARY:   control = IA32_VMX_PROC_SECONDARY_CTLS; break;
-        case VM_EXIT_CONTROLS:                  control = IA32_VMX_EXIT_CTLS;           break;
-        case VM_ENTRY_CONTROLS:                 control = IA32_VMX_ENTRY_CTLS;          break;
+        case VM_EXEC_CONTROLS_PIN_BASED:        
+            VmxMsr = IA32_VMX_PIN_CTLS;
+            break;
+
+        case VM_EXEC_CONTROLS_PROC_PRIMARY:
+            VmxMsr = IA32_VMX_PROC_PRIMARY_CTLS;
+            break;
+
+        case VM_EXEC_CONTROLS_PROC_SECONDARY:
+            VmxMsr = IA32_VMX_PROC_SECONDARY_CTLS;
+            break;
+
+        case VM_EXIT_CONTROLS:
+            VmxMsr = IA32_VMX_EXIT_CTLS;           
+            break;
+
+        case VM_ENTRY_CONTROLS:
+            VmxMsr = IA32_VMX_ENTRY_CTLS;
+            break;
+
         default:
             return;
     }
 
-    switch (control)
+    switch (VmxMsr)
     {
         case IA32_VMX_PROC_SECONDARY_CTLS:
         {
-            VMX_PROC_PRIMARY_CTLS vmxProcPrimary;
+            VMX_PROC_PRIMARY_CTLS VmxProcPrimary;
 
-            vmxProcPrimary.AsUint32 = VmxAllowed(IA32_VMX_PROC_PRIMARY_CTLS);
-            if (!vmxProcPrimary.Bits.SecondaryControls )
+            VmxProcPrimary.AsUint32 = VmxAllowed( IA32_VMX_PROC_PRIMARY_CTLS );
+            if (!VmxProcPrimary.Bits.SecondaryControl) {
                 return;
+            }
         }
         case IA32_VMX_PIN_CTLS:
         case IA32_VMX_PROC_PRIMARY_CTLS:
         case IA32_VMX_EXIT_CTLS:
         case IA32_VMX_ENTRY_CTLS:
         {
-            VMX_MSR_BASIC vmxBasic;
+            VMX_MSR_BASIC VmxBasic;
             UINT64 caps;
             UINT32 def0;
             UINT32 def1;
 
-            vmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
+            VmxBasic.AsUint64 = __readmsr(IA32_VMX_BASIC);
             
             //
-            // Use TRUE controls if supported
+            //  Use TRUE controls if supported
             //
-            if (vmxBasic.Bits.defaultSettings && (control != IA32_VMX_PROC_SECONDARY_CTLS)) {
-                control += 0xC; //Promote from IA32_VMX_XXXX_CTLS to IA32_VMX_TRUE_XXXX_CTLS
+            if (VmxBasic.Bits.VmxControlDefaultClear
+                && (VmxMsr != IA32_VMX_PROC_SECONDARY_CTLS)) {
+
+                //
+                //  Promote from IA32_VMX_XXXX_CTLS to IA32_VMX_TRUE_XXXX_CTLS.
+                //
+                VmxMsr += 0xC;
             }
 
-            caps = __readmsr(control);
+            caps = __readmsr( VmxMsr );
             def0 = LOW32(caps);
             def1 = HIGH32(caps);
             *data = ((*data & def1) | def0);
@@ -474,24 +518,24 @@ BOOLEAN
 VmxWrite32(
     _In_ UINT32 field,
     _In_ UINT32 data
-)
+    )
 {
-    UINT_PTR toWrite;
+    UINTN toWrite;
 
     if (VMCS_FIELD_WIDTH(field) != WIDTH_32)
         return FALSE;
 
     VmxpNormalizeControls(field, &data);
 
-    toWrite = (UINT_PTR)data;
-    return VmxVmWrite(field, toWrite) == 0;
+    toWrite = (UINTN)data;
+    return AsmVmxWrite(field, toWrite) == 0;
 }
 
 BOOLEAN
 VmxWrite64(
     _In_ UINT32 field,
     _In_ UINT64 data
-)
+    )
 {
 #ifndef _WIN64
     UINT32 low;
@@ -503,35 +547,35 @@ VmxWrite64(
 
 #ifndef _WIN64
     low = LOW32(data);
-    if (VmxVmWrite(field, low) != 0)
+    if (AsmVmxWrite(field, low) != 0)
         return FALSE;
 
     high = HIGH32(data);
-    if (VmxVmWrite(VMCS_FIELD_HIGH(field), high) != 0)
+    if (AsmVmxWrite(VMCS_FIELD_HIGH(field), high) != 0)
         return FALSE;
 
     return TRUE;
 #else
-    return VmxVmWrite(field, data) == 0; 
+    return AsmVmxWrite(field, data) == 0; 
 #endif
 }
 
 BOOLEAN
 VmxWritePlatform(
     _In_ UINT32   field,
-    _In_ UINT_PTR data
+    _In_ UINTN data
 )
 {
     if (VMCS_FIELD_WIDTH(field) != WIDTH_PLATFORM) {
         return 0;
     }
 
-    return VmxVmWrite(field, data) == 0;
+    return AsmVmxWrite(field, data) == 0;
 }
 
 UINT8 __stdcall
 VmxInvEpt(
-    _In_ UINT_PTR type,
+    _In_ UINTN type,
     _In_ PVOID    eptPointer
 )
 {
@@ -543,7 +587,7 @@ VmxInvEpt(
     memoryDescriptor[0] = entry;
     memoryDescriptor[1] = 0;
     
-    return VmxInvEptImpl(type, memoryDescriptor);
+    return AsmVmxInvEpt(type, memoryDescriptor);
 }
 
 BOOLEAN 

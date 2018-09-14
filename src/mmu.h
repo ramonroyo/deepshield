@@ -33,7 +33,7 @@ typedef struct _MMU
     BOOLEAN paeEnabled;
     UINT32  pxeShift;
 #endif
-    UINT_PTR  pxeBase;
+    UINTN  pxeBase;
     PMMU_PROCESSOR Processors;
 } MMU, *PMMU;
 
@@ -103,7 +103,7 @@ MmuUnmap(
 */
 PHYSICAL_ADDRESS
 MmuGetPhysicalAddress(
-    _In_ UINT_PTR cr3,
+    _In_ UINTN cr3,
     _In_ PVOID    address
 );
 

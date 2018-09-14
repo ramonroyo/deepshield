@@ -72,7 +72,7 @@ DECLARE_CONST_UNICODE_STRING(
 
 PVOID gPowerRegistration;
 BOOLEAN gSecuredPageTables;
-UINT_PTR gSystemPageDirectoryTable;
+UINTN gSystemPageDirectoryTable;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
@@ -130,7 +130,7 @@ DriverEntry(
 
     if (!NT_SUCCESS( Status )) {
         TraceEvents( TRACE_LEVEL_ERROR, TRACE_INIT,
-                     "DsInitializeNonPagedPoolList failed with status %!STATUS!\n",
+                     "DsInitializeNonPagedPoolList failed with Status %!STATUS!\n",
                      Status );
         return Status;
     }
@@ -676,3 +676,24 @@ Return Value:
 #endif
 }
 #endif
+
+/*
+VOID
+GetPhysicalAddressWidth(
+    _Inout_ PUINT8 PhysicalAddressBits
+    )
+{
+    UINT32 RegEax;
+
+    AsmCpuid(CPUID_EXTENDED_INFORMATION, &RegEax, NULL, NULL, NULL);
+
+    if (RegEax >= CPUID_EXTENDED_ADDRESS_SIZE) {
+        AsmCpuid( CPUID_EXTENDED_ADDRESS_SIZE, &RegEax, NULL, NULL, NULL );
+
+        *PhysicalAddressBits = (UINT8)RegEax;
+    }
+    else {
+        *PhysicalAddressBits = 36;
+    }
+}
+*/

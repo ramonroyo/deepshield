@@ -16,7 +16,7 @@ GetVmcsMemoryType(
     VOID
     )
 {
-    switch (Capabilities.Basic.Bits.vmcsMemoryType ) {
+    switch (Capabilities.Basic.Bits.VmcsMemoryType ) {
         case 0:
             return MEMORY_UNCACHED;
         case 6:
@@ -51,16 +51,16 @@ VmcsInitializeContext(
     Capabilities.EptVpidCapabilities.AsUint64 = 0;
     Capabilities.VmFuncControls.AsUint64 = 0;
 
-    if (Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControls ) {
+    if (Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl ) {
 
         Capabilities.ProcessorControls2.AsUint64 = __readmsr( IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS2_INDEX );
 
-        if (Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableEpt
-            || Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableVpid) {
+        if (Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt
+            || Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid) {
             Capabilities.EptVpidCapabilities.AsUint64 = __readmsr(IA32_MSR_EPT_VPID_CAP_INDEX);
         }
 
-        if ( Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableVmFunctions ) {
+        if ( Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions ) {
             Capabilities.VmFuncControls.AsUint64 = __readmsr( IA32_MSR_VMX_VMFUNC_CTRL );
         }
     }
@@ -81,10 +81,10 @@ VmcsInitializeContext(
     //  1 in IA32_MSR_CRX_ALLOWED_ONE_INDEX).
     //
 
-    Capabilities.cr0Maybe0.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
-    Capabilities.cr0Maybe1.u.raw = (UINT_PTR)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
-    Capabilities.cr4Maybe0.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
-    Capabilities.cr4Maybe1.AsUintN = (UINT_PTR)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
+    Capabilities.cr0Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
+    Capabilities.cr0Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
+    Capabilities.cr4Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
+    Capabilities.cr4Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
 
 
     Constraints.PinBasedControlsMaybe1.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
@@ -98,29 +98,29 @@ VmcsInitializeContext(
     Constraints.EntryControlsMaybe1.AsUint32 = Capabilities.EntryControls.Bits.Maybe1.AsUint32;
     Constraints.EntryControlsMaybe0.AsUint32 = Capabilities.EntryControls.Bits.Maybe0.AsUint32;
 
-    Constraints.cr0Maybe1.u.raw = Capabilities.cr0Maybe1.u.raw;
-    Constraints.cr0Maybe0.u.raw = Capabilities.cr0Maybe0.u.raw;
+    Constraints.cr0Maybe1.AsUintN = Capabilities.cr0Maybe1.AsUintN;
+    Constraints.cr0Maybe0.AsUintN = Capabilities.cr0Maybe0.AsUintN;
     Constraints.cr4Maybe1.AsUintN = Capabilities.cr4Maybe1.AsUintN;
     Constraints.cr4Maybe0.AsUintN = Capabilities.cr4Maybe0.AsUintN;
 
-    Constraints.VmcsRevision = Capabilities.Basic.Bits.revisionId;
-    Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.numberOfCr3TargetValues;
-    Constraints.MaxMsrListsSizeInBytes =  (Capabilities.MiscellaneousData.Bits.msrListsMaxSize + 1) * 512;
-    Constraints.VmxTimerLength = Capabilities.MiscellaneousData.Bits.preemptionTimerLength;
+    Constraints.VmcsRevision = Capabilities.Basic.Bits.RevisionId;
+    Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.NumberOfCr3TargetValue;
+    Constraints.MaxMsrListsSizeInBytes =  (Capabilities.MiscellaneousData.Bits.MaxNumberOfMsrInStoreList + 1) * 512;
+    Constraints.VmxTimerLength = Capabilities.MiscellaneousData.Bits.VmxPreemptionTimerRate;
 
-    Constraints.MsegRevisionId = Capabilities.MiscellaneousData.Bits.msegRevisionId;
-    Constraints.VmEntryInHaltStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.entryInHaltStateSupported;
-    Constraints.VmEntryInShutdownStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.entryInShutdownStateSupported;
-    Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)Capabilities.MiscellaneousData. Bits.entryInWaitForSipiStateSupported;
-    Constraints.ProcessorBasedExecCtrl2Supported = (BOOLEAN)Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControls;
+    Constraints.MsegRevisionId = Capabilities.MiscellaneousData.Bits.MsegRevisionId;
+    Constraints.VmEntryInHaltStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportHlt;
+    Constraints.VmEntryInShutdownStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportShutdown;
+    Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)Capabilities.MiscellaneousData. Bits.ActivityStateSupportWaitForSipi;
+    Constraints.ProcessorBasedExecCtrl2Supported = (BOOLEAN)Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl;
     
     if (Constraints.ProcessorBasedExecCtrl2Supported) {
-        Constraints.EptSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableEpt;
-        Constraints.UnrestrictedGuestSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.unrestrictedGuest;
-        Constraints.VpidSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableVpid;
-        Constraints.VmfuncSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.enableVmFunctions;
-        Constraints.VeSupported = (BOOLEAN) Capabilities.ProcessorControls2.Bits.Maybe1.Bits.eptVe;
-        Constraints.EptpSwitchingSupported = Constraints.VmfuncSupported && Capabilities.VmFuncControls.Bits.eptpSwitching;
+        Constraints.EptSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt;
+        Constraints.UnrestrictedGuestSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.UnrestrictedGuest;
+        Constraints.VpidSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid;
+        Constraints.VmfuncSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions;
+        Constraints.VeSupported = (BOOLEAN) Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EptVe;
+        Constraints.EptpSwitchingSupported = Constraints.VmfuncSupported && Capabilities.VmFuncControls.Bits.EptpSwitching;
     }
     
     Constraints.EptVpidCapabilities = Capabilities.EptVpidCapabilities;
@@ -140,7 +140,7 @@ VmcsInitializeContext(
     Fixed.EntryControlFixed1.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 & Constraints.EntryControlsMaybe1.AsUint32;
     Fixed.EntryControlFixed0.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 | Constraints.EntryControlsMaybe1.AsUint32;
 
-    Fixed.cr0Fixed1.u.raw = Constraints.cr0Maybe0.u.raw & Constraints.cr0Maybe1.u.raw;
+    Fixed.cr0Fixed1.AsUintN = Constraints.cr0Maybe0.AsUintN & Constraints.cr0Maybe1.AsUintN;
 
     if (Constraints.UnrestrictedGuestSupported ) {
         //
@@ -148,9 +148,9 @@ VmcsInitializeContext(
         //  have PG and PE.
         //
 
-        Fixed.cr0Fixed1.u.raw &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
+        Fixed.cr0Fixed1.AsUintN &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
     }
-    Fixed.cr0Fixed0.u.raw = Constraints.cr0Maybe0.u.raw | Constraints.cr0Maybe1.u.raw;
+    Fixed.cr0Fixed0.AsUintN = Constraints.cr0Maybe0.AsUintN | Constraints.cr0Maybe1.AsUintN;
 
     Fixed.cr4Fixed1.AsUintN = Constraints.cr4Maybe0.AsUintN & Constraints.cr4Maybe1.AsUintN;
     Fixed.cr4Fixed0.AsUintN = Constraints.cr4Maybe0.AsUintN | Constraints.cr4Maybe1.AsUintN;

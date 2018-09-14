@@ -28,22 +28,22 @@ typedef struct _TSC_ENTRY {
     TSC_HIT  After;
     ULONG    Skips;
     UINT64   Difference;
-    UINT_PTR Process;
+    UINTN Process;
 } TSC_ENTRY, *PTSC_ENTRY;
 
 VOID
 RdtscEmulate(
-    _In_ PLOCAL_CONTEXT Local,
-    _In_ PGP_REGISTERS     Regs,
-    _In_ UINT_PTR       Process,
+    _In_ PVCPU_CONTEXT Local,
+    _In_ PGP_REGISTERS     Registers,
+    _In_ UINTN       Process,
     _In_ PUINT8         Mapping
 );
 
 VOID
 RdtscpEmulate(
-    _In_ PLOCAL_CONTEXT Local,
-    _In_ PGP_REGISTERS     Regs,
-    _In_ UINT_PTR       Process,
+    _In_ PVCPU_CONTEXT Local,
+    _In_ PGP_REGISTERS     Registers,
+    _In_ UINTN       Process,
     _In_ PUINT8         Mapping
 );
 
@@ -56,7 +56,7 @@ BOOLEAN IsTimmingAttack(
 BOOLEAN ProcessTscEvent(
     _In_ PTSC_ENTRY     Head,
     _In_ ULONG_PTR      OffensiveAddress,
-    _In_ UINT_PTR       Process,
+    _In_ UINTN       Process,
     _In_ ULARGE_INTEGER TimeStamp
 );
 // #endif

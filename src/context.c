@@ -5,99 +5,94 @@
 #include "mmu.h"
 #include "smp.h"
 
-PGLOBAL_CONTEXT gGlobalContext = 0;
-PLOCAL_CONTEXT  gLocalContexts = 0;
+PHVM_CONTEXT gGlobalContext = 0;
+PVCPU_CONTEXT gLocalContexts = 0;
 
 BOOLEAN
 GlobalContextConfigure(
-    _In_ PGLOBAL_CONTEXT global
+    _In_ PHVM_CONTEXT HvmContext
 )
 {
-    memset(global, 0, sizeof(GLOBAL_CONTEXT));
-    global->Cr3 = __readcr3();
+    RtlZeroMemory( HvmContext, sizeof( HVM_CONTEXT ) );
+    HvmContext->SystemCr3 = __readcr3();
 
-    //
-    // msr
-    //
-    global->msrBitmap = MemAllocAligned(PAGE_SIZE, PAGE_SIZE);
-    if (global->msrBitmap == NULL)
+    HvmContext->MsrBitmap = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
+    if (HvmContext->MsrBitmap == NULL) {
         return FALSE;
+    }
 
-
-    memset(global->msrBitmap, 0, PAGE_SIZE);
+    RtlZeroMemory( HvmContext->MsrBitmap, PAGE_SIZE );
 
     return TRUE;
 }
 
 VOID
 GlobalContextReset(
-    _In_ PGLOBAL_CONTEXT global
-)
+    _In_ PHVM_CONTEXT HvmContext
+    )
 {
-    if(global)
-    {
-        if (global->msrBitmap) {
-            MemFree(global->msrBitmap);
+    if (HvmContext) {
+        if (HvmContext->MsrBitmap) {
+            MemFree( HvmContext->MsrBitmap );
         }
 
-        memset(global, 0, sizeof(GLOBAL_CONTEXT));
+        RtlZeroMemory( HvmContext, sizeof(HVM_CONTEXT) );
     }
 }
 
 BOOLEAN
 LocalContextConfigure(
-    _In_ PLOCAL_CONTEXT local
-)
+    _In_ PVCPU_CONTEXT VcpuContext
+    )
 {
-    memset(local, 0, sizeof(LOCAL_CONTEXT));
+    RtlZeroMemory( VcpuContext, sizeof(VCPU_CONTEXT) );
 
-    local->TscHits = MemAlloc(sizeof(TSC_ENTRY) * MAX_TSC_HITS);
-    local->TscOffset = 0;
+    VcpuContext->TscHits = MemAlloc(sizeof(TSC_ENTRY) * MAX_TSC_HITS);
+    VcpuContext->TscOffset = 0;
 
-    if (local->TscHits == NULL)
+    if (VcpuContext->TscHits == NULL) {
         return FALSE;
+    }
 
-    memset(local->TscHits, 0, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
+    RtlZeroMemory(VcpuContext->TscHits, sizeof(TSC_ENTRY) * MAX_TSC_HITS);
 
     return TRUE;
 }
 
 VOID
 LocalContextReset(
-    _In_ PLOCAL_CONTEXT local
-)
+    _In_ PVCPU_CONTEXT VcpuContext
+    )
 {
-    if (local)
-    {
-        if (local->TscHits) {
-            MemFree(local->TscHits);
+    if (VcpuContext) {
+        if (VcpuContext->TscHits) {
+            MemFree( VcpuContext->TscHits );
         }
 
-        memset(local, 0, sizeof(LOCAL_CONTEXT));
+        RtlZeroMemory( VcpuContext, sizeof(VCPU_CONTEXT) );
     }
 }
 
-
-PGLOBAL_CONTEXT
+PHVM_CONTEXT
 GlobalCtx(
     VOID
-)
+    )
 {
     return gGlobalContext;
 }
 
-PLOCAL_CONTEXT
+PVCPU_CONTEXT
 LocalCtx(
     VOID
-)
+    )
 {
     return &gLocalContexts[SmpGetCurrentProcessor()];
 }
 
-PLOCAL_CONTEXT
+PVCPU_CONTEXT
 LocalCtxForVcpu(
     _In_ UINT32 VcpuId
-)
+    )
 {
     return &gLocalContexts[VcpuId];
 }

@@ -44,11 +44,11 @@ AsmReadGs@0 PROC
     ret
 AsmReadGs@0 ENDP
 
-AsmReadSegmentLimit@4 PROC
+AsmLimitFromSelector@4 PROC
     mov ecx, [esp + 4]
     lsl eax, ecx
     ret 4
-AsmReadSegmentLimit@4 ENDP
+AsmLimitFromSelector@4 ENDP
 
 AsmReadTr@0 PROC
     xor eax, eax

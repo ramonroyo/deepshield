@@ -12,7 +12,7 @@ HvmGlobalContextSet(
     if(!gHvm)
         return;
 
-    InterlockedExchangePointer(&gHvm->globalContext, context);
+    InterlockedExchangePointer(&gHvm->HvmContext, context);
 }
 
 PVOID
@@ -23,7 +23,7 @@ HvmGlobalContextGet(
     if(!gHvm)
         return 0;
 
-    return gHvm->globalContext;
+    return gHvm->HvmContext;
 }
 
 VOID

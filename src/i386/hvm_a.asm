@@ -110,9 +110,9 @@ ENDM
 .CODE
 
 ;
-; NTSTATUS __stdcall HvmpStartAsm(_In_ PHVM_VCPU Vcpu);
+; NTSTATUS __stdcall AsmHvmLaunch(_In_ PHVM_VCPU Vcpu);
 ;
-HvmpStartAsm@4 PROC
+AsmHvmLaunch@4 PROC
     push ebp
     mov ebp, esp
 
@@ -163,23 +163,23 @@ vmlaunchReturn:
 finish:
     pop ebp
     ret 4
-HvmpStartAsm@4 ENDP
+AsmHvmLaunch@4 ENDP
 
 
 ;
-; VOID __stdcall HvmpStopAsm(_In_ UINT_PTR iret, _In_ UINT_PTR Registers);
+; VOID __stdcall AsmHvmpStop(_In_ UINTN iret, _In_ UINTN Registers);
 ;
-HvmpStopAsm@8 PROC
+AsmHvmpStop@8 PROC
     mov esp, [esp + 4]
     mov ebx, [esp + 8]
     CPU_RESTORE_REGS
     iretd
-HvmpStopAsm@8 ENDP
+AsmHvmpStop@8 ENDP
 
 ;
-; VOID HvmpExitHandlerAsm(VOID);
+; VOID AsmHvmpExitHandler(VOID);
 ;
-HvmpExitHandlerAsm@0 PROC
+AsmHvmpExitHandler@0 PROC
     ;
     ; Save all registers
     ;
@@ -217,13 +217,13 @@ HvmpExitHandlerAsm@0 PROC
 
     push eax
     call KeBugCheck@4
-HvmpExitHandlerAsm@0 ENDP
+AsmHvmpExitHandler@0 ENDP
 
 
 ;
-; NTSTATUS __stdcall HvmInternalCallAsm(_In_ UINT_PTR service, _In_ UINT_PTR data);
+; NTSTATUS __stdcall AsmHvmHyperCall(_In_ UINTN service, _In_ UINTN data);
 ;
-HvmInternalCallAsm@8 PROC
+AsmHvmHyperCall@8 PROC
     mov ecx, [esp + 4]
     mov edx, [esp + 8]
     mov eax, HVM_CALL_MAGIC
@@ -232,7 +232,7 @@ HvmInternalCallAsm@8 PROC
 
     nop
     ret 8
-HvmInternalCallAsm@8 ENDP
+AsmHvmHyperCall@8 ENDP
 
 
 END

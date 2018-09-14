@@ -6,24 +6,24 @@
 
 typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
 {
-    UINT_PTR rax;
-    UINT_PTR rcx;
-    UINT_PTR rdx;
-    UINT_PTR rbx;
-    UINT_PTR rsp;
-    UINT_PTR rbp;
-    UINT_PTR rsi;
-    UINT_PTR rdi;
+    UINTN Rax;
+    UINTN Rcx;
+    UINTN Rdx;
+    UINTN Rbx;
+    UINTN Rsp;
+    UINTN Rbp;
+    UINTN Rsi;
+    UINTN Rdi;
 
 #ifdef _WIN64
-    UINT_PTR r8;
-    UINT_PTR r9;
-    UINT_PTR r10;
-    UINT_PTR r11;
-    UINT_PTR r12;
-    UINT_PTR r13;
-    UINT_PTR r14;
-    UINT_PTR r15;
+    UINTN R8;
+    UINTN R9;
+    UINTN R10;
+    UINTN R11;
+    UINTN R12;
+    UINTN R13;
+    UINTN R14;
+    UINTN R15;
 #endif
 
 #if defined(_WIN64)
@@ -32,46 +32,40 @@ typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
     M128A XmmRegisters[8];
 #endif
 
-    UINT_PTR rip;
-    FLAGS_REGISTER rflags;
+    UINTN Rip;
+    FLAGS_REGISTER Rflags;
 
 } GP_REGISTERS, *PGP_REGISTERS;
 
-typedef struct _DESCRIPTOR_TABLE_REGISTER
-{
-    UINT_PTR base;
-    UINT16   limit;
-} DESCRIPTOR_TABLE_REGISTER, *PDESCRIPTOR_TABLE_REGISTER;
-
 typedef struct _HOST_SAVED_STATE
 {
-    CR0_REGISTER              cr0;
-    CR4_REGISTER              cr4;
-    SEGMENT_SELECTOR          cs;
-    SEGMENT_SELECTOR          ss;
-    SEGMENT_SELECTOR          ds;
-    SEGMENT_SELECTOR          es;
-    SEGMENT_SELECTOR          fs;
-    UINT_PTR                  fsBase;
-    SEGMENT_SELECTOR          gs;
-    UINT_PTR                  gsBase;
-    SEGMENT_SELECTOR          tr;
-    UINT_PTR                  trBase;
-    DESCRIPTOR_TABLE_REGISTER gdt;
-    DESCRIPTOR_TABLE_REGISTER idt;
-    UINT32                    sysenterCs;
-    UINT_PTR                  sysenterEsp;
-    UINT_PTR                  sysenterEip;
-    UINT64                    perfGlobalCtrl;
-    UINT64                    pat;
-    UINT64                    efer;
+    CR0_REGISTER              Cr0;
+    CR4_REGISTER              Cr4;
+    IA32_SEGMENT_SELECTOR          Cs;
+    IA32_SEGMENT_SELECTOR          Ss;
+    IA32_SEGMENT_SELECTOR          Ds;
+    IA32_SEGMENT_SELECTOR          Es;
+    IA32_SEGMENT_SELECTOR          Fs;
+    UINTN                  FsBase;
+    IA32_SEGMENT_SELECTOR          Gs;
+    UINTN                  GsBase;
+    IA32_SEGMENT_SELECTOR          Tr;
+    UINTN                  TrBase;
+    IA32_DESCRIPTOR           Gdt;
+    IA32_DESCRIPTOR           Idt;
+    UINT32                    SysenterCs;
+    UINTN                  SysenterEsp;
+    UINTN                  SysenterEip;
+    UINT64                    PerfGlobalCtrl;
+    UINT64                    Pat;
+    UINT64                    Efer;
 } HOST_SAVED_STATE, *PHOST_SAVED_STATE;
 
 typedef struct _EXIT_INFO
 {
     UINT32   exitReason;
-    UINT_PTR exitQualification;
-    UINT_PTR guestLinearAddress;
+    UINTN exitQualification;
+    UINTN guestLinearAddress;
     UINT64   guestPhyscalAddress;
     UINT32   exitInterruptionInformation;
     UINT32   exitInterruptionErrorCode;
@@ -79,11 +73,11 @@ typedef struct _EXIT_INFO
     UINT32   idtVectoringErrorCode;
     UINT32   exitInstructionLength;
     UINT32   exitInstructionInformation;
-    UINT_PTR ioRcx;
-    UINT_PTR ioRsi;
-    UINT_PTR ioRdi;
-    UINT_PTR ioRip;
-    UINT_PTR vmInstructionError;
+    UINTN ioRcx;
+    UINTN ioRsi;
+    UINTN ioRdi;
+    UINTN ioRip;
+    UINTN vmInstructionError;
 } EXIT_INFO, *PEXIT_INFO;
 
 typedef struct _HVM_EVENT
@@ -96,7 +90,7 @@ typedef struct _HVM_EVENT
 
 typedef struct _HVM_LOGGED_EVENTS
 {
-    UINT_PTR  numberOfEvents;
+    UINTN  numberOfEvents;
     HVM_EVENT queue[MAX_NUMBER_OF_LOGGED_EXIT_EVENTS];
 } HVM_LOGGED_EVENTS, *PHVM_LOGGED_EVENTS;
 
@@ -104,7 +98,7 @@ typedef struct _HVM_VCPU HVM_VCPU, *PHVM_VCPU;
 
 typedef 
 VOID(*PHVM_EXIT_HANDLER)(
-    _In_ UINT32     exitReason,
+    _In_ UINT32 ExitReason,
     _In_ PHVM_VCPU  Vcpu,
     _In_ PGP_REGISTERS Registers
     );
@@ -123,13 +117,13 @@ typedef struct _HVM_VCPU
     GP_REGISTERS GuestRegisters;
     UINT32 Index;
     PHVM Hvm;
-    HOST_SAVED_STATE SavedState;
-    PVOID VmxOnRegionHva;
-    PHYSICAL_ADDRESS VmxOnRegionHpa;
-    PVOID VmcsRegionHva;
-    PHYSICAL_ADDRESS VmcsRegionHpa;
+    HOST_SAVED_STATE HostState;
+    PVOID VmxOnHva;
+    PHYSICAL_ADDRESS VmxOnHpa;
+    PVOID VmcsHva;
+    PHYSICAL_ADDRESS VmcsHpa;
     PVOID Stack;
-    UINT_PTR Rsp;
+    UINTN Rsp;
     PHVM_EXIT_HANDLER ExitHandler;
     PHVM_SETUP_VMCS SetupVmcs;
     PVOID LocalContext;
@@ -140,7 +134,7 @@ typedef struct _HVM_VCPU
 typedef struct _HVM
 {
     PHVM_VCPU VcpuArray;
-    PVOID globalContext;
+    PVOID HvmContext;
     ATOMIC launched;
 } HVM, *PHVM;
 
@@ -206,12 +200,12 @@ HvmGetCurrentVcpu(
 );
 
 PVOID ROOT_MODE_API
-HvmGetVcpuLocalContext(
+HvmGetVcpuContext(
     _In_ PHVM_VCPU Vcpu
 );
 
 PVOID ROOT_MODE_API
-HvmGetVcpuGlobalContext(
+HvmGetHvmContext(
     _In_ PHVM_VCPU Vcpu
 );
 
@@ -226,7 +220,7 @@ HvmGetVcpuHvm(
 );
 
 PHOST_SAVED_STATE ROOT_MODE_API
-HvmGetVcpuSavedState(
+HvmGetVcpuHostState(
     _In_ PHVM_VCPU Vcpu
 );
 

@@ -3,6 +3,9 @@
 
 #include <ntdef.h>
 
+typedef UINT_PTR UINTN;
+typedef INT_PTR INTN;
+
 #ifdef WDK7
 #define _In_
 #define _In_z_
