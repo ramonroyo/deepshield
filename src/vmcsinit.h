@@ -6,13 +6,13 @@
 #include "x86.h"
 
 #define VMCS_REGION_SIZE                                  \
-    (Capabilities.Basic.Bits.vmcsRegionSize)
+    (Capabilities.Basic.Bits.VmcsRegionSize)
 
 #define VMCS_REVISION                                     \
-	(Capabilities.Basic.Bits.revisionId)
+	(Capabilities.Basic.Bits.RevisionId)
 
 #define VMCS_ABOVE_4G_SUPPORTED                           \
-    (Capabilities.Basic.Bits.physicalAddressWidth  == 0)  \
+    (Capabilities.Basic.Bits.VmcsAddrWidth  == 0)  \
 
 //
 //  VMX MSR Indexes.

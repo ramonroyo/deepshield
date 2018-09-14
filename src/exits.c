@@ -72,11 +72,11 @@ CpuidEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINT_PTR function;
-    UINT_PTR subleaf;
+    UINTN function;
+    UINTN subleaf;
 
-    function = Registers->rax;
-    subleaf  = Registers->rcx;
+    function = Registers->Rax;
+    subleaf  = Registers->Rcx;
 
     InstrCpuidEmulate( Registers );
 
@@ -85,7 +85,7 @@ CpuidEmulate(
     //
     if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
     {
-        Registers->rbx &= ~(1 << 11);
+        Registers->Rbx &= ~(1 << 11);
     }
 
     InstrRipAdvance( Registers );
@@ -155,12 +155,12 @@ FlushCurrentTb(
 VOID
 HardwareExceptionHandler(
     _In_ PVOID Local,
-    _In_ PGP_REGISTERS Regs,
+    _In_ PGP_REGISTERS Registers,
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
     PHYSICAL_ADDRESS PhysicalAddress = { 0 };
-    UINT_PTR Process = 0;
+    UINTN Process = 0;
     PUINT8 MappedVa = NULL;
     UINT32 InsLenght;
     BOOLEAN IsRdtsc  = FALSE;
@@ -169,7 +169,7 @@ HardwareExceptionHandler(
     //
     // Only interested in exceptions from user-mode.
     //
-    if (!MmuIsUserModeAddress((PVOID)Regs->rip)) {
+    if (!MmuIsUserModeAddress((PVOID)Registers->Rip)) {
 
         UINT32 Dpl;
         //
@@ -196,7 +196,7 @@ HardwareExceptionHandler(
     //
     Process = VmxReadPlatform( GUEST_CR3 );
 
-    PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Regs->rip );
+    PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Registers->Rip );
     if (!PhysicalAddress.QuadPart) {
         goto Inject;
     }
@@ -210,21 +210,21 @@ HardwareExceptionHandler(
     //  Check if offending instruction is RDTSC / RDTSCP.
     //
     if (InsLenght == 2) {
-        IsRdtsc = (MappedVa[BYTE_OFFSET(Regs->rip)] == 0x0F
-                && MappedVa[BYTE_OFFSET(Regs->rip) + 1] == 0x31);
+        IsRdtsc = (MappedVa[BYTE_OFFSET(Registers->Rip)] == 0x0F
+                && MappedVa[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
 
         if (IsRdtsc) {
-            RdtscEmulate( Local, Regs, Process, MappedVa );
+            RdtscEmulate( Local, Registers, Process, MappedVa );
             goto Unmap;
         }
 
     } else {
-        IsRdtscp = (MappedVa[BYTE_OFFSET(Regs->rip)] == 0x0F
-                 && MappedVa[BYTE_OFFSET(Regs->rip) + 1] == 0x01
-                 && MappedVa[BYTE_OFFSET(Regs->rip) + 2] == 0xF9);
+        IsRdtscp = (MappedVa[BYTE_OFFSET(Registers->Rip)] == 0x0F
+                 && MappedVa[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
+                 && MappedVa[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
 
         if (IsRdtscp) {
-            RdtscpEmulate(Local, Regs, Process, MappedVa );
+            RdtscpEmulate(Local, Registers, Process, MappedVa );
             goto Unmap;
         }
     }

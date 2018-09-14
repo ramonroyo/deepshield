@@ -9,6 +9,9 @@
 
 #include <ntifs.h>
 
+#pragma warning(disable:4201)
+#pragma warning(disable:4214)
+
 #define IA32_TSC                0x10
 #define IA32_APIC_BASE          0x1B
 #define IA32_TSC_ADJUST         0x3B
@@ -71,94 +74,83 @@
 
 #pragma warning( disable : 4214 ) //Bit field types other than int
 
-typedef struct _FLAGS_REGISTER
+typedef union _FLAGS_REGISTER
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 cf         : 1;   // 0 - Carry flag
-            UINT32 _reserved0 : 1;   // 1 - Always 1
-            UINT32 pf         : 1;   // 2 - Parity flag
-            UINT32 _reserved1 : 1;   // 3 - Always 0
-            UINT32 af         : 1;   // 4 - Borrow flag
-            UINT32 _reserved2 : 1;   // 5 - Always 0
-            UINT32 zf         : 1;   // 6 - Zero flag
-            UINT32 sf         : 1;   // 7 - Sign flag
-            UINT32 tf         : 1;   // 8 - Trap flag
-            UINT32 intf       : 1;   // 9 - Interrupt flag
-            UINT32 df         : 1;   // 10 - Direction flag
-            UINT32 of         : 1;   // 11 - Overflow flag
-            UINT32 iopl       : 2;   // 12 - 13 - I/O privilege level
-            UINT32 nt         : 1;   // 14 - Nested task flag
-            UINT32 _reserved3 : 1;   // 15 - Always 0
-            UINT32 rf         : 1;   // 16 - Resume flag
-            UINT32 vm         : 1;   // 17 - Virtual 8086 mode
-            UINT32 ac         : 1;   // 18 - Alignment check
-            UINT32 vif        : 1;   // 19 - Virtual interrupt flag
-            UINT32 vip        : 1;   // 20 - Virtual interrupt pending
-            UINT32 id         : 1;   // 21 - Identification flag
-            UINT32 _reserved4 : 10;  // 22 - 31 - Always 0
+        UINT32 cf         : 1;   // 0 - Carry flag
+        UINT32 _reserved0 : 1;   // 1 - Always 1
+        UINT32 pf         : 1;   // 2 - Parity flag
+        UINT32 _reserved1 : 1;   // 3 - Always 0
+        UINT32 af         : 1;   // 4 - Borrow flag
+        UINT32 _reserved2 : 1;   // 5 - Always 0
+        UINT32 zf         : 1;   // 6 - Zero flag
+        UINT32 sf         : 1;   // 7 - Sign flag
+        UINT32 tf         : 1;   // 8 - Trap flag
+        UINT32 intf       : 1;   // 9 - Interrupt flag
+        UINT32 df         : 1;   // 10 - Direction flag
+        UINT32 of         : 1;   // 11 - Overflow flag
+        UINT32 iopl       : 2;   // 12 - 13 - I/O privilege level
+        UINT32 nt         : 1;   // 14 - Nested task flag
+        UINT32 _reserved3 : 1;   // 15 - Always 0
+        UINT32 rf         : 1;   // 16 - Resume flag
+        UINT32 vm         : 1;   // 17 - Virtual 8086 mode
+        UINT32 ac         : 1;   // 18 - Alignment check
+        UINT32 vif        : 1;   // 19 - Virtual interrupt flag
+        UINT32 vip        : 1;   // 20 - Virtual interrupt pending
+        UINT32 id         : 1;   // 21 - Identification flag
+        UINT32 _reserved4 : 10;  // 22 - 31 - Always 0
 #ifdef _WIN64
-            UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
+        UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
 #endif
-        } f;
-    } u;
+    } Bits;
+
+    UINTN AsUintN;
 } FLAGS_REGISTER;
 
-
-typedef struct _CR0_REGISTER
+typedef union _CR0_REGISTER
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT32 pe         : 1;   // 0 - Protected Mode Enabled
-            UINT32 mp         : 1;   // 1 - Monitor Coprocessor
-            UINT32 em         : 1;   // 2 - Emulate
-            UINT32 ts         : 1;   // 3 - Task Switched
-            UINT32 et         : 1;   // 4 - Extension Type
-            UINT32 ne         : 1;   // 5 - Numeric Error
-            UINT32 _reserved0 : 10;  // 6 - 15
-            UINT32 wp         : 1;   // 16 - Write Protect
-            UINT32 _reserved1 : 1;   // 17
-            UINT32 am         : 1;   // 18 - Alignment Mask
-            UINT32 _reserved2 : 10;  // 19 - 28
-            UINT32 nw         : 1;   // 29 - Not Write-Through
-            UINT32 cd         : 1;   // 30 - Cache Disable
-            UINT32 pg         : 1;   // 31 - Paging Enabled
+        UINT32 pe         : 1;   // 0 - Protected Mode Enabled
+        UINT32 mp         : 1;   // 1 - Monitor Coprocessor
+        UINT32 em         : 1;   // 2 - Emulate
+        UINT32 ts         : 1;   // 3 - Task Switched
+        UINT32 et         : 1;   // 4 - Extension Type
+        UINT32 ne         : 1;   // 5 - Numeric Error
+        UINT32 _reserved0 : 10;  // 6 - 15
+        UINT32 wp         : 1;   // 16 - Write Protect
+        UINT32 _reserved1 : 1;   // 17
+        UINT32 am         : 1;   // 18 - Alignment Mask
+        UINT32 _reserved2 : 10;  // 19 - 28
+        UINT32 nw         : 1;   // 29 - Not Write-Through
+        UINT32 cd         : 1;   // 30 - Cache Disable
+        UINT32 pg         : 1;   // 31 - Paging Enabled
 #ifdef _WIN64
-            UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
+        UINT32 _zero0     : 32;  // 32 - 63 - Must be zero od #PG
 #endif
-        } f;
-    } u;
+    } Bits;
+
+    UINTN AsUintN;
 } CR0_REGISTER, VMX_MSR_CR0;
 
-typedef struct _CR3_REGISTER
+typedef union _CR3_REGISTER
 {
-    union
+    struct
     {
-        UINT_PTR raw;
-
-        struct
-        {
-            UINT_PTR _reserved0 : 3; // 0 - 2
-            UINT_PTR PWT        : 1; // 3
-            UINT_PTR PCD        : 1; // 4
-            UINT_PTR _reserved1 : 7; // 5 - 11
+        UINTN Rsvd0To2   : 3; // 0 - 2
+        UINTN PWT        : 1; // 3
+        UINTN PCD        : 1; // 4
+        UINTN _reserved1 : 7; // 5 - 11
 #ifndef _WIN64
-            UINT_PTR PDB        : 20; // 12 - 31
+        UINTN PDB        : 20; // 12 - 31
 #else
-            UINT_PTR PDB        : 52; // 12 - 63
+        UINTN PDB        : 52; // 12 - 63
 #endif
-        } f;
-    } u;
-} CR3_REGISTER;
+    } Bits;
 
+    UINTN AsUintN;
+} CR3_REGISTER;
 
 typedef union _CR4_REGISTER
 {
@@ -166,7 +158,7 @@ typedef union _CR4_REGISTER
     {
         UINT32 vme        : 1;  // 0 - Virtual Mode Extensions
         UINT32 pvi        : 1;  // 1 - Protected-Mode Virtual Interrupts
-        UINT32 tsd        : 1;  // 2 - Time Stamp Disable
+        UINT32 Tsd        : 1;  // 2 - Time Stamp Disable
         UINT32 de         : 1;  // 3 - Debugging Extensions
         UINT32 pse        : 1;  // 4 - Page Size Extensions
         UINT32 pae        : 1;  // 5 - Physical Address Extension
@@ -193,15 +185,14 @@ typedef union _CR4_REGISTER
 #endif
     } Bits;
 
-    UINT_PTR AsUintN;
+    UINTN AsUintN;
 } CR4_REGISTER, VMX_MSR_CR4;
-
 
 typedef struct _DR7_REGISTER
 {
     union
     {
-        UINT_PTR raw;
+        UINTN raw;
 
         struct
         {
@@ -240,7 +231,7 @@ typedef struct _DR6_REGISTER
 {
     union
     {
-        UINT_PTR raw;
+        UINTN raw;
 
         struct
         {
@@ -292,49 +283,75 @@ typedef struct _IDT_ENTRY
 } IDT_ENTRY, *PIDT_ENTRY;
 
 
-typedef struct _SEGMENT_SELECTOR
+//
+//  Byte packed structure for an IDTR, GDTR, LDTR descriptor.
+//
+#pragma pack(push, 1)
+typedef struct _IA32_DESCRIPTOR {
+    UINT16 Limit;
+    UINTN Base;
+} IA32_DESCRIPTOR;
+#pragma pack(pop)
+
+typedef union _IA32_SEGMENT_SELECTOR
 {
-    union
+    struct 
     {
-        UINT16 raw;
+        UINT32 Rpl : 2;
+        UINT32 Ti : 1;
+        UINT32 Index : 13;
+    } Bits;
 
-        struct 
-        {
-            UINT32 rpl   : 2;
-            UINT32 ti    : 1;
-            UINT32 index : 13;
-        } f;
-    } u;
-} SEGMENT_SELECTOR, *PSEGMENT_SELECTOR;
+    UINT16 AsUint16;
+} IA32_SEGMENT_SELECTOR, *PIA32_SEGMENT_SELECTOR;
 
-typedef struct _SEGMENT_DESCRIPTOR
+//
+//  Byte packed structure for a segment descriptor in a GDT / LDT,
+//
+typedef union _IA32_SEGMENT_DESCRIPTOR
 {
-    union
+    struct 
     {
-        UINT64 raw;
+        UINT16 LimitLow;
+        UINT16 BaseLow;
 
-        struct
+        union
         {
-            UINT32 limitLow  : 16;
-            UINT32 baseLow   : 16;
-            UINT32 baseMid   : 8;
-            UINT32 type      : 4;
-            UINT32 system    : 1;
-            UINT32 dpl       : 2;
-            UINT32 present   : 1;
-            UINT32 limitHigh : 4;
-            UINT32 avl       : 1;
-            UINT32 l         : 1;  // 64-bit code segment (IA-32e mode only)
-            UINT32 db        : 1;
-            UINT32 gran      : 1;
-            UINT32 baseHigh  : 8;
-        } f;
-    } u;
-#ifdef _WIN64
-    UINT32 baseUpper;
-    UINT32 _reserved0;
-#endif
-} SEGMENT_DESCRIPTOR, *PSEGMENT_DESCRIPTOR;
+            struct
+            {
+                UINT8 BaseMiddle;
+                UINT8 Flags1;
+                UINT8 Flags2;
+                UINT8 BaseHigh;
+            } Bytes;
+
+            struct
+            {
+                UINT32 BaseMid : 8;
+                UINT32 Type : 4;
+                UINT32 S : 1;
+                UINT32 Dpl : 2;
+                UINT32 P : 1;
+                UINT32 LimitHigh : 4;
+                UINT32 Avl : 1;
+                UINT32 L : 1;
+                UINT32 Db : 1;
+                UINT32 Gran : 1;
+                UINT32 BaseHigh : 8;
+            } Bits;
+        };
+
+        UINT32 BaseUpper;
+        UINT32 MustBeZero;
+    };
+
+    struct
+    {
+        INT64 DataLow;
+        INT64 DataHigh;
+    };
+    
+} IA32_SEGMENT_DESCRIPTOR, *PIA32_SEGMENT_DESCRIPTOR;
 
 
 /**
@@ -347,9 +364,9 @@ typedef struct _SEGMENT_DESCRIPTOR
 */
 VOID
 IdtInstallService(
-    _In_      UINT_PTR   idt,
+    _In_      UINTN   idt,
     _In_      UINT8      service,
-    _In_      UINT_PTR   handler,
+    _In_      UINTN   handler,
     _Out_opt_ PIDT_ENTRY old
 );
 
@@ -373,7 +390,7 @@ IdtGetEntryFromServiceNumber(
 * @param entry [in] IDT entry.
 * @return The address of the interrupt routine.
 */
-UINT_PTR
+UINTN
 IdtReadServiceAddressFromEntry(
     _In_ PIDT_ENTRY entry
 );
@@ -387,7 +404,7 @@ IdtReadServiceAddressFromEntry(
 */
 VOID
 IdtRestoreEntry(
-    _In_ UINT_PTR   idt,
+    _In_ UINTN   idt,
     _In_ UINT8      service,
     _In_ PIDT_ENTRY old
 );
@@ -401,19 +418,22 @@ UINT16 AsmReadDs(VOID);
 UINT16 AsmReadEs(VOID);
 UINT16 AsmReadFs(VOID);
 UINT16 AsmReadGs(VOID);
-UINT16 AsmReadTr   (VOID);
-UINT16 AsmReadLdtr  (VOID);
+UINT16 AsmReadTr(VOID);
+UINT16 AsmReadLdtr(VOID);
+VOID AsmReadGdtr(_Out_ IA32_DESCRIPTOR * Gdtr);
+
 
 /**
 * Segment selector writing.
-* All receive a 16-bit-wide value containing the selector.
+* Almost all receive a 16-bit-wide value containing the selector.
 */
 VOID __stdcall AsmWriteSs(_In_ UINT16 selector);
 VOID __stdcall AsmWriteDs(_In_ UINT16 selector);
 VOID __stdcall AsmWriteEs(_In_ UINT16 selector);
 VOID __stdcall AsmWriteFs(_In_ UINT16 selector);
 VOID __stdcall AsmWriteGs(_In_ UINT16 selector);
-VOID __stdcall AsmWriteTr    (_In_ UINT16 selector);
+VOID __stdcall AsmWriteTr(_In_ UINT16 selector);
+VOID __stdcall AsmWriteGdtr(_In_ IA32_DESCRIPTOR* Gdtr);
 
 /**
 * Segment descriptor reading.
@@ -421,54 +441,53 @@ VOID __stdcall AsmWriteTr    (_In_ UINT16 selector);
 * different attributes are read. 
 * Those attributes are base, limit, and access rights of the descriptor.
 */
-UINT_PTR __stdcall DescriptorBase        (_In_ UINT16 selector);
-UINT32   __stdcall AsmReadSegmentLimit       (_In_ UINT16 selector);
-UINT32   __stdcall DescriptorAccessRights(_In_ UINT16 selector);
+UINTN BaseFromSelector (_In_ UINT16 selector);
+UINT32 __stdcall AsmLimitFromSelector(_In_ UINT16 selector);
+UINT32 ArFromSelector(_In_ UINT16 selector);
 
 /**
 * GDT register related functions.
 * Reading is done separately (one function to obtain the base and another to get limit).
 * Writing is done with a single function (entire register is modified).
 */
-UINT_PTR sgdt_base (VOID);
-UINT16   sgdt_limit(VOID);
-VOID     lgdt      (_In_ UINT_PTR base, _In_ UINT16 limit);
+UINTN GetGdtrBase(VOID);
+UINT16 GetGdtrLimit(VOID);
 
 /**
 * IDT register related functions.
 * Reading is done separately (one function to obtain the base and another to get limit).
 * Writing is done with a single function (entire register is modified).
 */
-UINT_PTR sidt_base (VOID);
-UINT16   sidt_limit(VOID);
-VOID     lidt      (_In_ UINT_PTR base, _In_ UINT16 limit);
+UINTN GetIdtrBase(VOID);
+UINT16 GetIdtrLimit(VOID);
+VOID WriteIdtr(_In_ IA32_DESCRIPTOR Idt);
 
 /**
 * Retrieve the value of the stack pointer (esp/rsp).
 */
-UINT_PTR __stdcall AsmReadSp(VOID);
+UINTN __stdcall AsmReadSp(VOID);
 
 /**
 * Retrieve the value of the flags register (eflags/rflags).
 */
-UINT_PTR __stdcall AsmReadFlags(VOID);
+UINTN __stdcall AsmReadFlags(VOID);
 
 /**
 * Write to cr2 (page-fault address recording register).
 */
-VOID __stdcall AsmWriteCr2(_In_ UINT_PTR cr2);
+VOID __stdcall AsmWriteCr2(_In_ UINTN cr2);
 
 
 /**
 * Read/Write from/to cr/dr registers
 */
-UINT_PTR readcr (_In_ UINT32 cr);
+UINTN readcr (_In_ UINT32 cr);
 
 _IRQL_raises_(value)
-VOID     writecr(_In_ UINT32 cr, _In_ UINT_PTR value);
+VOID     writecr(_In_ UINT32 cr, _In_ UINTN value);
 
-UINT_PTR readdr (_In_ UINT32 dr);
-VOID     writedr(_In_ UINT32 dr, _In_ UINT_PTR value);
+UINTN readdr (_In_ UINT32 dr);
+VOID     writedr(_In_ UINT32 dr, _In_ UINTN value);
 
 /**
 * cli and sti instructions instrinsics.

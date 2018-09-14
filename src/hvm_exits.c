@@ -34,7 +34,7 @@ HvmpExitEventLog(
     _In_ PGP_REGISTERS Registers
 )
 {
-    UINT_PTR index = 0;
+    UINTN index = 0;
 
     //
     // Calculate new index
@@ -64,9 +64,9 @@ HvmHandleService(
     _In_ PGP_REGISTERS Registers
 )
 {
-    UINT_PTR service;
+    UINTN service;
 
-    service = Registers->rcx;
+    service = Registers->Rcx;
 
     //
     // Advance RIP for the call
@@ -80,7 +80,7 @@ HvmHandleService(
     {
         case HVM_INTERNAL_SERVICE_STOP:
         {
-            Registers->rax = (UINT_PTR)STATUS_SUCCESS;
+            Registers->Rax = (UINTN)STATUS_SUCCESS;
 
             HvmpStop( Vcpu, Registers );
 
@@ -92,8 +92,8 @@ HvmHandleService(
 
         default:
         {
-            Registers->rax = (UINT32)STATUS_UNSUCCESSFUL;
-            Registers->rflags.u.f.cf = 1;
+            Registers->Rax = (UINT32)STATUS_UNSUCCESSFUL;
+            Registers->Rflags.Bits.cf = 1;
 
             break;
         }
@@ -110,47 +110,43 @@ HvmpExitHandler(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINT32 exitReason;
+    VM_INFO_BASIC InfoBasic;
 
     NT_ASSERT( &Vcpu->GuestRegisters == Registers );
 
-    //
-    // Gather minimal exit information
-    //
-    exitReason = VmxRead32( EXIT_REASON );
+    InfoBasic.AsUint32 = VmxRead32( EXIT_REASON );
 
     //
-    // Correct guest Registers
+    //  Complete guest registers.
     //
-    Registers->rsp          = VmxReadPlatform(GUEST_RSP);
-    Registers->rip          = VmxReadPlatform(GUEST_RIP);
-    Registers->rflags.u.raw = VmxReadPlatform(GUEST_RFLAGS);
 
-    //
-    // Log event
-    //
-    HvmpExitEventLog(Vcpu, Registers);
+    Registers->Rsp = VmxReadPlatform( GUEST_RSP );
+    Registers->Rip = VmxReadPlatform( GUEST_RIP );
+    Registers->Rflags.AsUintN = VmxReadPlatform( GUEST_RFLAGS );
 
-    //
-    // Processing
-    //
-    if (exitReason == EXIT_REASON_VMCALL && Registers->rax == HVM_CALL_MAGIC) {
+    HvmpExitEventLog( Vcpu, Registers );
+
+    if (InfoBasic.Bits.Reason == EXIT_REASON_VMCALL
+            && Registers->Rax == HVM_CALL_MAGIC) {
+
         //
-        // Invoke Internal Services Handler
+        //  Invoke Internal Services Handler.
         //
         HvmHandleService( Vcpu, Registers );
     }
     else {
+
         //
-        // Invoke HVM Handler
+        //  Invoke HVM Handler.
         //
-        Vcpu->ExitHandler( exitReason, Vcpu, Registers );
+        Vcpu->ExitHandler( InfoBasic.Bits.Reason, Vcpu, Registers );
     }
 
     //
-    // Correct guest Registers after processing
+    //  Update guest registers after processing.
     //
-    VmxWritePlatform( GUEST_RSP,    Registers->rsp );
-    VmxWritePlatform( GUEST_RIP,    Registers->rip );
-    VmxWritePlatform( GUEST_RFLAGS, Registers->rflags.u.raw );
+
+    VmxWritePlatform( GUEST_RSP, Registers->Rsp );
+    VmxWritePlatform( GUEST_RIP, Registers->Rip );
+    VmxWritePlatform( GUEST_RFLAGS, Registers->Rflags.AsUintN );
 }

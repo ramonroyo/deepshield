@@ -95,7 +95,7 @@ PTSC_ENTRY GetSiblingSlot(
 //
 PTSC_ENTRY FindSibling(
     _In_ PTSC_ENTRY Head, 
-    _In_ UINT_PTR   Process,
+    _In_ UINTN   Process,
     _In_ ULONG_PTR  OffensiveAddress
 ) 
 {
@@ -294,7 +294,7 @@ BOOLEAN IsTimmingAttack(
 PTSC_ENTRY CreateSibling(
     _In_ PTSC_ENTRY     Head,
     _In_ ULONG_PTR      OffensiveAddress,
-    _In_ UINT_PTR       Process,
+    _In_ UINTN       Process,
     _In_ ULARGE_INTEGER TimeStamp
 )
 {
@@ -312,7 +312,7 @@ BOOLEAN
 ProcessTscEvent(
     _In_ PTSC_ENTRY Head,
     _In_ ULONG_PTR OffensiveAddress,
-    _In_ UINT_PTR Process,
+    _In_ UINTN Process,
     _In_ ULARGE_INTEGER TimeStamp
     )
 {
@@ -356,7 +356,7 @@ ProcessTscEvent(
 
 VOID InjectTerminateProcess(
     PUINT8     Mapping,
-    PGP_REGISTERS Regs
+    PGP_REGISTERS Registers
     )
 {
 
@@ -392,36 +392,36 @@ VOID InjectTerminateProcess(
     memcpy(Mapping, TerminateProcessStub, sizeof(TerminateProcessStub));
 
     // Rip will point to TerminateProcessStub
-    Regs->rip = (UINT_PTR) PAGE_ALIGN(Regs->rip);
+    Registers->Rip = (UINTN) PAGE_ALIGN(Registers->Rip);
 }
 
 VOID
 RdtscEmulate(
-    _In_ PLOCAL_CONTEXT Local,
-    _In_ PGP_REGISTERS     Regs,
-    _In_ UINT_PTR       Process,
+    _In_ PVCPU_CONTEXT Local,
+    _In_ PGP_REGISTERS     Registers,
+    _In_ UINTN       Process,
     _In_ PUINT8         Mapping
 )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
-    Regs->rdx = TimeStamp.HighPart;
-    Regs->rax = TimeStamp.LowPart;
+    Registers->Rdx = TimeStamp.HighPart;
+    Registers->Rax = TimeStamp.LowPart;
 
-    if (ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
-        InjectTerminateProcess(Mapping, Regs);
+    if (ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp) ) {
+        InjectTerminateProcess(Mapping, Registers);
         return;
     }
 
-    InstrRipAdvance(Regs);
+    InstrRipAdvance(Registers);
 }
 
 VOID
 RdtscpEmulate(
-    _In_ PLOCAL_CONTEXT Local,
-    _In_ PGP_REGISTERS     Regs,
-    _In_ UINT_PTR       Process,
+    _In_ PVCPU_CONTEXT Local,
+    _In_ PGP_REGISTERS     Registers,
+    _In_ UINTN       Process,
     _In_ PUINT8         Mapping
 )
 {
@@ -430,20 +430,20 @@ RdtscpEmulate(
 
     Processor.QuadPart = __readmsr(IA32_TSC_AUX);
 
-    Regs->rcx = Processor.LowPart;
+    Registers->Rcx = Processor.LowPart;
 
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
-    Regs->rdx = TimeStamp.HighPart;
-    Regs->rax = TimeStamp.LowPart;
-    Regs->rcx = Processor.LowPart;
+    Registers->Rdx = TimeStamp.HighPart;
+    Registers->Rax = TimeStamp.LowPart;
+    Registers->Rcx = Processor.LowPart;
 
-    if (ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp) ) {
-        InjectTerminateProcess(Mapping, Regs);
+    if (ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp) ) {
+        InjectTerminateProcess(Mapping, Registers);
         return;
     }
 
-    InstrRipAdvance(Regs);
+    InstrRipAdvance(Registers);
 }
 
 VOID

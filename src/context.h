@@ -3,52 +3,51 @@
 
 #include "hvm.h"
 
-typedef struct _LOCAL_CONTEXT
+typedef struct _VCPU_CONTEXT
 {
     PVOID TscHits;
     UINT64 TscOffset;
-} LOCAL_CONTEXT, *PLOCAL_CONTEXT;
+} VCPU_CONTEXT, *PVCPU_CONTEXT;
 
-typedef struct _GLOBAL_CONTEXT
+typedef struct _HVM_CONTEXT
 {
-    UINT64 Cr3;
-    PUCHAR msrBitmap;
-
-} GLOBAL_CONTEXT, *PGLOBAL_CONTEXT;
+    UINTN SystemCr3;
+    PUCHAR MsrBitmap;
+} HVM_CONTEXT, *PHVM_CONTEXT;
 
 BOOLEAN
 GlobalContextConfigure(
-    _In_ PGLOBAL_CONTEXT context
+    _In_ PHVM_CONTEXT context
 );
 
 VOID
 GlobalContextReset(
-    _In_ PGLOBAL_CONTEXT context
+    _In_ PHVM_CONTEXT context
 );
 
 BOOLEAN
 LocalContextConfigure(
-    _In_ PLOCAL_CONTEXT  local
+    _In_ PVCPU_CONTEXT  local
 );
 
 VOID
 LocalContextReset(
-    _In_ PLOCAL_CONTEXT  local
+    _In_ PVCPU_CONTEXT  local
 );
 
 
-PGLOBAL_CONTEXT
+PHVM_CONTEXT
 GlobalCtx(
     VOID
 );
 
-PLOCAL_CONTEXT
+PVCPU_CONTEXT
 LocalCtx(
     VOID
 );
 
 
-PLOCAL_CONTEXT
+PVCPU_CONTEXT
 LocalCtxForVcpu(
     _In_ UINT32 VcpuId
 );

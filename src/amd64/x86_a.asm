@@ -41,10 +41,10 @@ AsmReadGs PROC
     ret
 AsmReadGs ENDP
 
-AsmReadSegmentLimit PROC
+AsmLimitFromSelector PROC
     lsl rax, rcx
     ret
-AsmReadSegmentLimit ENDP
+AsmLimitFromSelector ENDP
 
 AsmReadTr PROC
     xor rax, rax

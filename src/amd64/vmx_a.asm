@@ -10,7 +10,7 @@ VMX_ERROR_WITHOUT_STATUS    EQU     2
 
 .CODE
 
-VmxInvEptImpl PROC
+AsmVmxInvEpt PROC
     ;invept rcx, oword ptr [rdx]
     BYTE 66h, 0Fh, 38h, 80h, 0Ah
 
@@ -28,9 +28,9 @@ failValid:
 failInvalid:
     mov rax, VMX_ERROR_WITHOUT_STATUS
     ret
-VmxInvEptImpl ENDP
+AsmVmxInvEpt ENDP
 
-VmxInvVpid PROC
+AsmVmxInvVpid PROC
     ;invvpid rcx, oword ptr [rdx]
     BYTE 66h, 0Fh, 38h, 81h, 0Ah
 
@@ -48,10 +48,10 @@ failValid:
 failInvalid:
     mov rax, VMX_ERROR_WITHOUT_STATUS
     ret
-VmxInvVpid ENDP
+AsmVmxInvVpid ENDP
 
 ;
-; NTSTATUS VmxCall(_In_ UINT_PTR service, _In_ UINT_PTR data);
+; NTSTATUS VmxCall(_In_ UINTN service, _In_ UINTN data);
 ;
 VmxCall PROC
     vmcall
@@ -61,7 +61,7 @@ VmxCall PROC
 VmxCall ENDP
 
 ;
-; NTSTATUS VmxVmFunc(_In_ UINT_PTR service, _In_ UINT_PTR data);
+; NTSTATUS VmxVmFunc(_In_ UINTN service, _In_ UINTN data);
 ;
 VmxFunc PROC
     mov rax, rcx

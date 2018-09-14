@@ -3,35 +3,25 @@
 
 #include "x86.h"
 
-BOOLEAN
-VmcsClear(
-    _In_ PHYSICAL_ADDRESS VmcsHpa
-);
-
-BOOLEAN
-VmcsLoad(
-    _In_ PHYSICAL_ADDRESS VmcsHpa
-);
-
 VOID
-VmcsConfigureCommonGuest(
+VmcSetGuestFields(
     VOID
 );
 
 VOID
-VmcsConfigureCommonHost(
-    _In_ UINT_PTR SystemCr3
+VmcSetHostField(
+    _In_ UINTN SystemCr3
 );
 
 VOID
-VmcsConfigureCommonControl(
+VmcsSetControlField(
     VOID
 );
 
 VOID
 VmcsConfigureCommonEntry(
-    _In_ UINT_PTR       rip,
-    _In_ UINT_PTR       rsp,
+    _In_ UINTN       rip,
+    _In_ UINTN       rsp,
     _In_ FLAGS_REGISTER rflags
 );
 

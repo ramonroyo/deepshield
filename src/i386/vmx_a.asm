@@ -9,7 +9,7 @@ VMX_ERROR_WITHOUT_STATUS    EQU     2
 
 .CODE
 
-VmxOn@4 PROC
+AsmVmxOn@4 PROC
     mov eax, [esp + 4]
 
     vmxon qword ptr [eax]
@@ -26,10 +26,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 4
-VmxOn@4 ENDP
+AsmVmxOn@4 ENDP
 
 
-VmxVmClear@4 PROC
+AsmVmxClear@4 PROC
     mov eax, [esp + 4]
 
     vmclear qword ptr [eax]
@@ -46,10 +46,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 4
-VmxVmClear@4 ENDP
+AsmVmxClear@4 ENDP
 
 
-VmxVmPtrLd@4 PROC
+AsmVmxPtrLoad@4 PROC
     mov eax, [esp + 4]
 
     vmptrld qword ptr [eax]
@@ -66,10 +66,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 4
-VmxVmPtrLd@4 ENDP
+AsmVmxPtrLoad@4 ENDP
 
 
-VmxVmPtrSt@4 PROC
+AsmVmxPtrStore@4 PROC
     mov eax, [esp + 4]
 
     ;vmptrst
@@ -87,10 +87,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 4
-VmxVmPtrSt@4 ENDP
+AsmVmxPtrStore@4 ENDP
 
 
-VmxVmRead@8 PROC
+AsmVmxRead@8 PROC
     mov eax, [esp + 4]
     mov edx, [esp + 8]
 
@@ -108,10 +108,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 8
-VmxVmRead@8 ENDP
+AsmVmxRead@8 ENDP
 
 
-VmxVmWrite@8 PROC
+AsmVmxWrite@8 PROC
     mov eax, [esp + 4]
     mov edx, [esp + 8]
 
@@ -129,10 +129,10 @@ failValid:
 failInvalid:
     mov al, 2
     ret 8
-VmxVmWrite@8 ENDP
+AsmVmxWrite@8 ENDP
 
 
-VmxInvEptImpl@8 PROC
+AsmVmxInvEpt@8 PROC
     mov ecx, [esp + 4]
     mov edx, [esp + 8]
 
@@ -153,9 +153,9 @@ failValid:
 failInvalid:
     mov eax, VMX_ERROR_WITHOUT_STATUS
     ret 8
-VmxInvEptImpl@8 ENDP
+AsmVmxInvEpt@8 ENDP
 
-VmxInvVpid@8 PROC
+AsmVmxInvVpid@8 PROC
     mov ecx, [esp + 4]
     mov edx, [esp + 8]
 
@@ -176,10 +176,10 @@ failValid:
 failInvalid:
     mov eax, VMX_ERROR_WITHOUT_STATUS
     ret 8
-VmxInvVpid@8 ENDP
+AsmVmxInvVpid@8 ENDP
 
 ;
-; NTSTATUS __stdcall VmxCall(_In_ UINT_PTR service, _In_ UINT_PTR data);
+; NTSTATUS __stdcall VmxCall(_In_ UINTN service, _In_ UINTN data);
 ;
 VmxCall@8 PROC
     mov ecx, [esp + 4]
@@ -192,7 +192,7 @@ VmxCall@8 PROC
 VmxCall@8 ENDP
 
 ;
-; NTSTATUS VmxFunc(_In_ UINT_PTR service, _In_ UINT_PTR data);
+; NTSTATUS VmxFunc(_In_ UINTN service, _In_ UINTN data);
 ;
 VmxFunc@8 PROC
     mov eax, [esp + 4]

@@ -15,19 +15,16 @@ HvmGetCurrentVcpu(
 }
 
 PVOID ROOT_MODE_API
-HvmGetVcpuLocalContext(
+HvmGetVcpuContext(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    if (!Vcpu) {
-        return 0;
-    }
-
+    NT_ASSERT(Vcpu);
     return Vcpu->LocalContext;
 }
 
 PVOID ROOT_MODE_API
-HvmGetVcpuGlobalContext(
+HvmGetHvmContext(
     _In_ PHVM_VCPU Vcpu
     )
 {
@@ -35,7 +32,7 @@ HvmGetVcpuGlobalContext(
         return 0;
     }
 
-    return Vcpu->Hvm->globalContext;
+    return Vcpu->Hvm->HvmContext;
 }
 
 UINT32 ROOT_MODE_API
@@ -63,7 +60,7 @@ HvmGetVcpuHvm(
 }
 
 PHOST_SAVED_STATE ROOT_MODE_API
-HvmGetVcpuSavedState(
+HvmGetVcpuHostState(
     _In_ PHVM_VCPU Vcpu
     )
 {
@@ -71,7 +68,7 @@ HvmGetVcpuSavedState(
         return 0;
     }
 
-    return &Vcpu->SavedState;
+    return &Vcpu->HostState;
 }
 
 BOOLEAN ROOT_MODE_API
@@ -126,8 +123,8 @@ HvmVcpuCommonExitsHandler(
         {
             InjectUndefinedOpcodeException();
 
-            Registers->rflags.u.f.rf = 1;
-            VmxWritePlatform( GUEST_RFLAGS, Registers->rflags.u.raw );
+            Registers->Rflags.Bits.rf = 1;
+            VmxWritePlatform( GUEST_RFLAGS, Registers->Rflags.AsUintN);
 
             InstrRipAdvance( Registers );
             return TRUE;

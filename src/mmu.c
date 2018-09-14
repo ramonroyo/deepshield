@@ -331,7 +331,7 @@ MmuInitialize(
         gMmu.pxeShift = 2;
     }
 #endif
-    gMmu.pxeBase = (UINT_PTR)MmuGetPxeAddress(0);
+    gMmu.pxeBase = (UINTN)MmuGetPxeAddress(0);
 
     //
     //  Allocate one MMU per Vcpu.
@@ -491,11 +491,11 @@ MmuGetPageAddress(
     _In_ PVOID pxeAddress
 )
 {
-    UINT_PTR pfn;
-    UINT_PTR pageAddress;
+    UINTN pfn;
+    UINTN pageAddress;
 
 #ifdef _WIN64
-        pfn = ((UINT_PTR)pxeAddress - gMmu.pxeBase) / sizeof(UINT_PTR);
+        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINTN);
 
         pageAddress = pfn << 12;
 
@@ -504,11 +504,11 @@ MmuGetPageAddress(
 #else
     if(gMmu.paeEnabled)
     {
-        pfn = ((UINT_PTR)pxeAddress - gMmu.pxeBase) / sizeof(UINT64);
+        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINT64);
     }
     else
     {
-        pfn = ((UINT_PTR)pxeAddress - gMmu.pxeBase) / sizeof(UINT_PTR);
+        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINTN);
     }
     pageAddress = pfn << 12;
 #endif
@@ -521,28 +521,28 @@ MmuAddressIsInPagingRange(
     _In_ PVOID address
 )
 {
-    static UINT_PTR start = 0;
-    static UINT_PTR end   = 0;
+    static UINTN start = 0;
+    static UINTN end   = 0;
     
     if(start == 0)
     {
-        start = (UINT_PTR)MmuGetPxeAddress(0);
-        end   = (UINT_PTR)MmuGetPxeAddress(((PVOID)((UINT_PTR)-1)));
+        start = (UINTN)MmuGetPxeAddress(0);
+        end   = (UINTN)MmuGetPxeAddress(((PVOID)((UINTN)-1)));
     }
 
-    return (start <= (UINT_PTR)address) && ((UINT_PTR)address <= end);
+    return (start <= (UINTN)address) && ((UINTN)address <= end);
 }
 
 
 
 PHYSICAL_ADDRESS
 MmuGetPhysicalAddress(
-    _In_ UINT_PTR cr3,
+    _In_ UINTN cr3,
     _In_ PVOID    address
 )
 {
     PHYSICAL_ADDRESS result;
-    UINT_PTR         currentCr3;
+    UINTN         currentCr3;
     
     cr3        = cr3         & 0xFFFFFFFFFFFFF000;
     currentCr3 = __readcr3() & 0xFFFFFFFFFFFFF000;
@@ -596,7 +596,7 @@ MmuGetPhysicalAddress(
 
                 if (level == 1)
                 {
-                    result.QuadPart = entry & 0xFFFFFFFFFFFFF000 | (((UINT_PTR)address) & 0xFFF);
+                    result.QuadPart = entry & 0xFFFFFFFFFFFFF000 | (((UINTN)address) & 0xFFF);
                 }
                 else
                 {
@@ -688,7 +688,7 @@ MmuGetPmlIndexFromOffset(
     UINT32 sizeOfEntry;
 
 #ifdef _WIN64
-    sizeOfEntry = sizeof(UINT_PTR);
+    sizeOfEntry = sizeof(UINTN);
 #else
     if (gMmu.paeEnabled)
     {
@@ -696,7 +696,7 @@ MmuGetPmlIndexFromOffset(
     }
     else
     {
-        sizeOfEntry = sizeof(UINT_PTR);
+        sizeOfEntry = sizeof(UINTN);
     }
 #endif
 
@@ -729,15 +729,15 @@ MmuGetPxeIndex(
 )
 {
 #ifdef _WIN64
-    return  ((((UINT_PTR)va) >> (12 + 9 * (level - 1))) & 0x1FF);
+    return  ((((UINTN)va) >> (12 + 9 * (level - 1))) & 0x1FF);
 #else
     if (gMmu.paeEnabled)
     {
-        return  ((((UINT_PTR)va) >> (12 + 9 * (level - 1))) & 0x1FF);
+        return  ((((UINTN)va) >> (12 + 9 * (level - 1))) & 0x1FF);
     }
     else
     {
-        return  ((((UINT_PTR)va) >> (12 + 10 * (level - 1))) & 0x3FF);
+        return  ((((UINTN)va) >> (12 + 10 * (level - 1))) & 0x3FF);
     }
 #endif
 }
@@ -748,10 +748,10 @@ MmuIsUserModeAddress(
 )
 {
 #ifdef _WIN64
-    //return (((UINT_PTR)va) & 0x8000000000000000) == 0;
-    return ((UINT_PTR)va) <= 0x00007FFFFFFFFFFF;
+    //return (((UINTN)va) & 0x8000000000000000) == 0;
+    return ((UINTN)va) <= 0x00007FFFFFFFFFFF;
 #else
-    return  (((UINT_PTR)va) & 0x80000000) == 0;
+    return  (((UINTN)va) & 0x80000000) == 0;
 #endif
 }
 
@@ -761,10 +761,10 @@ MmuIsKernelModeAddress(
 )
 {
 #ifdef _WIN64
-    //return (((UINT_PTR)va) & 0x8000000000000000) == 0x8000000000000000;
-    return ((UINT_PTR)va) >= 0xFFFF800000000000;
+    //return (((UINTN)va) & 0x8000000000000000) == 0x8000000000000000;
+    return ((UINTN)va) >= 0xFFFF800000000000;
 #else
-    return (((UINT_PTR)va) & 0x80000000) == 0x80000000;
+    return (((UINTN)va) & 0x80000000) == 0x80000000;
 #endif
 }
 

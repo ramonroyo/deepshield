@@ -12,8 +12,8 @@
 
 #define DS_VMM_STACK_PAGES 3
 
-extern PGLOBAL_CONTEXT gGlobalContext;
-extern PLOCAL_CONTEXT  gLocalContexts;
+extern PHVM_CONTEXT gGlobalContext;
+extern PVCPU_CONTEXT  gLocalContexts;
 
 NTSTATUS
 DsFinalizeHvm(
@@ -21,7 +21,7 @@ DsFinalizeHvm(
     );
 
 NTSTATUS __stdcall
-ResetLocalContextByVcpuId(
+ResetLocalContextPerCpu(
     _In_ UINT32 VcpuId,
     _In_opt_ PVOID Reserved
     )
@@ -34,7 +34,7 @@ ResetLocalContextByVcpuId(
 }
 
 NTSTATUS __stdcall
-ConfigureLocalContextByVcpuId(
+ConfigureLocalContextPerCpu(
     _In_ UINT32 Vcpu,
     _In_opt_ PVOID Reserved
     )
@@ -47,54 +47,61 @@ ConfigureLocalContextByVcpuId(
 }
 
 VOID
+VmcsSetGuestPrivilegedTsd(
+    VOID
+    )
+{
+    CR4_REGISTER Cr4 = { 0 };
+
+    //
+    //  Deprivilege Tsd and make it host owned.
+    //
+
+    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
+    Cr4.Bits.Tsd = 1;
+
+    VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
+    VmxWritePlatform( CR4_GUEST_HOST_MASK, (1 << 2) );
+    VmxWritePlatform( CR4_READ_SHADOW, 0 );
+
+    //
+    //  Activate #GP and #UD to reinject the Tsd trigered exceptions.
+    //
+
+    VmxWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
+                                | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
+}
+
+VOID
+VmcsSetGuestNoMsrExits(
+    _In_ PHYSICAL_ADDRESS MsrBitmap
+    )
+{
+    VMX_PROC_PRIMARY_CTLS ProcPrimaryControls;
+
+    VmxWrite64( MSR_BITMAP_ADDRESS, MsrBitmap.QuadPart );
+
+    ProcPrimaryControls.AsUint32 = VmxRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
+    ProcPrimaryControls.Bits.UseMsrBitmap = 1;
+    VmxWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, ProcPrimaryControls.AsUint32 );
+}
+
+VOID
 DsHvmSetupVmcs(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    CR4_REGISTER Cr4 = { 0 };
-    PHYSICAL_ADDRESS msrBitmap;
-    VMX_PROC_PRIMARY_CTLS procPrimaryControls;
-    PGLOBAL_CONTEXT globalContext;
-    PLOCAL_CONTEXT localContext;
+    PHYSICAL_ADDRESS MsrBitmap;
+    PHVM_CONTEXT HvmContext = (PHVM_CONTEXT)HvmGetHvmContext( Vcpu );
+       
+    VmcSetHostField( HvmContext->SystemCr3 );
+    VmcSetGuestFields();
+    VmcsSetControlField();
 
-    globalContext = (PGLOBAL_CONTEXT) HvmGetVcpuGlobalContext( Vcpu );
-    localContext  = (PLOCAL_CONTEXT) HvmGetVcpuLocalContext( Vcpu );
+    VmcsSetGuestPrivilegedTsd();
 
-    VmcsInitializeContext();
-
-    //
-    // Common configuration
-    //
-    VmcsConfigureCommonGuest();
-    VmcsConfigureCommonHost( (UINT_PTR)globalContext->Cr3 );
-    VmcsConfigureCommonControl();
-
-    //
-    //  Unprivilege TSD bit making it host owned.
-    //
-    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
-    Cr4.Bits.tsd = 1;
-
-    VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
-    VmxWritePlatform( CR4_GUEST_HOST_MASK, (1 << 2) );
-    VmxWritePlatform (CR4_READ_SHADOW, 0 );
-
-    //
-    //  Minimize MSR exits.
-    //
-
-    msrBitmap = MmuGetPhysicalAddress( 0, globalContext->msrBitmap );
-    VmxWrite64( MSR_BITMAP_ADDRESS, msrBitmap.QuadPart );
-
-    procPrimaryControls.AsUint32 = VmxRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
-    procPrimaryControls.Bits.useMsrBitmaps = 1;
-    VmxWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32 );
-
-    //
-    //  Activate #GP and #UD.
-    //
-    VmxWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
-                                    | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
+    MsrBitmap = MmuGetPhysicalAddress( 0, HvmContext->MsrBitmap );
+    VmcsSetGuestNoMsrExits( MsrBitmap ); 
 }
 
 NTSTATUS
@@ -102,7 +109,7 @@ DsIsHvmSupported(
     VOID
     )
 {
-    return VmxIsSupported();
+    return VmxVerifySupport();
 }
 
 NTSTATUS
@@ -113,12 +120,12 @@ DsInitializeHvm(
     NTSTATUS Status;
     UINT32 i;
 
-    gGlobalContext = MemAlloc(sizeof(GLOBAL_CONTEXT));
+    gGlobalContext = MemAlloc(sizeof(HVM_CONTEXT));
     if (!gGlobalContext) {
         goto failure;
     }
 
-    gLocalContexts = MemAllocArray(SmpActiveProcessorCount(), sizeof(LOCAL_CONTEXT));
+    gLocalContexts = MemAllocArray(SmpActiveProcessorCount(), sizeof(VCPU_CONTEXT));
     if (!gLocalContexts) {
         goto failure;
     }
@@ -133,7 +140,7 @@ DsInitializeHvm(
         goto failure;
     }
 
-    if(!NT_SUCCESS( SmpExecuteOnAllProcessors( ConfigureLocalContextByVcpuId, NULL ))) {
+    if(!NT_SUCCESS( SmpRunPerProcessor(ConfigureLocalContextPerCpu, NULL ))) {
         goto failure;
     }
 
@@ -160,7 +167,7 @@ DsFinalizeHvm(
     }
 
     if (gLocalContexts) {
-        SmpExecuteOnAllProcessors(ResetLocalContextByVcpuId, 0);
+        SmpRunPerProcessor(ResetLocalContextPerCpu, 0);
 
         MemFree(gLocalContexts);
         gLocalContexts = 0;

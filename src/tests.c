@@ -25,14 +25,14 @@ Environment:
 
 #pragma intrinsic(__rdtsc)
 
-PLOCAL_CONTEXT
+PVCPU_CONTEXT
 CreateLocalContext(
     VOID
     );
 
 VOID
 DestroyLocalContext(
-    _Inout_ PLOCAL_CONTEXT Context
+    _Inout_ PVCPU_CONTEXT Context
     );
 
 TestResult
@@ -59,7 +59,7 @@ TestBasicTimeStampDetection(
 #pragma alloc_text(PAGE, DsCtlTestRdtscDetection)
 #endif
 
-#define LOCAL_CONTEXT_TAG 'CLSD'
+#define VCPU_CONTEXT_TAG 'CLSD'
 #define TSC_HITS_TAG      'HTSD'
 
 UINT64 RandomInt(
@@ -83,24 +83,24 @@ CreateCR3 (
     return (ULONG_PTR)RandomInt() & 0x00000000FFFFFF00;
 }
 
-PLOCAL_CONTEXT 
+PVCPU_CONTEXT 
 CreateLocalContext(
     VOID
     )
 {
-    PLOCAL_CONTEXT Context = NULL;
+    PVCPU_CONTEXT Context = NULL;
 
     PAGED_CODE();
 
     Context = ExAllocatePoolWithTag( NonPagedPool, 
-                                     sizeof( LOCAL_CONTEXT ),
-                                     LOCAL_CONTEXT_TAG );
+                                     sizeof( VCPU_CONTEXT ),
+                                     VCPU_CONTEXT_TAG );
 
     if (!Context) {
         return NULL;
     }
 
-    RtlZeroMemory( Context, sizeof( LOCAL_CONTEXT ) );
+    RtlZeroMemory( Context, sizeof( VCPU_CONTEXT ) );
 
     Context->TscHits = ExAllocatePoolWithTag( NonPagedPool, 
                                               sizeof( TSC_ENTRY ) * MAX_TSC_HITS,
@@ -108,7 +108,7 @@ CreateLocalContext(
 
 
     if (!Context->TscHits) {
-        ExFreePoolWithTag( Context, LOCAL_CONTEXT_TAG );
+        ExFreePoolWithTag( Context, VCPU_CONTEXT_TAG );
         return NULL;
     }
 
@@ -120,7 +120,7 @@ CreateLocalContext(
 
 VOID
 DestroyLocalContext(
-    _Inout_ PLOCAL_CONTEXT Context
+    _Inout_ PVCPU_CONTEXT Context
     )
 {
     NT_ASSERT( Context );
@@ -132,7 +132,7 @@ DestroyLocalContext(
             ExFreePoolWithTag( Context->TscHits, TSC_HITS_TAG );
         }
 
-        ExFreePoolWithTag( Context, LOCAL_CONTEXT_TAG );
+        ExFreePoolWithTag( Context, VCPU_CONTEXT_TAG );
     }
 }
 
@@ -154,9 +154,9 @@ TestReadMsr(
 
 BOOLEAN
 RdtscEmulateTester(
-    _In_ PLOCAL_CONTEXT Local,
-    _In_ PGP_REGISTERS     Regs,
-    _In_ UINT_PTR       Process
+    _In_ PVCPU_CONTEXT Local,
+    _In_ PGP_REGISTERS     Registers,
+    _In_ UINTN       Process
 )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
@@ -166,10 +166,10 @@ RdtscEmulateTester(
     //
     TimeStamp.QuadPart = TestReadMsr(IA32_TSC);
 
-    Regs->rdx = TimeStamp.HighPart;
-    Regs->rax = TimeStamp.LowPart;
+    Registers->Rdx = TimeStamp.HighPart;
+    Registers->Rax = TimeStamp.LowPart;
 
-    return ProcessTscEvent(Local->TscHits, Regs->rip, Process, TimeStamp);
+    return ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp);
 }
 
 #define CONSTANT_TSC 0x600
@@ -177,7 +177,7 @@ RdtscEmulateTester(
 VOID 
 InitGlobalTsc(
     VOID
-) 
+    ) 
 {
     gCurrentTsc = __rdtsc();
 }
@@ -193,31 +193,31 @@ AddGlobalTsc(
 
 VOID 
 AddTimeStampHit(
-    _In_     PLOCAL_CONTEXT Context, 
-    _In_opt_ UINT_PTR Process, 
-    _In_     UINT_PTR Address, 
+    _In_     PVCPU_CONTEXT Context, 
+    _In_opt_ UINTN Process, 
+    _In_     UINTN Address, 
     _In_opt_ UINT64 Delta
 ) {
 
-    GP_REGISTERS      Regs          = { 0 };
+    GP_REGISTERS Registers          = { 0 };
 
     if ( Process == 0 ) {
         Process = CreateCR3();
     }
 
-    Regs.rip = Address;
+    Registers.Rip = Address;
 
-    AddGlobalTsc(Delta);
+    AddGlobalTsc( Delta );
 
-    RdtscEmulateTester(Context, &Regs, Process);
+    RdtscEmulateTester( Context, &Registers, Process );
 
 }
 
 /*
-VOID FillWithOrphans(PLOCAL_CONTEXT Context) {
+VOID FillWithOrphans(PVCPU_CONTEXT Context) {
     NT_ASSERT(Context != NULL);
 
-    UINT_PTR       Process       = 0;
+    UINTN       Process       = 0;
     INT            i             = 0;
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
@@ -231,8 +231,8 @@ VOID FillWithOrphans(PLOCAL_CONTEXT Context) {
 }
 */
 
-VOID FillWithSiblings(PLOCAL_CONTEXT Context) {
-    UINT_PTR       Process       = 0;
+VOID FillWithSiblings(PVCPU_CONTEXT Context) {
+    UINTN       Process       = 0;
     INT            i             = 0;
 
     NT_ASSERT(Context != NULL);
@@ -256,9 +256,9 @@ TestBasicTimeStampDetectionReuse(
     VOID
     )
 {
-    PLOCAL_CONTEXT Context       = NULL;
+    PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
-    UINT_PTR       Process       = 0;
+    UINTN       Process       = 0;
 
     INT            i             = 0;
 
@@ -334,11 +334,11 @@ TestBasicTimeStampDetectionWithSkip(
     VOID
     )
 {
-    PLOCAL_CONTEXT Context       = NULL;
+    PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
-    UINT_PTR       Process       = 0;
+    UINTN       Process       = 0;
 
-    GP_REGISTERS      Regs          = { 0 };
+    GP_REGISTERS      Registers          = { 0 };
     UINT32         Addition      = 0;
     INT            i             = 0;
 
@@ -367,9 +367,9 @@ TestBasicTimeStampDetectionWithSkip(
 
         AddGlobalTsc(Addition);
 
-        Regs.rip = 0x07FF6AEE0;
+        Registers.Rip = 0x07FF6AEE0;
 
-        RdtscEmulateTester(Context, &Regs, Process);
+        RdtscEmulateTester(Context, &Registers, Process);
 
         // this should be reached each total/30 times
         if ( i > 0 && i % 30 == 0) {
@@ -382,8 +382,8 @@ TestBasicTimeStampDetectionWithSkip(
 
         AddGlobalTsc(Addition);
 
-        Regs.rip = 0x07FF6AEE6;
-        RdtscEmulateTester(Context, &Regs, Process);
+        Registers.Rip = 0x07FF6AEE6;
+        RdtscEmulateTester(Context, &Registers, Process);
     }
 
     NT_ASSERT(Context != NULL);
@@ -414,10 +414,10 @@ TestRdtscInstructionBoundaries(
     VOID
 )
 {
-    PLOCAL_CONTEXT Context       = NULL;
+    PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
 
-    GP_REGISTERS      Regs            = { 0 };
+    GP_REGISTERS      Registers            = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;
 
@@ -432,12 +432,12 @@ TestRdtscInstructionBoundaries(
 
     for ( i = 0; i < 256; i++ ) {
         AddGlobalTsc(300);
-        Regs.rip = 0x07F7FFFFE;
-        RdtscEmulateTester(Context, &Regs, Process);
+        Registers.Rip = 0x07F7FFFFE;
+        RdtscEmulateTester(Context, &Registers, Process);
 
         AddGlobalTsc(300);
-        Regs.rip = 0x07F800003;
-        RdtscEmulateTester(Context, &Regs, Process);
+        Registers.Rip = 0x07F800003;
+        RdtscEmulateTester(Context, &Registers, Process);
     }
 
     NT_ASSERT(Context != NULL);
@@ -469,10 +469,10 @@ TestBasicTimeStampDetection(
     VOID
     )
 {
-    PLOCAL_CONTEXT Context       = NULL;
+    PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
 
-    GP_REGISTERS      Regs            = { 0 };
+    GP_REGISTERS      Registers            = { 0 };
     LARGE_INTEGER  RandomAddress   = { 0 };
     ULONG_PTR      Process         =   0;
     INT            i               =   0;
@@ -496,19 +496,19 @@ TestBasicTimeStampDetection(
         if ( i % 6 == 0 ) {
 
             AddGlobalTsc(300);
-            Regs.rip = 0x07FF6AEE0;
-            RdtscEmulateTester(Context, &Regs, Process);
+            Registers.Rip = 0x07FF6AEE0;
+            RdtscEmulateTester(Context, &Registers, Process);
 
             AddGlobalTsc(300);
-            Regs.rip = 0x07FF6AEE6;
-            RdtscEmulateTester(Context, &Regs, Process);
+            Registers.Rip = 0x07FF6AEE6;
+            RdtscEmulateTester(Context, &Registers, Process);
         }
 
         RandomAddress.QuadPart = __rdtsc();
-        Regs.rip = (0x7FF70000 | (RandomAddress.LowPart & 0xFFFF));
+        Registers.Rip = (0x7FF70000 | (RandomAddress.LowPart & 0xFFFF));
 
         AddGlobalTsc(RandomAddress.LowPart & 0xFFFF);
-        RdtscEmulateTester(Context, &Regs, CreateCR3());
+        RdtscEmulateTester(Context, &Registers, CreateCR3());
     }
 
     NT_ASSERT(Context != NULL);

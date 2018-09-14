@@ -8,7 +8,7 @@
 #include "vmx.h"
 #include "smp.h"
 
-extern UINT_PTR gSystemPageDirectoryTable;
+extern UINTN gSystemPageDirectoryTable;
 
 NTSTATUS
 DsInitializeShield(

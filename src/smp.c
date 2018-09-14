@@ -21,7 +21,7 @@ DpcRoutine(
 )
 {
     PPROCESSOR_INFO info = (PPROCESSOR_INFO)context;
-    NTSTATUS status;
+    NTSTATUS Status;
 
     UNREFERENCED_PARAMETER( dpc );
     UNREFERENCED_PARAMETER( arg1 );
@@ -31,23 +31,23 @@ DpcRoutine(
         return;
     }
 
-    status = info->callback(SmpGetCurrentProcessor(), info->context);
+    Status = info->callback(SmpGetCurrentProcessor(), info->context);
 
-    if (status != STATUS_SUCCESS)
+    if (Status != STATUS_SUCCESS)
     {
-        InterlockedCompareExchange(&info->error, status, STATUS_SUCCESS);
+        InterlockedCompareExchange(&info->error, Status, STATUS_SUCCESS);
     }
 
     InterlockedIncrement(&info->sync);
 }
 
 NTSTATUS
-SmpExecuteOnAllProcessors(
+SmpRunPerProcessor(
     _In_ PROCESSOR_CALLBACK callback,
     _In_opt_ PVOID context
 )
 {
-    NTSTATUS status;
+    NTSTATUS Status;
     KIRQL    savedIrql;
     UINT32   ProcessorCount;
     
@@ -83,18 +83,18 @@ SmpExecuteOnAllProcessors(
 
         KeLowerIrql( savedIrql );
 
-        status = info.error;
+        Status = info.error;
     }
     else
     {
         KeRaiseIrql(DISPATCH_LEVEL, &savedIrql);
 
-        status = callback(SmpGetCurrentProcessor(), context);
+        Status = callback(SmpGetCurrentProcessor(), context);
 
         KeLowerIrql(savedIrql);    
     }
 
-    return status;
+    return Status;
 }
 
 UINT32

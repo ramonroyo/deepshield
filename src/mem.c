@@ -737,20 +737,20 @@ ArenaVirtualToPhysical(
     )
 {
     PHYSICAL_ADDRESS result;
-    UINT_PTR         start;
-    UINT_PTR         end;
+    UINTN         start;
+    UINTN         end;
 
     result.QuadPart = 0;
-    start = (UINT_PTR)Arena->BaseAddress;
-    end   = (UINT_PTR)Arena->BaseAddress + Arena->NumberOfPages * PAGE_SIZE;
+    start = (UINTN)Arena->BaseAddress;
+    end   = (UINTN)Arena->BaseAddress + Arena->NumberOfPages * PAGE_SIZE;
 
     //
     //  Check virtual range.
     //
-    if (start <= ((UINT_PTR)BaseAddress) && ((UINT_PTR)BaseAddress) < end)
+    if (start <= ((UINTN)BaseAddress) && ((UINTN)BaseAddress) < end)
     {
-        UINT_PTR index = ((UINT_PTR)BaseAddress - start) >> 12;
-        result.QuadPart = (MmGetMdlPfnArray(Arena->Mdl)[index] << 12) + ((UINT_PTR)BaseAddress & 0xFFF);
+        UINTN index = ((UINTN)BaseAddress - start) >> 12;
+        result.QuadPart = (MmGetMdlPfnArray(Arena->Mdl)[index] << 12) + ((UINTN)BaseAddress & 0xFFF);
     }
 
     return result;
@@ -775,8 +775,8 @@ ArenaPhysicalToVirtual(
     for (i = 0; i < entries; i++) {
         if (((UINT64)(physicalAddress.QuadPart >> 12)) == pfns[i]) {
 
-            result = (PVOID)(((UINT_PTR)Arena->BaseAddress + i * PAGE_SIZE) 
-                   + ((UINT_PTR)physicalAddress.QuadPart & 0xFFF));
+            result = (PVOID)(((UINTN)Arena->BaseAddress + i * PAGE_SIZE) 
+                   + ((UINTN)physicalAddress.QuadPart & 0xFFF));
             break;
         }
     }

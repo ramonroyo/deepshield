@@ -27,7 +27,7 @@ typedef NTSTATUS (__stdcall * PROCESSOR_CALLBACK)(
 * @return Success if every function succeeded, first error encountered otherwise.
 */
 NTSTATUS
-SmpExecuteOnAllProcessors(
+SmpRunPerProcessor(
     _In_     PROCESSOR_CALLBACK callback, 
     _In_opt_ PVOID              context
 );
