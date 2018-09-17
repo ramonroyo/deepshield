@@ -3,14 +3,15 @@
 #include "vmx.h"
 #include "x86.h"
 #include "mmu.h"
+#include "vmcsinit.h"
 
 #define LOW32(X)  ((UINT32) ((UINT64)(X))       )
 #define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
 
-PUINT_PTR
+PUINTN
 LookupGp(
     _In_ PGP_REGISTERS Registers,
-    _In_ UINT32     gpr
+    _In_ UINT32 gpr
 )
 {
 #ifndef _WIN64
@@ -20,7 +21,7 @@ LookupGp(
     //
     //  TODO: use new GP_REGISTERS for 32-bits build.
     //
-    return (PUINT_PTR)Registers + gpr;
+    return (PUINTN)Registers + gpr;
 }
 
 VOID
@@ -32,66 +33,55 @@ InstrInvdEmulate(
     __wbinvd();
 }
 
-/*
+#ifdef _WIN64
 BOOLEAN
-IsXStateSupported(
-    VOID
-    )
-{
-    UINT32  Eax;
-    UINT32  Ebx;
-    UINT32  Ecx;
-    UINT32  Edx;
-
-    AsmCpuid( CPUID_FEATURE_INFORMATION,
-              &Eax,
-              &Ebx,
-              &Ecx,
-              &Edx
-    );
-
-    if ((Ecx & BIT26) == 0) {
-        return FALSE;
-    }
-    else {
-        return TRUE;
-    }
-}
-
-//
-//  This function return if processor enable XState.
-//
-BOOLEAN
-IsXStateEnabled(
-    VOID
-    )
-{
-    if ((AsmReadCr4 () & CR4_OSXSAVE) != 0) {
-        return TRUE;
-
-    } else {
-        return FALSE;
-    }
-}*/
-
-VOID
 InstrXsetbvEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-#ifdef _WIN64
+    if (FALSE == IsXStateEnabled()) {
+        InjectUdException();
+        return FALSE;
+    }
 
-    /*
-    if (IsXStateSupoprted()) {
-        AsmWriteCr4(AsmReadCr4() | CR4_OSXSAVE);
-    }*/
+    //
+    //  TODO: Issue CPUID.Rax == 0xD and read XCR0 to check reserved bits.
+    //
+    //  ((~((UINT32)Cpuid.Rax)) & Xcr0MaskLow) != (UINT32) (~Cpuid.Rax & Registers->Rax))
+    //  ((~((UINT32)Cpuid.Rdx)) & Xcr0MaskHigh) != (UINT32) (~Cpuid.Rdx & Registers->Rdx))
+    //
 
-    __xsetbv((UINT32)Registers->Rcx, Registers->Rdx << 32 | (UINT32)Registers->Rax);
+    if ( (Registers->Rcx != 0) || 
+        ((Registers->Rax & 1) == 0) || 
+        ((Registers->Rax & 0x6) == 0x4) ) {
 
-#else
-    UNREFERENCED_PARAMETER(Registers);
+        //
+        //  1. ECX must be zero since only XCR0 is supported.
+        //  2 .Bit 0 of XCR0 must be one and it cannot be cleared.
+        //  3. No attempt to write XCR0[ 2:1 ] = 10.
+        //
+        InjectGpException( 0 );
+        return FALSE;
+    }
+
+#ifdef DISABLE_OSXSAVE_TRACKING
+    __writecr4( __readcr4() | (VmReadN( GUEST_CR4 ) & CR4_OSXSAVE) );
 #endif
+
+    __xsetbv( (UINT32) Registers->Rcx, Registers->Rdx << 32 |
+                              (UINT32) Registers->Rax );
+    return TRUE;
 }
+#else
+BOOLEAN
+InstrXsetbvEmulate(
+    _In_ PGP_REGISTERS Registers
+    )
+{
+    UNREFERENCED_PARAMETER( Registers );
+    return TRUE;
+}
+#endif
 
 VOID
 InstrInvVpidEmulate(
@@ -107,7 +97,7 @@ InstrInvVpidEmulate(
 VOID
 InstrCpuidEmulate(
     _In_ PGP_REGISTERS Registers
-)
+    )
 {
     INT32 CpuRegs[4] = { 0 };
 
@@ -124,7 +114,7 @@ InstrCpuidEmulate(
 VOID
 InstrMsrReadEmulate(
     _In_ PGP_REGISTERS Registers
-)
+    )
 {
     UINT64 value;
 
@@ -137,7 +127,7 @@ InstrMsrReadEmulate(
 VOID
 InstrMsrWriteEmulate(
     _In_ PGP_REGISTERS Registers
-)
+    )
 {
     UINT64 value;
 
@@ -149,7 +139,7 @@ InstrMsrWriteEmulate(
 VOID
 InstrInvlpgEmulate(
     _In_ UINTN exitQualification
-)
+    )
 {
     __invlpg((PVOID)exitQualification);
 }
@@ -162,7 +152,7 @@ InstrCr4Emulate(
     )
 {
     CR4_REGISTER Cr4;
-    PUINT_PTR Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
+    PUINTN Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
     INT32 AccessType = Qualification.CrAccess.AccessType;
 
     if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
@@ -175,16 +165,26 @@ InstrCr4Emulate(
         Vcpu->HostState.Cr4 = Cr4;
 
         //
-        //  Remove host owned and force fixed 0 and fixed 1 bits.
+        //  Remove host owned and enforce fixed 0 and fixed 1 bits.
         // 
-        Cr4.AsUintN &= ~VmxReadPlatform( CR4_GUEST_HOST_MASK );
-        Cr4.AsUintN |= (UINTN)(__readmsr(IA32_VMX_CR4_FIXED0) 
-                                & __readmsr(IA32_VMX_CR4_FIXED1));
+        VmWriteN( GUEST_CR4, 
+                  VmcsMakeCompliantCr4( VmcsGetGuestVisibleCr4( Cr4.AsUintN ) ) );
 
-        VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
+#ifndef DISABLE_OSXSAVE_TRACKING
+        if (Cr4.Bits.OsXsave) {
+
+            if (IsXStateSupported() ) {
+               VmWriteN( HOST_CR4, __readcr4() | CR4_OSXSAVE );
+            }
+        }
+        else {
+            VmWriteN( HOST_CR4, __readcr4() & ~CR4_OSXSAVE );
+        }
+#endif
+
     }
     else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType ) {
-        *Gp = VmxReadPlatform( GUEST_CR4 );
+        *Gp = VmReadN( GUEST_CR4 );
     }
 }
 
@@ -194,16 +194,16 @@ InstrCr3Emulate(
     _Inout_ PGP_REGISTERS Registers
     )
 {
-    PUINT_PTR Gp;
+    PUINTN Gp;
     UINT32 AccessType = Qualification.CrAccess.AccessType;
    
     Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
 
     if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
-        VmxWritePlatform( GUEST_CR3, *Gp );
+        VmWriteN( GUEST_CR3, *Gp );
     }
     else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType) {
-        *Gp = VmxReadPlatform( GUEST_CR3 );
+        *Gp = VmReadN( GUEST_CR3 );
     }
 }
 
@@ -214,7 +214,7 @@ InstrDrEmulate(
     _In_ PGP_REGISTERS Registers
 )
 {
-    PUINT_PTR             gpr;
+    PUINTN             gpr;
     EXIT_QUALIFICATION_DR data;
 
     data.u.raw = exitQualification;
@@ -368,7 +368,7 @@ InjectInt1(
     //
     Registers->Rflags.Bits.tf = 0;
 
-    VmxWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, Int1.AsUint32);
+    VmWrite32(VM_ENTRY_INTERRUPTION_INFORMATION, Int1.AsUint32);
 }
 
 VOID
@@ -378,7 +378,7 @@ InstrRipAdvance(
 {
     UINT32 InstructionLength;
 
-    InstructionLength = VmxRead32(EXIT_INSTRUCTION_LENGTH);
+    InstructionLength = VmRead32(EXIT_INSTRUCTION_LENGTH);
 
     Registers->Rip += InstructionLength;
 

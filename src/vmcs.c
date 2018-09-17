@@ -2,147 +2,146 @@
 #include "vmcs.h"
 #include "vmx.h"
 #include "mmu.h"
+#include "vmcsinit.h"
 
 #define LOW32(v)  ((UINT32)(v))
 
 VOID
-VmcSetGuestFields(
+VmcsSetGuestFields(
     VOID
     )
 {
     UINT16 Selector;
 
-    VmxWritePlatform( GUEST_CR0, __readcr0());
-    VmxWritePlatform( GUEST_CR3, __readcr3());
-    VmxWritePlatform( GUEST_CR4, __readcr4());
-    VmxWritePlatform( GUEST_DR7, __readdr(7));
+    VmWriteN( GUEST_CR0, __readcr0());
+    VmWriteN( GUEST_CR3, __readcr3());
+    VmWriteN( GUEST_CR4, __readcr4());
+    VmWriteN( GUEST_DR7, __readdr(7));
 
     Selector = AsmReadCs();
-    VmxWrite16( GUEST_CS_SELECTOR, Selector);
-    VmxWritePlatform( GUEST_CS_BASE, BaseFromSelector(Selector));
-    VmxWrite32( GUEST_CS_LIMIT, AsmLimitFromSelector(Selector));
-    VmxWrite32( GUEST_CS_ACCESS_RIGHTS, ArFromSelector(Selector));
+    VmWrite16( GUEST_CS_SELECTOR, Selector);
+    VmWriteN( GUEST_CS_BASE, BaseFromSelector(Selector));
+    VmWrite32( GUEST_CS_LIMIT, AsmLimitFromSelector(Selector));
+    VmWrite32( GUEST_CS_ACCESS_RIGHTS, ArFromSelector(Selector));
 
     Selector = AsmReadSs();
-    VmxWrite16( GUEST_SS_SELECTOR, Selector);
-    VmxWritePlatform( GUEST_SS_BASE, BaseFromSelector(Selector));
-    VmxWrite32( GUEST_SS_LIMIT, AsmLimitFromSelector(Selector));
-    VmxWrite32( GUEST_SS_ACCESS_RIGHTS, ArFromSelector(Selector));
+    VmWrite16( GUEST_SS_SELECTOR, Selector);
+    VmWriteN( GUEST_SS_BASE, BaseFromSelector(Selector));
+    VmWrite32( GUEST_SS_LIMIT, AsmLimitFromSelector(Selector));
+    VmWrite32( GUEST_SS_ACCESS_RIGHTS, ArFromSelector(Selector));
 
     Selector = AsmReadDs();
-    VmxWrite16( GUEST_DS_SELECTOR, Selector);
-    VmxWritePlatform( GUEST_DS_BASE, BaseFromSelector(Selector));
-    VmxWrite32( GUEST_DS_LIMIT, AsmLimitFromSelector(Selector));
-    VmxWrite32( GUEST_DS_ACCESS_RIGHTS, ArFromSelector(Selector));
+    VmWrite16( GUEST_DS_SELECTOR, Selector);
+    VmWriteN( GUEST_DS_BASE, BaseFromSelector(Selector));
+    VmWrite32( GUEST_DS_LIMIT, AsmLimitFromSelector(Selector));
+    VmWrite32( GUEST_DS_ACCESS_RIGHTS, ArFromSelector(Selector));
 
     Selector = AsmReadEs();
-    VmxWrite16( GUEST_ES_SELECTOR, Selector);
-    VmxWritePlatform( GUEST_ES_BASE, BaseFromSelector(Selector));
-    VmxWrite32( GUEST_ES_LIMIT, AsmLimitFromSelector(Selector));
-    VmxWrite32( GUEST_ES_ACCESS_RIGHTS, ArFromSelector(Selector));
+    VmWrite16( GUEST_ES_SELECTOR, Selector);
+    VmWriteN( GUEST_ES_BASE, BaseFromSelector(Selector));
+    VmWrite32( GUEST_ES_LIMIT, AsmLimitFromSelector(Selector));
+    VmWrite32( GUEST_ES_ACCESS_RIGHTS, ArFromSelector(Selector));
 
-    VmxWrite16( GUEST_FS_SELECTOR, AsmReadFs());
+    VmWrite16( GUEST_FS_SELECTOR, AsmReadFs());
 #ifndef _WIN64
-    VmxWritePlatform( GUEST_FS_BASE, BaseFromSelector(AsmReadFs()));
+    VmWriteN( GUEST_FS_BASE, BaseFromSelector(AsmReadFs()));
 #else
-    VmxWritePlatform( GUEST_FS_BASE, __readmsr(IA32_FS_BASE));
+    VmWriteN( GUEST_FS_BASE, __readmsr(IA32_FS_BASE));
 #endif
-    VmxWrite32( GUEST_FS_LIMIT, AsmLimitFromSelector(AsmReadFs()));
-    VmxWrite32( GUEST_FS_ACCESS_RIGHTS, ArFromSelector(AsmReadFs()));
+    VmWrite32( GUEST_FS_LIMIT, AsmLimitFromSelector(AsmReadFs()));
+    VmWrite32( GUEST_FS_ACCESS_RIGHTS, ArFromSelector(AsmReadFs()));
 
-    VmxWrite16( GUEST_GS_SELECTOR, AsmReadGs());
+    VmWrite16( GUEST_GS_SELECTOR, AsmReadGs());
 #ifndef _WIN64
-    VmxWritePlatform( GUEST_GS_BASE, BaseFromSelector(AsmReadGs()));
+    VmWriteN( GUEST_GS_BASE, BaseFromSelector(AsmReadGs()));
 #else
-    VmxWritePlatform( GUEST_GS_BASE, __readmsr(IA32_GS_BASE) );
+    VmWriteN( GUEST_GS_BASE, __readmsr(IA32_GS_BASE) );
 #endif
-    VmxWrite32( GUEST_GS_LIMIT, AsmLimitFromSelector(AsmReadGs()));
-    VmxWrite32( GUEST_GS_ACCESS_RIGHTS, ArFromSelector(AsmReadGs()));
+    VmWrite32( GUEST_GS_LIMIT, AsmLimitFromSelector(AsmReadGs()));
+    VmWrite32( GUEST_GS_ACCESS_RIGHTS, ArFromSelector(AsmReadGs()));
 
-    VmxWrite16( GUEST_LDTR_SELECTOR, AsmReadLdtr());
-    VmxWritePlatform( GUEST_LDTR_BASE, BaseFromSelector(AsmReadLdtr()));
-    VmxWrite32( GUEST_LDTR_LIMIT, AsmLimitFromSelector(AsmReadLdtr()));
-    VmxWrite32( GUEST_LDTR_ACCESS_RIGHTS, ArFromSelector(AsmReadLdtr()));
+    VmWrite16( GUEST_LDTR_SELECTOR, AsmReadLdtr());
+    VmWriteN( GUEST_LDTR_BASE, BaseFromSelector(AsmReadLdtr()));
+    VmWrite32( GUEST_LDTR_LIMIT, AsmLimitFromSelector(AsmReadLdtr()));
+    VmWrite32( GUEST_LDTR_ACCESS_RIGHTS, ArFromSelector(AsmReadLdtr()));
 
-    VmxWrite16( GUEST_TR_SELECTOR, AsmReadTr());
-    VmxWritePlatform( GUEST_TR_BASE, BaseFromSelector(AsmReadTr()));
-    VmxWrite32( GUEST_TR_LIMIT, AsmLimitFromSelector(AsmReadTr()));
-    VmxWrite32( GUEST_TR_ACCESS_RIGHTS, ArFromSelector(AsmReadTr()));
+    VmWrite16( GUEST_TR_SELECTOR, AsmReadTr());
+    VmWriteN( GUEST_TR_BASE, BaseFromSelector(AsmReadTr()));
+    VmWrite32( GUEST_TR_LIMIT, AsmLimitFromSelector(AsmReadTr()));
+    VmWrite32( GUEST_TR_ACCESS_RIGHTS, ArFromSelector(AsmReadTr()));
 
-    VmxWritePlatform( GUEST_GDTR_BASE, GetGdtrBase());
-    VmxWrite32( GUEST_GDTR_LIMIT, GetGdtrLimit());
-    VmxWritePlatform( GUEST_IDTR_BASE, GetIdtrBase());
-    VmxWrite32( GUEST_IDTR_LIMIT, GetIdtrLimit());
+    VmWriteN( GUEST_GDTR_BASE, GetGdtrBase());
+    VmWrite32( GUEST_GDTR_LIMIT, GetGdtrLimit());
+    VmWriteN( GUEST_IDTR_BASE, GetIdtrBase());
+    VmWrite32( GUEST_IDTR_LIMIT, GetIdtrLimit());
 
-    VmxWrite64( GUEST_IA32_DEBUGCTL, __readmsr(IA32_DEBUGCTL));
+    VmWrite64( GUEST_IA32_DEBUGCTL, __readmsr(IA32_DEBUGCTL));
 
-    VmxWrite32( GUEST_IA32_SYSENTER_CS, (UINT32)  __readmsr(IA32_SYSENTER_CS));
-    VmxWritePlatform( GUEST_IA32_SYSENTER_ESP, (UINTN)__readmsr(IA32_SYSENTER_ESP));
-    VmxWritePlatform( GUEST_IA32_SYSENTER_EIP, (UINTN)__readmsr(IA32_SYSENTER_EIP));
-    VmxWrite64( GUEST_IA32_PERF_GLOBAL_CTRL, (UINTN)__readmsr(IA32_PERF_GLOBAL_CTRL) );
-    VmxWrite64( GUEST_IA32_EFER, (UINTN)__readmsr( IA32_MSR_EFER ) );
-    VmxWrite64( VMCS_LINK_POINTER, MAXULONG_PTR );
+    VmWrite32( GUEST_IA32_SYSENTER_CS, (UINT32)  __readmsr(IA32_SYSENTER_CS));
+    VmWriteN( GUEST_IA32_SYSENTER_ESP, (UINTN)__readmsr(IA32_SYSENTER_ESP));
+    VmWriteN( GUEST_IA32_SYSENTER_EIP, (UINTN)__readmsr(IA32_SYSENTER_EIP));
+    VmWrite64( GUEST_IA32_PERF_GLOBAL_CTRL, (UINTN)__readmsr(IA32_PERF_GLOBAL_CTRL) );
+    VmWrite64( GUEST_IA32_EFER, (UINTN)__readmsr( IA32_MSR_EFER ) );
+    VmWrite64( VMCS_LINK_POINTER, MAXULONG_PTR );
 
-    //VmxWrite64(      GUEST_IA32_PAT,                               X);
-    //VmxWrite64(      GUEST_IA32_BNDCFGS,                           X);
-    //VmxWrite32(      GUEST_SMBASE,                                 X);
-    //VmxWrite32(      GUEST_ACTIVITY_STATE,                         0);
-    //VmxWrite32(      GUEST_INTERRUPTIBILITY_STATE,                 0);
-    //VmxWritePlatform(GUEST_PENDING_DEBUG_EXCEPTIONS,               X);
-    //VmxWrite32(      VMX_PREEMPTION_TIMER_VALUE,                   X);
-    //VmxWrite64(      GUEST_PDPTE_0,                                X);
-    //VmxWrite64(      GUEST_PDPTE_1,                                X);
-    //VmxWrite64(      GUEST_PDPTE_2,                                X);
-    //VmxWrite64(      GUEST_PDPTE_3,                                X);
-    //VmxWrite16(      GUEST_INTERRUPT_STATUS,                       X);
-    //VmxWrite16(      GUEST_PML_INDEX,                              X);
+    //VmWrite64(      GUEST_IA32_PAT,                               X);
+    //VmWrite64(      GUEST_IA32_BNDCFGS,                           X);
+    //VmWrite32(      GUEST_SMBASE,                                 X);
+    //VmWrite32(      GUEST_ACTIVITY_STATE,                         0);
+    //VmWrite32(      GUEST_INTERRUPTIBILITY_STATE,                 0);
+    //VmWriteN(GUEST_PENDING_DEBUG_EXCEPTIONS,               X);
+    //VmWrite32(      VMX_PREEMPTION_TIMER_VALUE,                   X);
+    //VmWrite64(      GUEST_PDPTE_0,                                X);
+    //VmWrite64(      GUEST_PDPTE_1,                                X);
+    //VmWrite64(      GUEST_PDPTE_2,                                X);
+    //VmWrite64(      GUEST_PDPTE_3,                                X);
+    //VmWrite16(      GUEST_INTERRUPT_STATUS,                       X);
+    //VmWrite16(      GUEST_PML_INDEX,                              X);
 }
 
 VOID
-VmcSetHostField(
+VmcsSetHostField(
     _In_ UINTN SystemCr3
     )
 {
-    VmxWritePlatform( HOST_CR3, SystemCr3 );
-    VmxWritePlatform( HOST_CR0, ((__readcr0() & LOW32(__readmsr(IA32_VMX_CR0_FIXED1))) 
-                                              | LOW32(__readmsr(IA32_VMX_CR0_FIXED0))));
-    VmxWritePlatform( HOST_CR4, ((__readcr4() & LOW32(__readmsr(IA32_VMX_CR4_FIXED1)))
-                                              | LOW32(__readmsr(IA32_VMX_CR4_FIXED0))));
+    VmWriteN( HOST_CR3, SystemCr3 );
+    VmWriteN( HOST_CR0, VmcsMakeCompliantCr0( __readcr0() ));
+    VmWriteN( HOST_CR4, VmcsMakeCompliantCr4( __readcr4() ));
 
-    VmxWritePlatform( HOST_GDTR_BASE, GetGdtrBase() );
-    VmxWritePlatform( HOST_IDTR_BASE, GetIdtrBase() );
+    VmWriteN( HOST_GDTR_BASE, GetGdtrBase() );
+    VmWriteN( HOST_IDTR_BASE, GetIdtrBase() );
 
-    VmxWrite16( HOST_CS_SELECTOR, AsmReadCs() & 0xFFFC);
-    VmxWrite16( HOST_SS_SELECTOR, AsmReadSs() & 0xFFFC);
-    VmxWrite16( HOST_DS_SELECTOR, AsmReadDs() & 0xFFFC);
-    VmxWrite16( HOST_ES_SELECTOR, AsmReadEs() & 0xFFFC);
+    VmWrite16( HOST_CS_SELECTOR, AsmReadCs() & 0xFFFC);
+    VmWrite16( HOST_SS_SELECTOR, AsmReadSs() & 0xFFFC);
+    VmWrite16( HOST_DS_SELECTOR, AsmReadDs() & 0xFFFC);
+    VmWrite16( HOST_ES_SELECTOR, AsmReadEs() & 0xFFFC);
 
-    VmxWrite16( HOST_FS_SELECTOR, AsmReadFs() & 0xFFFC);
+    VmWrite16( HOST_FS_SELECTOR, AsmReadFs() & 0xFFFC);
 #ifndef _WIN64
-    VmxWritePlatform( HOST_FS_BASE, BaseFromSelector(AsmReadFs()));
+    VmWriteN( HOST_FS_BASE, BaseFromSelector(AsmReadFs()));
 #else
-    VmxWritePlatform( HOST_FS_BASE, __readmsr(IA32_FS_BASE));
+    VmWriteN( HOST_FS_BASE, __readmsr(IA32_FS_BASE));
 #endif
 
-    VmxWrite16( HOST_GS_SELECTOR, AsmReadGs() & 0xFFFC);
+    VmWrite16( HOST_GS_SELECTOR, AsmReadGs() & 0xFFFC);
 #ifndef _WIN64
-    VmxWritePlatform( HOST_GS_BASE, BaseFromSelector(AsmReadGs()));
+    VmWriteN( HOST_GS_BASE, BaseFromSelector(AsmReadGs()));
 #else
-    VmxWritePlatform( HOST_GS_BASE, __readmsr(IA32_GS_BASE));
+    VmWriteN( HOST_GS_BASE, __readmsr(IA32_GS_BASE));
 #endif
 
-    VmxWrite16( HOST_TR_SELECTOR, AsmReadTr() & 0xFFFC);
-    VmxWritePlatform( HOST_TR_BASE, BaseFromSelector(AsmReadTr()));
+    VmWrite16( HOST_TR_SELECTOR, AsmReadTr() & 0xFFFC);
+    VmWriteN( HOST_TR_BASE, BaseFromSelector(AsmReadTr()));
 
     //
     //  TODO: check if this is possible always.
     //
-    VmxWrite32( HOST_IA32_SYSENTER_CS, (UINT32)  __readmsr(IA32_SYSENTER_CS));
-    VmxWritePlatform( HOST_IA32_SYSENTER_ESP, (UINTN)__readmsr(IA32_SYSENTER_ESP));
-    VmxWritePlatform( HOST_IA32_SYSENTER_EIP, (UINTN)__readmsr(IA32_SYSENTER_EIP));
-    //VmxWrite64(      HOST_IA32_PERF_GLOBAL_CTRL,                   X);
-    //VmxWrite64(      HOST_IA32_PAT,                                X);
-    //VmxWrite64(      HOST_IA32_EFER,                               X);
+    VmWrite32( HOST_IA32_SYSENTER_CS, (UINT32)  __readmsr(IA32_SYSENTER_CS));
+    VmWriteN( HOST_IA32_SYSENTER_ESP, (UINTN)__readmsr(IA32_SYSENTER_ESP));
+    VmWriteN( HOST_IA32_SYSENTER_EIP, (UINTN)__readmsr(IA32_SYSENTER_EIP));
+    //VmWrite64(      HOST_IA32_PERF_GLOBAL_CTRL,                   X);
+    //VmWrite64(      HOST_IA32_PAT,                                X);
+    //VmWrite64(      HOST_IA32_EFER,                               X);
 }
 
 #define HMV_VPID    0x01B0
@@ -164,10 +163,21 @@ VmcsSetControlField(
     exitControls.AsUint32 = 0;
     entryControls.AsUint32 = 0;
 
+    // TODO: is this mandatory?.
     procPrimaryControls.Bits.SecondaryControl = 1;
     
     procSecondaryControls.Bits.EnableRdtscp = 1;
-    procSecondaryControls.Bits.EnableXsavesXrstors = 1;
+
+    if (IsXStateSupported()) {
+        //
+        // Expose XSAVES only when XSAVE is supported.
+        //
+        procSecondaryControls.Bits.EnableXsavesXrstors = 1;
+    }
+
+    //
+    //  TODO: enable conditionally.
+    //
     procSecondaryControls.Bits.EnableInvpcid = 1;
 
     //
@@ -181,69 +191,69 @@ VmcsSetControlField(
     entryControls.Bits.Ia32eGuest = 1;
 #endif
 
-    VmxWrite32( VM_EXEC_CONTROLS_PIN_BASED, pinControls.AsUint32);
-    VmxWrite32( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32);
-    VmxWrite32( VM_EXEC_CONTROLS_PROC_SECONDARY, procSecondaryControls.AsUint32 );
-    //VmxWrite16( VM_VPID, HMV_VPID );
-    VmxWrite32( VM_EXIT_CONTROLS, exitControls.AsUint32 );
-    VmxWrite32( VM_ENTRY_CONTROLS, entryControls.AsUint32 );
+    VmWrite32( VM_EXEC_CONTROLS_PIN_BASED, pinControls.AsUint32);
+    VmWrite32( VM_EXEC_CONTROLS_PROC_PRIMARY, procPrimaryControls.AsUint32);
+    VmWrite32( VM_EXEC_CONTROLS_PROC_SECONDARY, procSecondaryControls.AsUint32 );
+    //VmWrite16( VM_VPID, HMV_VPID );
+    VmWrite32( VM_EXIT_CONTROLS, exitControls.AsUint32 );
+    VmWrite32( VM_ENTRY_CONTROLS, entryControls.AsUint32 );
 
-    VmxWrite32( CR3_TARGET_COUNT, 0 );
-    VmxWritePlatform( CR3_TARGET_0, 0 );
-    VmxWritePlatform( CR3_TARGET_1, 0 );
-    VmxWritePlatform( CR3_TARGET_2, 0 );
-    VmxWritePlatform( CR3_TARGET_3, 0 );
+    VmWrite32( CR3_TARGET_COUNT, 0 );
+    VmWriteN( CR3_TARGET_0, 0 );
+    VmWriteN( CR3_TARGET_1, 0 );
+    VmWriteN( CR3_TARGET_2, 0 );
+    VmWriteN( CR3_TARGET_3, 0 );
 
-    VmxWrite32( VM_EXIT_MSR_STORE_COUNT, 0 );
-    VmxWrite32( VM_EXIT_MSR_LOAD_COUNT, 0 );
-    VmxWrite32( VM_ENTRY_MSR_LOAD_COUNT, 0 );
+    VmWrite32( VM_EXIT_MSR_STORE_COUNT, 0 );
+    VmWrite32( VM_EXIT_MSR_LOAD_COUNT, 0 );
+    VmWrite32( VM_ENTRY_MSR_LOAD_COUNT, 0 );
 
     //
     //  XSAVES causes a VM exit if any bit is set in the logical-AND of the
     //  following three values: EDX:EAX, the IA32_XSS MSR, and the XSS-exiting
     //  bitmap.
     //
-    // TODO: VmxWrite64(      XSS_EXITING_BITMAP,                    X);
+    // TODO: VmWrite64(      XSS_EXITING_BITMAP,                    X);
     //
     //  Activate VMCS shadow:
-    //  TODO: VmxWrite64(      VMREAD_BITMAP_ADDRESS,                X);
-    //  TODO: VmxWrite64(      VMWRITE_BITMAP_ADDRESS,               X);
+    //  TODO: VmWrite64(      VMREAD_BITMAP_ADDRESS,                X);
+    //  TODO: VmWrite64(      VMWRITE_BITMAP_ADDRESS,               X);
 
 
-    //VmxWrite32(      EXCEPTION_BITMAP,                             X);
-    //VmxWrite32(      PAGE_FAULT_ERRORCODE_MASK,                    X);
-    //VmxWrite32(      PAGE_FAULT_ERRORCODE_MATCH,                   X);
-    //VmxWrite64(      IO_A_BITMAP_ADDRESS,                          X);
-    //VmxWrite64(      IO_B_BITMAP_ADDRESS,                          X);
-    //VmxWrite64(      TSC_OFFSET,                                   X);
-    //VmxWrite64(      TSC_MULTIPLIER,                               X);
-    //VmxWritePlatform(CR0_GUEST_HOST_MASK,                          X);
-    //VmxWritePlatform(CR0_READ_SHADOW,                              X);
-    //VmxWritePlatform(CR4_GUEST_HOST_MASK,                          X);
-    //VmxWritePlatform(CR4_READ_SHADOW,                              X);
-    //VmxWrite64(      APIC_ACCESS_ADDRESS,                          X);
-    //VmxWrite64(      VIRTUAL_APIC_ADDRESS,                         X);
-    //VmxWrite32(      TPR_THRESHOLD,                                X);
-    //VmxWrite64(      EOI_EXIT_BITMAP_0,                            X);
-    //VmxWrite64(      EOI_EXIT_BITMAP_1,                            X);
-    //VmxWrite64(      EOI_EXIT_BITMAP_2,                            X);
-    //VmxWrite64(      EOI_EXIT_BITMAP_3,                            X);
-    //VmxWrite16(      POSTED_INTERRUPT_NOTIFICATION_VECTOR,         X);
-    //VmxWrite64(      POSTED_INTERRUPT_DESCRIPTOR_ADDRESS,          X);
-    //VmxWrite64(      EXECUTIVE_VMCS_POINTER,                       X);
-    //VmxWrite64(      EPT_POINTER,                                  X);
-    //VmxWrite32(      PLE_GAP,                                      X);
-    //VmxWrite32(      PLE_WINDOW,                                   X);
-    //VmxWrite64(      VM_FUNCTION_CONTROLS,                         X);
-    //VmxWrite64(      EPTP_LIST_ADDRESS,                            X);
-    //VmxWrite64(      ENCLS_EXITING_BITMAP_ADDRESS,                 X);
-    //VmxWrite64(      PML_ADDRESS,                                  X);
-    //VmxWrite64(      VIRTUALIZATION_EXCEPTION_INFORMATION_ADDRESS, X);
-    //VmxWrite16(      EPTP_INDEX,                                   X);
-    //VmxWrite64(      VM_EXIT_MSR_STORE_ADDRESS,                    X);
-    //VmxWrite64(      VM_EXIT_MSR_LOAD_ADDRESS,                     X);
-    //VmxWrite32(      VM_ENTRY_MSR_LOAD_COUNT,                      X);
-    //VmxWrite64(      VM_ENTRY_MSR_LOAD_ADDRESS,                    X);
+    //VmWrite32(      EXCEPTION_BITMAP,                             X);
+    //VmWrite32(      PAGE_FAULT_ERRORCODE_MASK,                    X);
+    //VmWrite32(      PAGE_FAULT_ERRORCODE_MATCH,                   X);
+    //VmWrite64(      IO_A_BITMAP_ADDRESS,                          X);
+    //VmWrite64(      IO_B_BITMAP_ADDRESS,                          X);
+    //VmWrite64(      TSC_OFFSET,                                   X);
+    //VmWrite64(      TSC_MULTIPLIER,                               X);
+    //VmWriteN(CR0_GUEST_HOST_MASK,                          X);
+    //VmWriteN(CR0_READ_SHADOW,                              X);
+    //VmWriteN(CR4_GUEST_HOST_MASK,                          X);
+    //VmWriteN(CR4_READ_SHADOW,                              X);
+    //VmWrite64(      APIC_ACCESS_ADDRESS,                          X);
+    //VmWrite64(      VIRTUAL_APIC_ADDRESS,                         X);
+    //VmWrite32(      TPR_THRESHOLD,                                X);
+    //VmWrite64(      EOI_EXIT_BITMAP_0,                            X);
+    //VmWrite64(      EOI_EXIT_BITMAP_1,                            X);
+    //VmWrite64(      EOI_EXIT_BITMAP_2,                            X);
+    //VmWrite64(      EOI_EXIT_BITMAP_3,                            X);
+    //VmWrite16(      POSTED_INTERRUPT_NOTIFICATION_VECTOR,         X);
+    //VmWrite64(      POSTED_INTERRUPT_DESCRIPTOR_ADDRESS,          X);
+    //VmWrite64(      EXECUTIVE_VMCS_POINTER,                       X);
+    //VmWrite64(      EPT_POINTER,                                  X);
+    //VmWrite32(      PLE_GAP,                                      X);
+    //VmWrite32(      PLE_WINDOW,                                   X);
+    //VmWrite64(      VM_FUNCTION_CONTROLS,                         X);
+    //VmWrite64(      EPTP_LIST_ADDRESS,                            X);
+    //VmWrite64(      ENCLS_EXITING_BITMAP_ADDRESS,                 X);
+    //VmWrite64(      PML_ADDRESS,                                  X);
+    //VmWrite64(      VIRTUALIZATION_EXCEPTION_INFORMATION_ADDRESS, X);
+    //VmWrite16(      EPTP_INDEX,                                   X);
+    //VmWrite64(      VM_EXIT_MSR_STORE_ADDRESS,                    X);
+    //VmWrite64(      VM_EXIT_MSR_LOAD_ADDRESS,                     X);
+    //VmWrite32(      VM_ENTRY_MSR_LOAD_COUNT,                      X);
+    //VmWrite64(      VM_ENTRY_MSR_LOAD_ADDRESS,                    X);
 }
 
 VOID
@@ -259,10 +269,10 @@ VmcsConfigureCommonEntry(
     Rflags.Bits.cf = 0;
     Rflags.Bits.zf = 0;
 
-    VmxWritePlatform( GUEST_RSP, Rsp );
-    VmxWritePlatform( GUEST_RIP, Rip );
-    VmxWritePlatform( GUEST_RFLAGS, Rflags.AsUintN );
-    VmxWritePlatform( GUEST_CR3, __readcr3() );
+    VmWriteN( GUEST_RSP, Rsp );
+    VmWriteN( GUEST_RIP, Rip );
+    VmWriteN( GUEST_RFLAGS, Rflags.AsUintN );
+    VmWriteN( GUEST_CR3, __readcr3() );
 }
 
 #define BITMAP_CLR64(__word, __mask) ((__word) &= ~(UINT64)(__mask))

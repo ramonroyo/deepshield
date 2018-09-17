@@ -8,17 +8,6 @@
 #include "smp.h"
 #include "mem.h"
 
-typedef enum _IA32_CONTROL_REGISTERS {
-    IA32_CTRL_CR0 = 0,
-    IA32_CTRL_CR2,
-    IA32_CTRL_CR3,
-    IA32_CTRL_CR4,
-    IA32_CTRL_CR8,
-    IA32_CTRL_COUNT
-} IA32_CONTROL_REGISTERS;
-
-#define UNSUPPORTED_CR IA32_CTRL_COUNT
-
 static IA32_CONTROL_REGISTERS LookupCr[] = {
     IA32_CTRL_CR0,
     UNSUPPORTED_CR,
@@ -40,7 +29,7 @@ CrAccessHandler(
     EXIT_QUALIFICATION_CR Qualification;
     IA32_CONTROL_REGISTERS CrNumber;
 
-    Qualification.AsUintN = VmxReadPlatform( EXIT_QUALIFICATION );
+    Qualification.AsUintN = VmReadN( EXIT_QUALIFICATION );
     CrNumber = LookupCr[Qualification.CrAccess.Number];
 
     switch ( CrNumber ) {
@@ -175,14 +164,14 @@ HardwareExceptionHandler(
         //
         //  Get current privilege level for the descriptor.
         //
-        Dpl = VmxRead32( GUEST_CS_ACCESS_RIGHTS );
+        Dpl = VmRead32( GUEST_CS_ACCESS_RIGHTS );
         Dpl = (Dpl >> 5) & 3;
 
         NT_ASSERT( Dpl == 0 );
         goto Inject;
     }
 
-    InsLenght = VmxRead32( EXIT_INSTRUCTION_LENGTH );
+    InsLenght = VmRead32( EXIT_INSTRUCTION_LENGTH );
     if (InsLenght != 2 && InsLenght != 3 ) {
         goto Inject;
     }
@@ -194,7 +183,7 @@ HardwareExceptionHandler(
     //  so it might be convenient to change the host CR3 to opportunistically
     //  exit with the most frequently used CR3 to call RDTSC/P.
     //
-    Process = VmxReadPlatform( GUEST_CR3 );
+    Process = VmReadN( GUEST_CR3 );
 
     PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Registers->Rip );
     if (!PhysicalAddress.QuadPart) {
@@ -281,7 +270,7 @@ DsHvmExitHandler(
         case EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI:
         {
             VMX_EXIT_INTERRUPT_INFO InterruptInfo;
-            InterruptInfo.AsUint32 = VmxRead32( EXIT_INTERRUPTION_INFORMATION );
+            InterruptInfo.AsUint32 = VmRead32( EXIT_INTERRUPTION_INFORMATION );
 
             if (InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION
                 && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector

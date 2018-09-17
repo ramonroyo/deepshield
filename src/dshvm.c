@@ -57,18 +57,18 @@ VmcsSetGuestPrivilegedTsd(
     //  Deprivilege Tsd and make it host owned.
     //
 
-    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
+    Cr4.AsUintN = VmReadN( GUEST_CR4 );
     Cr4.Bits.Tsd = 1;
 
-    VmxWritePlatform( GUEST_CR4, Cr4.AsUintN );
-    VmxWritePlatform( CR4_GUEST_HOST_MASK, (1 << 2) );
-    VmxWritePlatform( CR4_READ_SHADOW, 0 );
+    VmWriteN( GUEST_CR4, Cr4.AsUintN );
+    VmWriteN( CR4_GUEST_HOST_MASK, (1 << 2) );
+    VmWriteN( CR4_READ_SHADOW, 0 );
 
     //
     //  Activate #GP and #UD to reinject the Tsd trigered exceptions.
     //
 
-    VmxWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
+    VmWrite32( EXCEPTION_BITMAP, (1 << VECTOR_INVALID_OPCODE_EXCEPTION)
                                 | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
 }
 
@@ -79,11 +79,11 @@ VmcsSetGuestNoMsrExits(
 {
     VMX_PROC_PRIMARY_CTLS ProcPrimaryControls;
 
-    VmxWrite64( MSR_BITMAP_ADDRESS, MsrBitmap.QuadPart );
+    VmWrite64( MSR_BITMAP_ADDRESS, MsrBitmap.QuadPart );
 
-    ProcPrimaryControls.AsUint32 = VmxRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
+    ProcPrimaryControls.AsUint32 = VmRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
     ProcPrimaryControls.Bits.UseMsrBitmap = 1;
-    VmxWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, ProcPrimaryControls.AsUint32 );
+    VmWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, ProcPrimaryControls.AsUint32 );
 }
 
 VOID
@@ -94,12 +94,13 @@ DsHvmSetupVmcs(
     PHYSICAL_ADDRESS MsrBitmap;
     PHVM_CONTEXT HvmContext = (PHVM_CONTEXT)HvmGetHvmContext( Vcpu );
        
-    VmcSetHostField( HvmContext->SystemCr3 );
-    VmcSetGuestFields();
+    VmcsSetHostField( HvmContext->SystemCr3 );
+    VmcsSetGuestFields();
     VmcsSetControlField();
 
     VmcsSetGuestPrivilegedTsd();
 
+    // TODO: make conditionally.
     MsrBitmap = MmuGetPhysicalAddress( 0, HvmContext->MsrBitmap );
     VmcsSetGuestNoMsrExits( MsrBitmap ); 
 }
@@ -167,16 +168,16 @@ DsFinalizeHvm(
     }
 
     if (gLocalContexts) {
-        SmpRunPerProcessor(ResetLocalContextPerCpu, 0);
+        SmpRunPerProcessor( ResetLocalContextPerCpu, 0 );
 
         MemFree(gLocalContexts);
         gLocalContexts = 0;
     }
 
     if (gGlobalContext) {
-        GlobalContextReset(gGlobalContext);
+        GlobalContextReset( gGlobalContext );
 
-        MemFree(gGlobalContext);
+        MemFree( gGlobalContext );
         gGlobalContext = 0;
     }
 

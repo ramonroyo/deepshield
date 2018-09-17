@@ -26,6 +26,17 @@
 #define IA32_TSC_AUX            0xC0000103
 #define IA32_MSR_EFER           0xC0000080
 
+typedef enum _IA32_CONTROL_REGISTERS {
+    IA32_CTRL_CR0 = 0,
+    IA32_CTRL_CR2,
+    IA32_CTRL_CR3,
+    IA32_CTRL_CR4,
+    IA32_CTRL_CR8,
+    IA32_CTRL_COUNT
+} IA32_CONTROL_REGISTERS;
+
+#define UNSUPPORTED_CR IA32_CTRL_COUNT
+
 #define RFLAGS_CF   1u
 #define RFLAGS_ZF   (1u << 6)
 #define RFLAGS_TF   (1u << 8)
@@ -66,11 +77,24 @@
 #define CR4_SMXE         (1u << 14)
 #define CR4_OSXSAVE      (1u << 18)
 
+#define IA32_CPUID_ECX_VMX         (1u << 5)
+#define IA32_CPUID_ECX_XSAVE       (1u << 26)
+#define IA32_CPUID_ECX_OSXSAVE     (1u << 27)
+
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
 #define CPUID_PROCESSOR_EXTENDED_STATE_EMULATION  0xD
 #define CPUID_EXTENDED_INFORMATION                0x80000000
 #define CPUID_EXTENDED_ADDRESS_SIZE               0x80000008
+
+typedef struct _CPU_INFO {
+    INT32 Data[ 4 ];
+} CPU_INFO;
+
+#define CPUID_VALUE_EAX(c) ((UINT32)((c).Data[0]))
+#define CPUID_VALUE_EBX(c) ((UINT32)((c).Data[1]))
+#define CPUID_VALUE_ECX(c) ((UINT32)((c).Data[2]))
+#define CPUID_VALUE_EDX(c) ((UINT32)((c).Data[3]))
 
 #pragma warning( disable : 4214 ) //Bit field types other than int
 
@@ -169,12 +193,12 @@ typedef union _CR4_REGISTER
         UINT32 osxmmexcpt : 1;  // 10 - OS Support for Unmasked SIMD Exceptions
         UINT32 umip       : 1;  // 11 - User mode instruction prevention
         UINT32 _reserved0 : 1;  // 12
-        UINT32 vmxe       : 1;  // 13 - Virtual Machine Extensions Enabled
+        UINT32 Vmxe       : 1;  // 13 - Virtual Machine Extensions Enabled
         UINT32 smxe       : 1;  // 14 - SMX-Enable Bit
         UINT32 _reserved1 : 1;  // 15
         UINT32 fsgsbase   : 1;  // 16 - FS/GS R/W Instructions enable
         UINT32 pcide      : 1;  // 17 - PCID Enable
-        UINT32 osxsave    : 1;  // 18 - XSAVE and Processor Extended States-Enable
+        UINT32 OsXsave    : 1;  // 18 - XSAVE and Processor Extended States-Enable
         UINT32 _reserved2 : 1;  // 19
         UINT32 smep       : 1;  // 20 - Supervisor Mode Execution Protection Enable
         UINT32 smap       : 1;  // 21 - Supervisor Mode Access Protection Enable
@@ -281,7 +305,6 @@ typedef struct _IDT_ENTRY
     UINT32    _reserved0;
 #endif
 } IDT_ENTRY, *PIDT_ENTRY;
-
 
 //
 //  Byte packed structure for an IDTR, GDTR, LDTR descriptor.
@@ -484,10 +507,10 @@ VOID __stdcall AsmWriteCr2(_In_ UINTN cr2);
 UINTN readcr (_In_ UINT32 cr);
 
 _IRQL_raises_(value)
-VOID     writecr(_In_ UINT32 cr, _In_ UINTN value);
+VOID writecr(_In_ UINT32 cr, _In_ UINTN value);
 
 UINTN readdr (_In_ UINT32 dr);
-VOID     writedr(_In_ UINT32 dr, _In_ UINTN value);
+VOID  writedr(_In_ UINT32 dr, _In_ UINTN value);
 
 /**
 * cli and sti instructions instrinsics.

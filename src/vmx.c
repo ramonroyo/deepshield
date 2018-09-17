@@ -1,4 +1,5 @@
 #include "wdk7.h"
+#include "x86.h"
 #include "vmx.h"
 #include "smp.h"
 
@@ -11,7 +12,7 @@ AsmVmxInvEpt(
 #define HIGH32(v64) ((UINT32)((v64) >> 32))
 #define LOW32(v64)  ((UINT32) (v64)       )
 
-const UINT16 ExceptionType[64] = {
+const UINT16 ExceptionType[32] = {
     INTERRUPT_HARDWARE_EXCEPTION,
     INTERRUPT_HARDWARE_EXCEPTION,
     INTERRUPT_HARDWARE_EXCEPTION,
@@ -44,38 +45,6 @@ const UINT16 ExceptionType[64] = {
     INTERRUPT_HARDWARE_EXCEPTION,
     INTERRUPT_HARDWARE_EXCEPTION,
     INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION,
-    INTERRUPT_HARDWARE_EXCEPTION
 };
 
 //
@@ -101,7 +70,7 @@ VmxpCheckSupport(
     //
     // Checking the CPUID on each logical processor to ensure VMX is supported and that the overall feature set of each logical processor is compatible.
     //
-    __cpuid( Registers, 1 );
+    __cpuid( Registers, CPUID_FEATURE_INFORMATION );
 
     //
     // Check ECX[5] = 1
@@ -218,25 +187,6 @@ VmxVerifySupport(
     return SmpRunPerProcessor( VmxpVerifySupportPerCpu, &VerifyInfo );
 }
 
-BOOLEAN
-VmxIsIntel(
-    VOID
-)
-{
-    int Registers[4] = { 0 };
-
-    __cpuid(Registers, 0);
-
-    //
-    // GenuineIntel
-    //
-    return Registers[2] == 'letn' && 
-           Registers[3] == 'Ieni' &&
-           Registers[1] == 'uneG';
-}
-
-
-
 UINT64
 VmxCapability(
     _In_ UINT32 Capability
@@ -325,7 +275,7 @@ VmxAllowed(
 
 
 UINT16
-VmxRead16(
+VmRead16(
     _In_ UINT32 field
     )
 {
@@ -344,7 +294,7 @@ VmxRead16(
 }
 
 UINT32
-VmxRead32(
+VmRead32(
     _In_ UINT32 field
 )
 {
@@ -363,7 +313,7 @@ VmxRead32(
 }
 
 UINT64
-VmxRead64(
+VmRead64(
     _In_ UINT32 field
     )
 {
@@ -403,7 +353,7 @@ VmxRead64(
 }
 
 UINTN
-VmxReadPlatform(
+VmReadN(
     _In_ UINT32 field
     )
 {
@@ -422,7 +372,7 @@ VmxReadPlatform(
 }
 
 BOOLEAN
-VmxWrite16(
+VmWrite16(
     _In_ UINT32 field,
     _In_ UINT16 data
     )
@@ -515,7 +465,7 @@ VmxpNormalizeControls(
 }
 
 BOOLEAN
-VmxWrite32(
+VmWrite32(
     _In_ UINT32 field,
     _In_ UINT32 data
     )
@@ -532,7 +482,7 @@ VmxWrite32(
 }
 
 BOOLEAN
-VmxWrite64(
+VmWrite64(
     _In_ UINT32 field,
     _In_ UINT64 data
     )
@@ -561,7 +511,7 @@ VmxWrite64(
 }
 
 BOOLEAN
-VmxWritePlatform(
+VmWriteN(
     _In_ UINT32   field,
     _In_ UINTN data
 )
@@ -612,7 +562,7 @@ IsErrorCodeRequired(
 }
 
 VOID
-InjectUndefinedOpcodeException(
+InjectUdException(
     VOID
     )
 {
@@ -624,6 +574,20 @@ InjectUndefinedOpcodeException(
     InterruptInfo.Bits.Valid = 1;
 
     InjectHardwareException( InterruptInfo );
+}
+
+VOID
+InjectGpException(
+    _In_ UINT32 ErrorCode
+    )
+{
+    VMX_VECTOR_EXCEPTION Vector = VECTOR_GENERAL_PROTECTION_EXCEPTION;
+
+    VmWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, ErrorCode );
+    VmWrite32( VM_ENTRY_INTERRUPTION_INFORMATION,
+               VMX_INT_INFO_VALID | (ExceptionType[ Vector ] << 8) | Vector );
+
+    VmWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
 }
 
 VOID
@@ -640,15 +604,14 @@ InjectHardwareException(
         NT_ASSERT( ExceptionType[Vector] & EXCEPTION_ERROR_CODE_VALID );
         NT_ASSERT( IsErrorCodeRequired( Vector ) );
 
-        VmxWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
-                        VmxRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+        VmWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
+                   VmRead32( EXIT_INTERRUPTION_ERRORCODE ) );
     }
 
-    VmxWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
-                    VMX_INT_INFO_VALID
-                    | (ExceptionType[ Vector ] << 8) | Vector );
+    VmWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, 
+               VMX_INT_INFO_VALID | (ExceptionType[ Vector ] << 8) | Vector );
 
-    VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
+    VmWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
 }
 
 VOID
@@ -665,20 +628,52 @@ InjectInterruptOrException(
     InterruptControl.Bits.Valid = InterruptInfo.Bits.Valid;
 
     if (InterruptControl.Bits.DeliverErrorCode) {
-        VmxWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
-                    VmxRead32( EXIT_INTERRUPTION_ERRORCODE ) );
+        VmWrite32( VM_ENTRY_EXCEPTION_ERRORCODE, 
+                    VmRead32( EXIT_INTERRUPTION_ERRORCODE ) );
     }
      
-    VmxWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, InterruptControl.AsUint32 );
+    VmWrite32( VM_ENTRY_INTERRUPTION_INFORMATION, InterruptControl.AsUint32 );
 
     if ((InterruptType == INTERRUPT_SOFTWARE_INTERRUPT) ||
         (InterruptType == INTERRUPT_PRIVILIGED_EXCEPTION) ||
         (InterruptType == INTERRUPT_SOFTWARE_EXCEPTION)) {
 
-        VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH,
-                    VmxRead32( EXIT_INSTRUCTION_LENGTH ) );
+        VmWrite32( VM_ENTRY_INSTRUCTION_LENGTH,
+                    VmRead32( EXIT_INSTRUCTION_LENGTH ) );
     }
     else {
-        VmxWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
+        VmWrite32( VM_ENTRY_INSTRUCTION_LENGTH, 0 );
     }
+}
+
+BOOLEAN
+IsXStateSupported(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
+
+    if ((CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_XSAVE) &&
+        (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_OSXSAVE)) {
+       return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOLEAN
+IsXStateEnabled(
+    VOID
+    )
+{
+    //
+    //  Return if OS supports the use of XSETBV, XSAVE and XRSTOR instructions.
+    //
+    if (VmReadN( GUEST_CR4 ) & CR4_OSXSAVE) {
+        return TRUE;
+    }
+
+    return FALSE;
 }

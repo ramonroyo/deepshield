@@ -3,8 +3,8 @@
 
 #include <ntdef.h>
 
-typedef UINT_PTR UINTN;
-typedef INT_PTR INTN;
+typedef UINT_PTR UINTN, *PUINTN;
+typedef INT_PTR INTN, *PINTN;
 
 #ifdef WDK7
 #define _In_

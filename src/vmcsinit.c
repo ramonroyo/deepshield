@@ -76,15 +76,15 @@ VmcsInitializeContext(
     //  1 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX, then that bit is also 1 in 
     //  IA32_MSR_CRX_ALLOWED_ONE_INDEX; if bit X is 0 in IA32_MSR_CRX_ALLOWED_ONE_INDEX,
     //  then that bit is also 0 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX. Thus, each
-    //  bit in CRX is either fixed to 0 (with value 0 in both MSRs), fixed to 1
+    //  bit in CRX is either fixed to 0 (with Value 0 in both MSRs), fixed to 1
     //  (1 in both MSRs), or flexible (0 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX and
     //  1 in IA32_MSR_CRX_ALLOWED_ONE_INDEX).
     //
 
-    Capabilities.cr0Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
-    Capabilities.cr0Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
-    Capabilities.cr4Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
-    Capabilities.cr4Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
+    Capabilities.Cr0Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
+    Capabilities.Cr0Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
+    Capabilities.Cr4Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
+    Capabilities.Cr4Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
 
 
     Constraints.PinBasedControlsMaybe1.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
@@ -98,10 +98,10 @@ VmcsInitializeContext(
     Constraints.EntryControlsMaybe1.AsUint32 = Capabilities.EntryControls.Bits.Maybe1.AsUint32;
     Constraints.EntryControlsMaybe0.AsUint32 = Capabilities.EntryControls.Bits.Maybe0.AsUint32;
 
-    Constraints.cr0Maybe1.AsUintN = Capabilities.cr0Maybe1.AsUintN;
-    Constraints.cr0Maybe0.AsUintN = Capabilities.cr0Maybe0.AsUintN;
-    Constraints.cr4Maybe1.AsUintN = Capabilities.cr4Maybe1.AsUintN;
-    Constraints.cr4Maybe0.AsUintN = Capabilities.cr4Maybe0.AsUintN;
+    Constraints.Cr0Maybe1.AsUintN = Capabilities.Cr0Maybe1.AsUintN;
+    Constraints.Cr0Maybe0.AsUintN = Capabilities.Cr0Maybe0.AsUintN;
+    Constraints.Cr4Maybe1.AsUintN = Capabilities.Cr4Maybe1.AsUintN;
+    Constraints.Cr4Maybe0.AsUintN = Capabilities.Cr4Maybe0.AsUintN;
 
     Constraints.VmcsRevision = Capabilities.Basic.Bits.RevisionId;
     Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.NumberOfCr3TargetValue;
@@ -140,20 +140,20 @@ VmcsInitializeContext(
     Fixed.EntryControlFixed1.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 & Constraints.EntryControlsMaybe1.AsUint32;
     Fixed.EntryControlFixed0.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 | Constraints.EntryControlsMaybe1.AsUint32;
 
-    Fixed.cr0Fixed1.AsUintN = Constraints.cr0Maybe0.AsUintN & Constraints.cr0Maybe1.AsUintN;
+    Fixed.Cr0Fixed1.AsUintN = Constraints.Cr0Maybe0.AsUintN & Constraints.Cr0Maybe1.AsUintN;
 
     if (Constraints.UnrestrictedGuestSupported ) {
         //
-        //  If unrestricted guest is supported then cr0Fixed1 value should not
+        //  If unrestricted guest is supported then Cr0Fixed1 Value should not
         //  have PG and PE.
         //
 
-        Fixed.cr0Fixed1.AsUintN &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
+        Fixed.Cr0Fixed1.AsUintN &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
     }
-    Fixed.cr0Fixed0.AsUintN = Constraints.cr0Maybe0.AsUintN | Constraints.cr0Maybe1.AsUintN;
+    Fixed.Cr0Fixed0.AsUintN = Constraints.Cr0Maybe0.AsUintN | Constraints.Cr0Maybe1.AsUintN;
 
-    Fixed.cr4Fixed1.AsUintN = Constraints.cr4Maybe0.AsUintN & Constraints.cr4Maybe1.AsUintN;
-    Fixed.cr4Fixed0.AsUintN = Constraints.cr4Maybe0.AsUintN | Constraints.cr4Maybe1.AsUintN;
+    Fixed.Cr4Fixed1.AsUintN = Constraints.Cr4Maybe0.AsUintN & Constraints.Cr4Maybe1.AsUintN;
+    Fixed.Cr4Fixed0.AsUintN = Constraints.Cr4Maybe0.AsUintN | Constraints.Cr4Maybe1.AsUintN;
 }
 
 PVOID
@@ -173,4 +173,88 @@ VmcsAllocateRegion(
     }
 
     return VmcsRegion;
+}
+
+UINT32
+VmcsMakeCompliantPinBasedCtrl(
+    _In_ UINT32 Value
+    )
+{
+	Value &= Fixed.PinControlFixed0.AsUint32;
+	Value |= Fixed.PinControlFixed1.AsUint32;
+	return Value;
+}
+
+UINT32
+VmcsMakeCompliantProcessorCtrl(
+    _In_ UINT32 Value
+    )
+{
+	Value &= Fixed.ProcessorControlsFixed0.AsUint32;
+	Value |= Fixed.ProcessorControlsFixed1.AsUint32;
+	return Value;
+}
+
+UINT32
+VmcsMakeCompliantProcessorCtrl2(
+    _In_ UINT32 Value
+    )
+{
+	Value &= Fixed.ProcessorControls2Fixed0.AsUint32;
+	Value |= Fixed.ProcessorControls2Fixed1.AsUint32;
+	return Value;
+}
+
+UINT32
+VmcsMakeCompliantExitCtrl(
+    _In_ UINT32 Value
+    )
+{
+	Value &= Fixed.ExitControlFixed0.AsUint32;
+	Value |= Fixed.ExitControlFixed1.AsUint32;
+	return Value;
+}
+
+UINT32
+VmcsMakeCompliantEntryCtrl(
+    _In_ UINT32 Value
+    )
+{
+	Value &= Fixed.EntryControlFixed0.AsUint32;
+	Value |= Fixed.EntryControlFixed1.AsUint32;
+	return Value;
+}
+
+UINTN 
+VmcsMakeCompliantCr0(
+    _In_ UINTN Value
+    )
+{
+    Value &= Fixed.Cr0Fixed0.AsUintN;
+    Value |= Fixed.Cr0Fixed1.AsUintN;
+    return Value;
+}
+
+UINTN 
+VmcsMakeCompliantCr4(
+    _In_ UINTN Value
+    )
+{
+    Value &= Fixed.Cr4Fixed0.AsUintN;
+    Value |= Fixed.Cr4Fixed1.AsUintN;
+    return Value;
+}
+
+UINTN 
+VmcsGetGuestVisibleCr4(
+    _In_ UINTN Cr4Value
+    )
+{
+    UINTN Mask;
+    UINTN Shadow;
+
+    Mask = VmReadN( CR4_GUEST_HOST_MASK );
+    Shadow = VmReadN( CR4_READ_SHADOW );
+
+    return (Cr4Value & ~Mask) | (Shadow & Mask);
 }

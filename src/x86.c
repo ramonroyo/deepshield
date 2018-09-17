@@ -1,3 +1,4 @@
+#include <ntifs.h>
 #include "wdk7.h"
 #include "x86.h"
 
@@ -241,7 +242,7 @@ VOID
 writecr(
     _In_ UINT32   cr,
     _In_ UINTN value
-)
+    )
 {
     switch (cr)
     {
@@ -259,7 +260,7 @@ writecr(
 UINTN
 readdr(
     _In_ UINT32 dr
-)
+    )
 {
     UINTN value;
 
@@ -278,12 +279,11 @@ readdr(
     return value;
 }
 
-
 VOID
 writedr(
     _In_ UINT32   dr,
     _In_ UINTN value
-)
+    )
 {
     switch (dr)
     {

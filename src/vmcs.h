@@ -4,12 +4,12 @@
 #include "x86.h"
 
 VOID
-VmcSetGuestFields(
+VmcsSetGuestFields(
     VOID
 );
 
 VOID
-VmcSetHostField(
+VmcsSetHostField(
     _In_ UINTN SystemCr3
 );
 

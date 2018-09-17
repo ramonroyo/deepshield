@@ -4,7 +4,7 @@
 #include "vmx.h"
 #include "hvm.h"
 
-PUINT_PTR
+PUINTN
 LookupGp(
     _In_ PGP_REGISTERS Registers,
     _In_ UINT32     gpr
@@ -15,7 +15,7 @@ InstrInvdEmulate(
     _In_ PGP_REGISTERS Registers
 );
 
-VOID
+BOOLEAN
 InstrXsetbvEmulate(
     _In_ PGP_REGISTERS Registers
 );

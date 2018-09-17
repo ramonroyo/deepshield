@@ -66,10 +66,10 @@ typedef struct _VMX_CAPABILITIES {
     VMX_EXIT_CTLS_MAYBE ExitControl;
     VMX_ENTRY_CTLS_MAYBE EntryControls;
     VMX_MISC_DATA MiscellaneousData;
-    VMX_MSR_CR0 cr0Maybe0;
-    VMX_MSR_CR0 cr0Maybe1;
-    VMX_MSR_CR4 cr4Maybe0;
-    VMX_MSR_CR4 cr4Maybe1;
+    VMX_MSR_CR0 Cr0Maybe0;
+    VMX_MSR_CR0 Cr0Maybe1;
+    VMX_MSR_CR4 Cr4Maybe0;
+    VMX_MSR_CR4 Cr4Maybe1;
     VMX_EPT_VPID_CAP EptVpidCapabilities;
     VMX_VMFUNC_CTL VmFuncControls;
 } VMX_CAPABILITIES;
@@ -89,10 +89,10 @@ typedef struct _VMX_CONSTRAINS {
     VMX_EXIT_CTLS ExitControlMaybe0;
     VMX_ENTRY_CTLS EntryControlsMaybe1;
     VMX_ENTRY_CTLS EntryControlsMaybe0;
-    VMX_MSR_CR0 cr0Maybe1;
-    VMX_MSR_CR0 cr0Maybe0;
-    VMX_MSR_CR4 cr4Maybe1;
-    VMX_MSR_CR4 cr4Maybe0;
+    VMX_MSR_CR0 Cr0Maybe1;
+    VMX_MSR_CR0 Cr0Maybe0;
+    VMX_MSR_CR4 Cr4Maybe1;
+    VMX_MSR_CR4 Cr4Maybe0;
     UINT32 NumberOfCr3TargetValues;
     UINT32 MaxMsrListsSizeInBytes;
     UINT32 VmxTimerLength;
@@ -126,10 +126,10 @@ typedef struct VMX_VMCS_FIXED {
     VMX_EXIT_CTLS ExitControlFixed0;
     VMX_ENTRY_CTLS EntryControlFixed1;
     VMX_ENTRY_CTLS EntryControlFixed0;
-    VMX_MSR_CR0 cr0Fixed1;
-    VMX_MSR_CR0 cr0Fixed0;
-    VMX_MSR_CR4 cr4Fixed1;
-    VMX_MSR_CR4 cr4Fixed0;
+    VMX_MSR_CR0 Cr0Fixed1;
+    VMX_MSR_CR0 Cr0Fixed0;
+    VMX_MSR_CR4 Cr4Fixed1;
+    VMX_MSR_CR4 Cr4Fixed0;
 } VMX_VMCS_FIXED;
 
 extern VMX_CAPABILITIES Capabilities;
@@ -144,6 +144,21 @@ VmcsInitializeContext(
 PVOID
 VmcsAllocateRegion(
     _In_ UINT32 RegionSize
+    );
+
+UINTN
+VmcsMakeCompliantCr0(
+    _In_ UINTN Value
+    );
+
+UINTN
+VmcsMakeCompliantCr4(
+    _In_ UINTN Value
+    );
+
+UINTN
+VmcsGetGuestVisibleCr4(
+    _In_ UINTN Cr4Value
     );
 
 #endif

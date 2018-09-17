@@ -95,12 +95,12 @@ VmxpEnable(
     //
 
     Cr4.AsUintN = __readcr4();
-    Cr4.Bits.vmxe = 1;
+    Cr4.Bits.Vmxe = 1;
     __writecr4( Cr4.AsUintN );
 
     if (AsmVmxOn( (PUINT64)&VmxOn) != 0 ) {
 
-        Cr4.Bits.vmxe = 0;
+        Cr4.Bits.Vmxe = 0;
         __writecr4( Cr4.AsUintN );
 
         return STATUS_UNSUCCESSFUL;
@@ -123,7 +123,7 @@ VmxpDisable(
     AsmVmxOff();
 
     cr4.AsUintN = __readcr4();
-    cr4.Bits.vmxe = 0;
+    cr4.Bits.Vmxe = 0;
     __writecr4( cr4.AsUintN );
 }
 
@@ -185,8 +185,8 @@ HvmpEnterRoot(
 
     Vcpu->SetupVmcs( Vcpu );
 
-    VmxWritePlatform( HOST_RSP, Vcpu->Rsp );
-    VmxWritePlatform( HOST_RIP, (UINTN)AsmHvmpExitHandler );
+    VmWriteN( HOST_RSP, Vcpu->Rsp );
+    VmWriteN( HOST_RIP, (UINTN)AsmHvmpExitHandler );
     VmcsConfigureCommonEntry( Code, Stack, RegFlags );
    
     //
@@ -214,7 +214,7 @@ HvmpFailure(
     UNREFERENCED_PARAMETER(Vcpu);
 
     if (valid) {
-        Status = VMX_STATUS(VmxRead32( VM_INSTRUCTION_ERROR ));
+        Status = VMX_STATUS(VmRead32( VM_INSTRUCTION_ERROR ));
     }
     else {
         Status = STATUS_UNSUCCESSFUL;
@@ -277,7 +277,7 @@ HvmpRestoreHostState(
     //
     //  Disable TSD monitoring.
     //
-    Cr4.AsUintN = VmxReadPlatform( GUEST_CR4 );
+    Cr4.AsUintN = VmReadN( GUEST_CR4 );
     Cr4.Bits.Tsd = 0;
     __writecr4( Cr4.AsUintN );
 
@@ -285,7 +285,7 @@ HvmpRestoreHostState(
     //  To allow the stop routine being invoked in any process context the CR3
     //  should be set to the guest CR3.
     //
-    __writecr3( VmxReadPlatform( GUEST_CR3 ) );
+    __writecr3( VmReadN( GUEST_CR3 ) );
 }
 
 VOID
@@ -307,7 +307,7 @@ HvmpStop(
     PIRET_FRAME iretx86;
 
     iretx86 = (PIRET_FRAME) 
-        ((PUINT_PTR) VmxReadPlatform( GUEST_RSP )
+        ((PUINTN) VmReadN( GUEST_RSP )
                      - (sizeof( IRET_FRAME ) / sizeof( UINTN )));
 
     iretx86->rip = Registers->Rip;

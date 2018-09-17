@@ -10,11 +10,6 @@
 #include <ntifs.h>
 
 //
-//  VMX capabilities are declared in bit 5 of ECX retured from CPUID
-//
-#define IA32_CPUID_ECX_VMX                  0x20
-
-//
 // VMX NTSTATUS Errors
 //
 #define VMX_STATUS_MASK  0xEB1E0000
@@ -417,7 +412,7 @@ typedef enum _VMX_VECTOR_EXCEPTION
     VECTOR_VIRTUALIZATION_EXCEPTION        = 20
 } VMX_VECTOR_EXCEPTION;
 
-#define INTR_INFO_VECTOR_MASK           0x4F
+#define INTR_INFO_VECTOR_MASK           0x1F
 
 typedef union {
     struct {
@@ -1413,14 +1408,6 @@ VmxVerifySupport(
 );
 
 /**
-* Indicates if current processor is an Intel.
-*/
-BOOLEAN
-VmxIsIntel(
-    VOID
-);
-
-/**
 * Reads one of config MSR's (IA32_VMX_BASIC, IA32_VMX_MISC or IA32_VMX_EPT_VPID_CAP)
 * in a safe way taking into account dependencies as some MSR may not exists.
 * (eg: to be able to read IA32_VMX_EPT_VPID_CAP, bit 31 of MSR IA32_VMX_PROCBASED_CTLS must be 1
@@ -1445,19 +1432,19 @@ VmxAllowed(
 * Reads a field from the VMCS. All VMCS fields index are 32 bits. Data might be 16, 32 or 64 bit wide.
 */
 UINT16
-VmxRead16(
+VmRead16(
     _In_ UINT32 field
 );
 UINT32
-VmxRead32(
+VmRead32(
     _In_ UINT32 field
 );
 UINT64
-VmxRead64(
+VmRead64(
     _In_ UINT32 field
 );
 UINTN
-VmxReadPlatform(
+VmReadN(
     _In_ UINT32 field
 );
 
@@ -1466,22 +1453,22 @@ VmxReadPlatform(
 * This also holds true in 64 although in 64 the write could be done in one step.
 */
 BOOLEAN
-VmxWrite16(
+VmWrite16(
     _In_ UINT32 field,
     _In_ UINT16 data
 );
 BOOLEAN
-VmxWrite32(
+VmWrite32(
     _In_ UINT32 field,
     _In_ UINT32 data
 );
 BOOLEAN
-VmxWrite64(
+VmWrite64(
     _In_ UINT32 field,
     _In_ UINT64 data
 );
 BOOLEAN
-VmxWritePlatform(
+VmWriteN(
     _In_ UINT32   field,
     _In_ UINTN data
 );
@@ -1531,7 +1518,7 @@ UINT8 __stdcall AsmVmxOn     (PUINT64 vmxOnAddress);
 UINT8 __stdcall AsmVmxClear(PUINT64 vmcsAddress);
 UINT8 __stdcall AsmVmxPtrLoad(PUINT64 vmcsAddress);
 UINT8 __stdcall AsmVmxPtrStore(PUINT64 vmcsAddress);
-UINT8 __stdcall AsmVmxRead (UINT32 field, PUINT_PTR data);
+UINT8 __stdcall AsmVmxRead (UINT32 field, PUINTN data);
 UINT8 __stdcall AsmVmxWrite(UINT32 field, UINTN  data);
 UINT8 __stdcall VmxInvEpt (UINTN type, PVOID eptPointer);
 UINT8 __stdcall AsmVmxInvVpid(IVVPID_TYPE type, PVPID_CTX vpidContext );
@@ -1547,13 +1534,16 @@ UINT8 __stdcall AsmVmxInvVpid(IVVPID_TYPE type, PVPID_CTX vpidContext );
 #define AsmVmxWrite __vmx_vmwrite
 UINT8 AsmVmxInvVpid(_In_ IVVPID_TYPE type, _In_ PVPID_CTX vpidContext);
 UINT8 VmxInvEpt(_In_ UINTN type, _In_ PVOID eptPointer);
-
-
 #endif
 
 VOID
-InjectUndefinedOpcodeException(
+InjectUdException(
     VOID
+    );
+
+VOID
+InjectGpException(
+    _In_ UINT32 ErrorCode
     );
 
 VOID
@@ -1564,6 +1554,16 @@ InjectHardwareException(
 VOID
 InjectInterruptOrException(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
+    );
+
+BOOLEAN
+IsXStateSupported(
+    VOID
+    );
+
+BOOLEAN
+IsXStateEnabled(
+    VOID
     );
 
 #endif

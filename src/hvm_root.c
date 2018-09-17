@@ -91,8 +91,9 @@ HvmVcpuCommonExitsHandler(
 #ifdef _WIN64
         case EXIT_REASON_XSETBV:
         {
-            InstrXsetbvEmulate( Registers );
-            InstrRipAdvance( Registers );
+            if (InstrXsetbvEmulate( Registers )) {
+                InstrRipAdvance( Registers );
+            }
             return TRUE;
         }
 #endif
@@ -121,12 +122,12 @@ HvmVcpuCommonExitsHandler(
         case EXIT_REASON_INVEPT:
         case EXIT_REASON_INVVPID:
         {
-            InjectUndefinedOpcodeException();
+            InjectUdException();
 
             Registers->Rflags.Bits.rf = 1;
-            VmxWritePlatform( GUEST_RFLAGS, Registers->Rflags.AsUintN);
+            VmWriteN( GUEST_RFLAGS, Registers->Rflags.AsUintN );
 
-            InstrRipAdvance( Registers );
+            //InstrRipAdvance( Registers );
             return TRUE;
         }
 

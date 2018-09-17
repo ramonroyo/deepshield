@@ -465,14 +465,6 @@ DsCloneUnicodeString(
     return Status;
 }
 
-typedef struct _CPU_INFO {
-    INT32 Data[ 4 ];
-} CPU_INFO;
-
-#define CPUID_VALUE_EAX(c) ((UINT32)((c).Data[0]))
-#define CPUID_VALUE_EBX(c) ((UINT32)((c).Data[1]))
-#define CPUID_VALUE_ECX(c) ((UINT32)((c).Data[2]))
-#define CPUID_VALUE_EDX(c) ((UINT32)((c).Data[3]))
 
 BOOLEAN
 DsCheckCpuFamilyIntel(
@@ -484,7 +476,7 @@ DsCheckCpuFamilyIntel(
     //
     //  Just run for GenuineIntel.
     //
-    __cpuid( &CpuInfo, 0 );
+    __cpuid( &CpuInfo, CPUID_BASIC_INFORMATION );
 
     return CPUID_VALUE_ECX( CpuInfo ) == 'letn' &&
            CPUID_VALUE_EDX( CpuInfo ) == 'Ieni' &&
@@ -501,7 +493,7 @@ DsCheckCpuVmxCapable(
     //
     //  Check whether hypervisor support is present.
     //
-    __cpuid( &CpuInfo, 1 );
+    __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
     if (0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX )) {
        return FALSE;

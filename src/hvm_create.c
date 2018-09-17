@@ -118,7 +118,7 @@ HvmInitializeStack(
         //
         //  Store the VCPU at the start of the stack frame.
         //
-        *(PUINT_PTR)(&StackFrame[StackSize - sizeof(UINTN)]) = (UINTN)&Vcpu;
+        *(PUINTN)(&StackFrame[StackSize - sizeof(UINTN)]) = (UINTN)&Vcpu;
 
         Vcpu->Stack = StackFrame;
         Status = STATUS_SUCCESS;
