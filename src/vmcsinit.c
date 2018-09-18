@@ -111,7 +111,7 @@ VmcsInitializeContext(
     Constraints.MsegRevisionId = Capabilities.MiscellaneousData.Bits.MsegRevisionId;
     Constraints.VmEntryInHaltStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportHlt;
     Constraints.VmEntryInShutdownStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportShutdown;
-    Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)Capabilities.MiscellaneousData. Bits.ActivityStateSupportWaitForSipi;
+    Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportWaitForSipi;
     Constraints.ProcessorBasedExecCtrl2Supported = (BOOLEAN)Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl;
     
     if (Constraints.ProcessorBasedExecCtrl2Supported) {

@@ -643,6 +643,8 @@ ArenaDone(
     _In_ PMEMORY_ARENA Arena
     );
 
+#define MAX_HOST_PHY_SIZE ((UINT64) 1 << 48)
+
 NTSTATUS
 ArenaInit(
     _In_ PMEMORY_ARENA Arena,
@@ -650,8 +652,8 @@ ArenaInit(
     )
 {
     NTSTATUS Status = STATUS_NO_MEMORY;
+    PHYSICAL_ADDRESS HighAddress;
     PHYSICAL_ADDRESS LowAddress = { 0i64 };
-    PHYSICAL_ADDRESS HighAddress = { 0i64 };
     PHYSICAL_ADDRESS SkipBytes = { 0i64 };
     ULONG RequestBytes;
     ULONG MappingPriority = HighPagePriority;
@@ -663,10 +665,12 @@ ArenaInit(
     RequestBytes = Arena->NumberOfPages * PAGE_SIZE;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
+
     if (RtlIsNtDdiVersionAvailable( NTDDI_WIN7 )) {
         Flags |= MM_ALLOCATE_FULLY_REQUIRED | MM_ALLOCATE_PREFER_CONTIGUOUS;
     }
 
+    HighAddress.QuadPart = MAX_HOST_PHY_SIZE;
     Arena->Mdl = MmAllocatePagesForMdlEx( LowAddress,
                                           HighAddress,
                                           SkipBytes,
@@ -678,14 +682,17 @@ ArenaInit(
         MappingPriority |= MdlMappingNoExecute;
     }
 #else
+
     //
     //  Limit HighAddress to 4GB as some CPU doesn't support the VMCS above it.
     //
+    HighAddress.HighPart = 0;
     HighAddress.LowPart = MAXULONG;
-
-    Arena->Mdl = MmAllocatePagesForMdl( LowAddress, HighAddress, SkipBytes, RequestBytes );
+    Arena->Mdl = MmAllocatePagesForMdl( LowAddress,
+                                        HighAddress,
+                                        SkipBytes,
+                                        RequestBytes );
 #endif
-
     if (!Arena->Mdl || (MmGetMdlByteCount( Arena->Mdl ) != RequestBytes)) {
         goto RoutineExit;
     }

@@ -83,26 +83,28 @@ HvmpSaveHostState(
     //HostState->efer;
 }
 
+VOID
+RestoreHostCr4Vmxe(
+    _In_ BOOLEAN Enable
+    )
+{
+    if (Enable) {
+        __writecr4( __readcr4() | CR4_VMXE );
+    }
+    else {
+        __writecr4( __readcr4() & (~CR4_VMXE) );
+    }
+}
+
 NTSTATUS
 VmxpEnable(
     PHYSICAL_ADDRESS VmxOn
     )
 {
-    CR4_REGISTER Cr4;
-
-    //
-    //  Activate VMX enable bit.
-    //
-
-    Cr4.AsUintN = __readcr4();
-    Cr4.Bits.Vmxe = 1;
-    __writecr4( Cr4.AsUintN );
-
+    RestoreHostCr4Vmxe( TRUE );
     if (AsmVmxOn( (PUINT64)&VmxOn) != 0 ) {
 
-        Cr4.Bits.Vmxe = 0;
-        __writecr4( Cr4.AsUintN );
-
+        RestoreHostCr4Vmxe( FALSE );
         return STATUS_UNSUCCESSFUL;
     }
 
@@ -114,17 +116,13 @@ VmxpDisable(
     _In_ PHYSICAL_ADDRESS Vmcs
     )
 {
-    CR4_REGISTER cr4;
     BOOLEAN Result;
 
     Result = (AsmVmxClear((PUINT64)&Vmcs) == 0);
     NT_ASSERT( Result );
 
     AsmVmxOff();
-
-    cr4.AsUintN = __readcr4();
-    cr4.Bits.Vmxe = 0;
-    __writecr4( cr4.AsUintN );
+    RestoreHostCr4Vmxe( FALSE );
 }
 
 NTSTATUS __stdcall
@@ -141,9 +139,7 @@ HvmpStartVcpu(
     Vcpu = &hvm->VcpuArray[VcpuId];
 
     AsmDisableInterrupts();
-
     Status = AsmHvmLaunch( Vcpu );
-
     AsmEnableInterrupts();
 
     return Status;

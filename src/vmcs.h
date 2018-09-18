@@ -4,7 +4,7 @@
 #include "x86.h"
 
 VOID
-VmcsSetGuestFields(
+VmcsSetGuestField(
     VOID
 );
 

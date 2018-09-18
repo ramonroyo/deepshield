@@ -81,12 +81,9 @@ PTSC_ENTRY GetSiblingSlot(
         ClearSibling(SiblingOldest);
         return SiblingOldest;
     }
-
 }
 
-
 #define ADDRESS_CLEAR_LAST_BYTE(address) (address & 0xFFFFFFFFFFFFFF00)
-
 #define ADDRESSES_ARE_BYTE_SHORT(source, target) abs(source - target) < 0xFF
 
 //

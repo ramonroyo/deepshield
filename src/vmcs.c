@@ -7,7 +7,7 @@
 #define LOW32(v)  ((UINT32)(v))
 
 VOID
-VmcsSetGuestFields(
+VmcsSetGuestField(
     VOID
     )
 {
@@ -144,7 +144,8 @@ VmcsSetHostField(
     //VmWrite64(      HOST_IA32_EFER,                               X);
 }
 
-#define HMV_VPID    0x01B0
+#define VMX_XSS_EXIT_BITMAP 0
+#define HMV_VPID            0x01B0
 
 VOID
 VmcsSetControlField(
@@ -173,6 +174,7 @@ VmcsSetControlField(
         // Expose XSAVES only when XSAVE is supported.
         //
         procSecondaryControls.Bits.EnableXsavesXrstors = 1;
+        VmWrite64( XSS_EXITING_BITMAP, VMX_XSS_EXIT_BITMAP );
     }
 
     //

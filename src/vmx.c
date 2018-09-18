@@ -61,36 +61,47 @@ typedef struct _VMX_VERIFY_INFO
 } VMX_VERIFY_INFO, *PVMX_VERIFY_INFO;
 
 NTSTATUS
-VmxpCheckSupport(
+VmxpVerifyFeatureControl(
     VOID
     )
 {
-    int Registers[4] = { 0 };
+    CPU_INFO CpuInfo = { 0 };
+    UINT64 RequiredFeature = IA32_FC_LOCK | IA32_FC_ENABLE_VMXON_OUTSMX;
+    UINT64 FeatureControl;
 
     //
-    // Checking the CPUID on each logical processor to ensure VMX is supported and that the overall feature set of each logical processor is compatible.
+    //  Checking the CPUID on each logical processor to ensure VMX is
+    //  supported and that the overall feature set of each logical
+    //  processor is compatible.
     //
-    __cpuid( Registers, CPUID_FEATURE_INFORMATION );
+    __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
-    //
-    // Check ECX[5] = 1
-    //
-    if (!(Registers[2] & (1 << 5))) {
+    if ( 0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX) ) {
         return STATUS_VMX_NOT_SUPPORTED;
     }
 
-    //
-    // Check bit 2 and 0 of IA32_FEATURE_CONTROL are enabled
-    //
-    if ((__readmsr(IA32_FEATURE_CONTROL) & 5) != 5) {
-        return STATUS_VMX_BIOS_DISABLED;
+    FeatureControl = __readmsr( IA32_FEATURE_CONTROL );
+
+    if ((FeatureControl & IA32_FC_LOCK) == 0) {
+
+        //
+        //  HP & Mac workaround. When resuming from S3, some HP / Mac set the
+        //  IA32_FEATURE_CONTROL MSR to zero. Enable the bits so that we can
+        //  launch VMXON
+        //
+        __writemsr( IA32_FEATURE_CONTROL, FeatureControl | RequiredFeature );
+    } else {
+
+        if ((FeatureControl & IA32_FC_ENABLE_VMXON_OUTSMX) == 0) {
+            return STATUS_VMX_BIOS_DISABLED;
+        }
     }
 
     return STATUS_SUCCESS;
 }
 
 NTSTATUS
-VmxpCompareCapabilities(
+VmxpVerifyCapabilities(
     _In_ PVMX_VERIFY_INFO VerifyInfo
 )
 {
@@ -143,19 +154,19 @@ VmxpVerifySupportPerCpu(
     )
 {
     NTSTATUS Status;
-    PVMX_VERIFY_INFO VmxVerify;
+    PVMX_VERIFY_INFO VerifyInfo;
 
     UNREFERENCED_PARAMETER( VcpuId );
     
-    VmxVerify = (PVMX_VERIFY_INFO)Context;
+    VerifyInfo = (PVMX_VERIFY_INFO)Context;
 
-    Status = VmxpCheckSupport();
+    Status = VmxpVerifyFeatureControl();
     
     if (!NT_SUCCESS( Status )) {
         return Status;
     }
 
-    Status = VmxpCompareCapabilities( VmxVerify );
+    Status = VmxpVerifyCapabilities( VerifyInfo );
     
     if (!NT_SUCCESS( Status )) {
         return Status;

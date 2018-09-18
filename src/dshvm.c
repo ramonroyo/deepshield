@@ -95,7 +95,7 @@ DsHvmSetupVmcs(
     PHVM_CONTEXT HvmContext = (PHVM_CONTEXT)HvmGetHvmContext( Vcpu );
        
     VmcsSetHostField( HvmContext->SystemCr3 );
-    VmcsSetGuestFields();
+    VmcsSetGuestField();
     VmcsSetControlField();
 
     VmcsSetGuestPrivilegedTsd();

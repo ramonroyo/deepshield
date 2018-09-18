@@ -507,17 +507,17 @@ DsCheckVmxFirmwareState(
     VOID
     )
 {
-    UINT64 RequiredFeature = 
-        IA32_FEATURE_CONTROL_LOCK | IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX;
+    UINT64 RequiredFeature = IA32_FC_LOCK | IA32_FC_ENABLE_VMXON_OUTSMX;
 
     //
-    //  Strictly we need IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX. If the
-    //  IA32_FEATURE_CONTROL_LOCK bit isn't set, we're free to write to the MSR.
+    //  Strictly we need IA32_FC_ENABLE_VMXON_OUTSMX. If the
+    //  IA32_FC_LOCK bit isn't set, we're free to write to the MSR.
     //  System BIOS uses this bit to provide a setup option for BIOS to disable
     //  support for VMX.
     //
 
-    if ((__readmsr( IA32_FEATURE_CONTROL ) & RequiredFeature) != RequiredFeature) {
+    if ((__readmsr( IA32_FEATURE_CONTROL ) & RequiredFeature)
+                                          != RequiredFeature) {
         return FALSE;
     }
 

@@ -39,26 +39,26 @@ typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
 
 typedef struct _HOST_SAVED_STATE
 {
-    CR0_REGISTER              Cr0;
-    CR4_REGISTER              Cr4;
-    IA32_SEGMENT_SELECTOR          Cs;
-    IA32_SEGMENT_SELECTOR          Ss;
-    IA32_SEGMENT_SELECTOR          Ds;
-    IA32_SEGMENT_SELECTOR          Es;
-    IA32_SEGMENT_SELECTOR          Fs;
-    UINTN                  FsBase;
-    IA32_SEGMENT_SELECTOR          Gs;
-    UINTN                  GsBase;
-    IA32_SEGMENT_SELECTOR          Tr;
-    UINTN                  TrBase;
-    IA32_DESCRIPTOR           Gdt;
-    IA32_DESCRIPTOR           Idt;
-    UINT32                    SysenterCs;
-    UINTN                  SysenterEsp;
-    UINTN                  SysenterEip;
-    UINT64                    PerfGlobalCtrl;
-    UINT64                    Pat;
-    UINT64                    Efer;
+    CR0_REGISTER Cr0;
+    CR4_REGISTER Cr4;
+    IA32_SEGMENT_SELECTOR Cs;
+    IA32_SEGMENT_SELECTOR Ss;
+    IA32_SEGMENT_SELECTOR Ds;
+    IA32_SEGMENT_SELECTOR Es;
+    IA32_SEGMENT_SELECTOR Fs;
+    UINTN FsBase;
+    IA32_SEGMENT_SELECTOR Gs;
+    UINTN GsBase;
+    IA32_SEGMENT_SELECTOR Tr;
+    UINTN TrBase;
+    IA32_DESCRIPTOR Gdt;
+    IA32_DESCRIPTOR Idt;
+    UINT32 SysenterCs;
+    UINTN SysenterEsp;
+    UINTN SysenterEip;
+    UINT64 PerfGlobalCtrl;
+    UINT64 Pat;
+    UINT64 Efer;
 } HOST_SAVED_STATE, *PHOST_SAVED_STATE;
 
 typedef struct _EXIT_INFO

@@ -343,8 +343,8 @@
 
 // FEATURE CONTROL MSR
 #define IA32_FEATURE_CONTROL                            0x3a
-#define IA32_FEATURE_CONTROL_LOCK                     0x0001
-#define IA32_FEATURE_CONTROL_ENABLE_VMXON_OUTSIDE_SMX 0x0004
+#define IA32_FC_LOCK                     0x0001
+#define IA32_FC_ENABLE_VMXON_OUTSMX 0x0004
 
 #define IA32_VMX_BASIC         0x480
 #define IA32_VMX_CTRL_PIN      0x481
@@ -689,10 +689,10 @@ typedef union _VMX_ENTRY_CTLS
         UINT32 DeactivateDualMonitor : 1;
         UINT32 loadSysEnterMsrs : 1;
         UINT32 LoadIa32PerfGlobalControl  : 1;
-        UINT32 LoadIa32Pat                : 1;
-        UINT32 LoadIa32Efer               : 1;
-        UINT32 LoadIa32Bndcgfs            : 1;
-        UINT32 ConcealVmEntriesFromPT     : 1;
+        UINT32 LoadIa32Pat             : 1;
+        UINT32 LoadIa32Efer            : 1;
+        UINT32 LoadIa32Bndcgfs         : 1;
+        UINT32 ConcealVmEntriesFromPT  : 1;
         UINT32 Rsvd18To31 : 14;
     } Bits;
 
