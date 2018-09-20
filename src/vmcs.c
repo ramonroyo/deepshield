@@ -112,10 +112,10 @@ VmcsSetGuestField(
 
 VOID
 VmcsSetHostField(
-    _In_ UINTN SystemCr3
+    _In_ UINTN HostCr3
     )
 {
-    VmWriteN( HOST_CR3, SystemCr3 );
+    VmWriteN( HOST_CR3, HostCr3 );
     VmWriteN( HOST_CR0, __readcr0() );
     VmWriteN( HOST_CR4, __readcr4() );
     

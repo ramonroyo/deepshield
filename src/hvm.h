@@ -67,7 +67,7 @@ typedef struct _EXIT_INFO
     UINT32 exitReason;
     UINTN exitQualification;
     UINTN guestLinearAddress;
-    UINT64 guestPhyscalAddress;
+    UINT64 guestPhysicalAddress;
     UINT32 exitInterruptionInformation;
     UINT32 exitInterruptionErrorCode;
     UINT32 idtVectoringInformation;
