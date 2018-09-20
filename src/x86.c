@@ -107,26 +107,22 @@ BaseFromSelector(
 
     Segment.AsUint16 = Selector;
     NT_ASSERT( Segment.Bits.Ti == 0 );
+
     Descriptor = (PIA32_SEGMENT_DESCRIPTOR) 
                         ((PUINT64)GetGdtrBase() + Segment.Bits.Index);
-
-    //
-    //  Base[24:31] = Descriptor[56:63]
-    //  Base[16:23] = Descriptor[31:40]
-    //  Base[0 :15] = Descriptor[16:31]
-    //
 
     Base = (UINT32) (Descriptor->BaseLow
                   | (Descriptor->Bytes.BaseMiddle << 16)
                   | (Descriptor->Bytes.BaseHigh << 24));
 
 #ifdef _WIN64
+
     //
-    //  TSS descriptor (TR selector) and LDR descriptor has 16 
-    //  bytes in 64-bit mode. Check System bit for TSS, LDT and
-    //  gate descriptors, otherwise this is a code, stack or
-    //  data segment descriptor.
+    //  TSS descriptor (TR selector) and LDR descriptor has 16 bytes in
+    //  64-bit mode. Check System bit for TSS, LDT and gate descriptors,
+    //  otherwise this is a code, stack or data segment descriptor.
     //
+
     Base |= (Descriptor->Bits.System == 0) ?
             ((UINT64)Descriptor->BaseUpper << 32) : 0;
 #endif
@@ -146,12 +142,6 @@ ArFromSelector(
     Segment.AsUint16 = Selector;
     Descriptor = (PIA32_SEGMENT_DESCRIPTOR)
                         ((PUINT64)GetGdtrBase() + Segment.Bits.Index);
-
-    //
-    //  AccessRights[0 : 7] = Descriptor[40:47]
-    //  AccessRights[8 :11] = 0
-    //  AccessRights[12:15] = Descriptor[52:55]
-    //
 
     AccessRights = (UINT32)((Descriptor->DataLow & 0x00F0FF0000000000) >> 40);
 
@@ -226,7 +216,6 @@ readcr(
     switch (cr)
     {
         case 0: value = __readcr0(); break;
-        case 2: value = __readcr2(); break;
         case 3: value = __readcr3(); break;
         case 4: value = __readcr4(); break;
 #ifdef _WIN64
@@ -247,9 +236,6 @@ writecr(
     switch (cr)
     {
         case 0: __writecr0(value); break;
-#ifdef _WIN64
-        case 2: __writecr2(value); break;
-#endif
         case 3: __writecr3(value); break;
         case 4: __writecr4(value); break;
 #ifdef _WIN64
