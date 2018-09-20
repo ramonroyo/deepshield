@@ -32,11 +32,11 @@ DsHvmSetupVmcs(
     )
 {
     PHYSICAL_ADDRESS MsrBitmap;
-    PHVM_CONTEXT HvmContext = (PHVM_CONTEXT) HvmGetVcpuContextByVcpu( Vcpu );
+    PHVM_CONTEXT HvmContext = (PHVM_CONTEXT) HvmGetHvmContextByVcpu( Vcpu );
 
-    VmcsSetGuestField();
     VmcsSetHostField( HvmContext->SystemCr3 );
     VmcsSetControlField();
+    VmcsSetGuestField();
 
     VmcsSetGuestPrivilegedTsd();
 

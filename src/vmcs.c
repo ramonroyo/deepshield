@@ -25,12 +25,12 @@ typedef struct _SEGMENT_CTX
     SEGMENT_SELECTOR Ldtr;
 } SEGMENT_CTX;
 
-#define VM_LOAD_SEGMENT(s, SEG_NAME)                   \
+#define VM_LOAD_SEGMENT(s, SEG_NAME)                    \
 {                                                       \
-    VmWrite16( SEG_NAME##_SELECTOR, (s).Selector);     \
+    VmWrite16( SEG_NAME##_SELECTOR, (s).Selector);      \
     VmWriteN( SEG_NAME##_BASE, (s).Base);               \
-    VmWrite32( SEG_NAME##_LIMIT, (s).Limit);           \
-    VmWrite32( SEG_NAME##_ACCESS_RIGHTS, (s).Attr);    \
+    VmWrite32( SEG_NAME##_LIMIT, (s).Limit);            \
+    VmWrite32( SEG_NAME##_ACCESS_RIGHTS, (s).Attr);     \
 }
 
 VOID
@@ -89,8 +89,8 @@ VmcsSetGuestField(
     VmWrite32( GUEST_IA32_SYSENTER_CS, (UINT32)__readmsr( IA32_SYSENTER_CS ) );
     VmWriteN( GUEST_IA32_SYSENTER_ESP, (UINTN)__readmsr( IA32_SYSENTER_ESP ) );
     VmWriteN( GUEST_IA32_SYSENTER_EIP, (UINTN)__readmsr( IA32_SYSENTER_EIP ) );
-    VmWrite64( GUEST_IA32_PERF_GLOBAL_CTRL, (UINTN)__readmsr( IA32_PERF_GLOBAL_CTRL ) );
-    VmWrite64( GUEST_IA32_EFER, (UINTN)__readmsr( IA32_MSR_EFER ) )
+    //VmWrite64( GUEST_IA32_PERF_GLOBAL_CTRL, (UINTN)__readmsr( IA32_PERF_GLOBAL_CTRL ) );
+    //VmWrite64( GUEST_IA32_EFER, (UINTN)__readmsr( IA32_MSR_EFER ) )
         ;
     VmWrite64( VMCS_LINK_POINTER, MAXULONG_PTR );
 
@@ -116,15 +116,16 @@ VmcsSetHostField(
     )
 {
     VmWriteN( HOST_CR3, HostCr3 );
-    VmWriteN( HOST_CR0, __readcr0() );
-    VmWriteN( HOST_CR4, __readcr4() );
-    
-    VmWrite16( HOST_CS_SELECTOR, AsmReadCs() );
-    VmWrite16( HOST_SS_SELECTOR, AsmReadSs() );
+    VmWriteN( HOST_CR0, __readcr0() ); //VmcsMakeCompliantCr0( __readcr0() ));
+    VmWriteN( HOST_CR4, __readcr4() ); //VmcsMakeCompliantCr4( __readcr4() ));
+
+    VmWrite16( HOST_CS_SELECTOR, AsmReadCs() & 0xFFF8 );
+    VmWrite16( HOST_SS_SELECTOR, AsmReadSs() & 0xFFF8 );
     VmWrite16( HOST_DS_SELECTOR, AsmReadDs() & 0xFFF8 );
     VmWrite16( HOST_ES_SELECTOR, AsmReadEs() & 0xFFF8 );
-    VmWrite16( HOST_FS_SELECTOR, AsmReadFs() );
-    VmWrite16( HOST_GS_SELECTOR, AsmReadGs() );
+    VmWrite16( HOST_FS_SELECTOR, AsmReadFs() & 0xFFF8 );
+    VmWrite16( HOST_GS_SELECTOR, AsmReadGs() & 0xFFF8 );
+    VmWrite16( HOST_TR_SELECTOR, AsmReadTr() & 0xFFF8 );
 
 #ifdef _WIN64
     VmWriteN( HOST_FS_BASE, __readmsr( IA32_FS_BASE ) );
@@ -134,7 +135,6 @@ VmcsSetHostField(
     VmWriteN( HOST_GS_BASE, BaseFromSelector( AsmReadGs() ) );
 #endif
 
-    VmWrite16( HOST_TR_SELECTOR, AsmReadTr() );
     VmWriteN( HOST_TR_BASE, BaseFromSelector( AsmReadTr() ) );
     VmWriteN( HOST_GDTR_BASE, GetGdtrBase() );
     VmWriteN( HOST_IDTR_BASE, GetIdtrBase() );
@@ -262,10 +262,16 @@ VmcsConfigureCommonEntry(
     )
 {
     //
-    //  TODO: why?
+    //  Reserved bits 63:22 (bits 31:22 on processors that do not support
+    //  Intel 64 architecture), bit 15, bit 5 and bit 3 must be 0 in the field,
+    //  and reserved bit 1 must be 1.
     //
-    Rflags.Bits.cf = 0;
-    Rflags.Bits.zf = 0;
+    //  The VM flag (bit 17) must be 0 either if the “IA - 32e mode guest”
+    //  entry control is 1 or if CR0.PE is 0.
+    //
+
+    Rflags.Bits.Cf = 0;
+    Rflags.Bits.Zf = 0;
 
     VmWriteN( GUEST_RSP, Rsp );
     VmWriteN( GUEST_RIP, Rip );
