@@ -51,7 +51,7 @@ extern MAILBOX gSecureMailbox;
 #define DSH_GFL_POWER_REGISTERED    0x00000010
 
 #define DSH_VMX_ABSENT(v)    \
-    ((BOOLEAN)(((PDS_VMX_STATE)(v))->Flags.AllFlags != 0))
+    ((BOOLEAN)(((PDS_VMX_FEATURE)(v))->Bits.AsUint32 != 0))
 
 //
 //  These macros are used to test, set and clear flags respectivly
@@ -95,23 +95,26 @@ PVOID
 
 extern PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
 
-typedef struct _DS_VMX_STATE {
+#define VM_STATE_SIZE    (288)
+typedef struct _DS_VMX_FEATURE {
 
-    ULONG Length;
+    UINT32 Length;
 
     union {
         struct {
-            ULONG NoIntelCpu : 1;
-            ULONG HvciEnabled : 1;
-            ULONG NoVtxExtension : 1;
-            ULONG FirmwareDisabled : 1;
-            ULONG Spare : 28;
+            UINT32 NoIntelCpu : 1;
+            UINT32 HvciEnabled : 1;
+            UINT32 NoVtxExtension : 1;
+            UINT32 FirmwareDisabled : 1;
+            UINT32 Rsvd4To31 : 28;
         };
 
-        ULONG AllFlags;
-    } Flags;
+        UINT32 AsUint32;
+    } Bits;
 
-} DS_VMX_STATE, *PDS_VMX_STATE;
+    UCHAR VmStateBlob[VM_STATE_SIZE];
+
+} DS_VMX_FEATURE, *PDS_VMX_FEATURE;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 

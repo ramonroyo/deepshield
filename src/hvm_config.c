@@ -2,59 +2,64 @@
 #include "hvm.h"
 #include "smp.h"
 
-extern PHVM gHvm;
-
 VOID
-HvmGlobalContextSet(
-    _In_ PVOID context
-)
+HvmSetHvmContext(
+    _Inout_ PHVM Hvm,
+    _In_ PVOID Context
+    )
 {
-    if(!gHvm)
-        return;
-
-    InterlockedExchangePointer(&gHvm->HvmContext, context);
+    NT_ASSERT( Hvm );
+    InterlockedExchangePointer( &Hvm->HvmContext, Context );
 }
 
 PVOID
-HvmGlobalContextGet(
-    VOID
-)
+HvmGetHvmContext(
+    _In_ PHVM Hvm
+    )
 {
-    if(!gHvm)
-        return 0;
+    NT_ASSERT( Hvm );
+    return Hvm->HvmContext;
+}
 
-    return gHvm->HvmContext;
+PVOID
+HvmGetHvmContextByVcpu(
+    _In_ PHVM_VCPU Vcpu
+    )
+{
+    NT_ASSERT( Vcpu );
+    return Vcpu->Hvm->HvmContext;
 }
 
 VOID
-HvmLocalContextSet(
+HvmSetVcpuContext(
+    _Inout_ PHVM Hvm,
     _In_ UINT32 VcpuId,
-    _In_ PVOID context
-   )
+    _In_ PVOID Context
+    )
 {
-    if (!gHvm) {
-        return;
-    }
+    NT_ASSERT( Hvm );
+    NT_ASSERT( VcpuId < SmpActiveProcessorCount() );
 
-    if (VcpuId >= SmpActiveProcessorCount()) {
-        return;
-    }
-
-    InterlockedExchangePointer(&gHvm->VcpuArray[VcpuId].LocalContext, context);
+    InterlockedExchangePointer( &Hvm->VcpuArray[VcpuId].Context, Context );
 }
 
 PVOID
-HvmLocalContextGet(
+HvmGetVcpuContext(
+    _In_ PHVM Hvm,
     _In_ UINT32 VcpuId
-   )
+    )
 {
-    if (!gHvm) {
-        return 0;
-    }
+    NT_ASSERT( Hvm );
+    NT_ASSERT( VcpuId < SmpActiveProcessorCount() );
 
-    if (VcpuId >= SmpActiveProcessorCount()) {
-        return 0;
-    }
+    return Hvm->VcpuArray[VcpuId].Context;
+}
 
-    return gHvm->VcpuArray[VcpuId].LocalContext;
+PVOID
+HvmGetVcpuContextByVcpu(
+    _In_ PHVM_VCPU Vcpu
+    )
+{
+    NT_ASSERT( Vcpu );
+    return Vcpu->Context;
 }

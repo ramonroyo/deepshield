@@ -186,7 +186,7 @@ HvmpEnterRoot(
     VmcsConfigureCommonEntry( Code, Stack, RegFlags );
    
     //
-    //  TODO: but it is not launched indeed!
+    //  TODO: but it is not Launched indeed!
     //
     AtomicWrite( &Vcpu->Launched, TRUE );
 
@@ -334,21 +334,20 @@ HvmpStop(
 
 NTSTATUS
 HvmStart(
-    VOID
+    _Inout_ PHVM Hvm
     )
 {
     NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    NT_ASSERT( Hvm );
 
-    NT_ASSERT(gHvm);
-
-    if (AtomicRead( &gHvm->launched ) == TRUE) {
+    if (AtomicRead( &Hvm->Launched ) == TRUE) {
         return Status;
     }
 
-    Status = SmpRunPerProcessor( HvmpStartVcpu, gHvm );
+    Status = SmpRunPerProcessor( HvmpStartVcpu, Hvm );
 
     if (NT_SUCCESS( Status )) {
-        AtomicWrite( &gHvm->launched, TRUE );
+        AtomicWrite( &Hvm->Launched, TRUE );
     }
 
     return Status;
@@ -356,25 +355,20 @@ HvmStart(
 
 NTSTATUS
 HvmStop(
-    VOID
+    _Inout_ PHVM Hvm
     )
 {
-    NTSTATUS Status;
+    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    NT_ASSERT( Hvm );
 
-    Status = STATUS_UNSUCCESSFUL;
-
-    if (gHvm == 0) {
+    if (AtomicRead( &Hvm->Launched ) == FALSE) {
         return Status;
     }
 
-    if (AtomicRead( &gHvm->launched ) == FALSE) {
-        return Status;
-    }
-
-    Status = SmpRunPerProcessor( HvmpStopVcpu, 0 );
+    Status = SmpRunPerProcessor( HvmpStopVcpu, NULL );
 
     if (NT_SUCCESS( Status )) {
-        AtomicWrite(&gHvm->launched, FALSE);
+        AtomicWrite( &Hvm->Launched, FALSE );
     }
 
     return Status;

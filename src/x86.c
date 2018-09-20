@@ -45,9 +45,6 @@ IdtInstallService(
     tmp.offsetUpper = (UINT32)(handler >> 32);
 #endif
 
-    //
-    // Copy
-    //
     memcpy(entry, &tmp, sizeof(IDT_ENTRY));
 }
 
@@ -60,7 +57,6 @@ IdtGetEntryFromServiceNumber(
     PIDT_ENTRY table;
 
     table = (PIDT_ENTRY)idt;
-    
     return table + service;
 }
 
@@ -110,13 +106,9 @@ BaseFromSelector(
     UINTN Base = 0;
 
     Segment.AsUint16 = Selector;
-
-    if (Selector == 0 || Segment.Bits.Ti != 0) {
-        return Base;
-    }
-
+    NT_ASSERT( Segment.Bits.Ti == 0 );
     Descriptor = (PIA32_SEGMENT_DESCRIPTOR) 
-                        ((UINTN)GetGdtrBase() + Segment.Bits.Index);
+                        ((PUINT64)GetGdtrBase() + Segment.Bits.Index);
 
     //
     //  Base[24:31] = Descriptor[56:63]
@@ -127,10 +119,18 @@ BaseFromSelector(
     Base = (UINT32) (Descriptor->BaseLow
                   | (Descriptor->Bytes.BaseMiddle << 16)
                   | (Descriptor->Bytes.BaseHigh << 24));
+
 #ifdef _WIN64
-    Base |= (Descriptor->Bits.S == 0) ?
+    //
+    //  TSS descriptor (TR selector) and LDR descriptor has 16 
+    //  bytes in 64-bit mode. Check System bit for TSS, LDT and
+    //  gate descriptors, otherwise this is a code, stack or
+    //  data segment descriptor.
+    //
+    Base |= (Descriptor->Bits.System == 0) ?
             ((UINT64)Descriptor->BaseUpper << 32) : 0;
 #endif
+
     return Base;
 }
 
@@ -144,13 +144,8 @@ ArFromSelector(
     UINT32 AccessRights;
 
     Segment.AsUint16 = Selector;
-
-    if (Selector == 0 || Segment.Bits.Ti != 0) {
-        return 0x10000;
-    }
-
     Descriptor = (PIA32_SEGMENT_DESCRIPTOR)
-                        ((UINTN)GetGdtrBase() + Segment.Bits.Index);
+                        ((PUINT64)GetGdtrBase() + Segment.Bits.Index);
 
     //
     //  AccessRights[0 : 7] = Descriptor[40:47]
@@ -159,6 +154,11 @@ ArFromSelector(
     //
 
     AccessRights = (UINT32)((Descriptor->DataLow & 0x00F0FF0000000000) >> 40);
+
+    if (Selector == 0) {
+        AccessRights |= 0x10000;
+    }
+
     return AccessRights;
 }
 
@@ -240,14 +240,16 @@ readcr(
 _IRQL_raises_(value)
 VOID
 writecr(
-    _In_ UINT32   cr,
+    _In_ UINT32 cr,
     _In_ UINTN value
     )
 {
     switch (cr)
     {
         case 0: __writecr0(value); break;
-        case 2: AsmWriteCr2(value); break;
+#ifdef _WIN64
+        case 2: __writecr2(value); break;
+#endif
         case 3: __writecr3(value); break;
         case 4: __writecr4(value); break;
 #ifdef _WIN64

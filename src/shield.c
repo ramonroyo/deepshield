@@ -8,14 +8,11 @@
 #include "vmx.h"
 #include "smp.h"
 
-extern UINTN gSystemPageDirectoryTable;
-
 NTSTATUS
 DsInitializeShield(
     VOID
     )
 {
-    gSystemPageDirectoryTable = __readcr3();
     return MmuInitialize();
 }
 
@@ -48,5 +45,5 @@ DsIsShieldRunning(
     VOID
     )
 {
-    return DsIsHvmRunning();
+    return DsIsHvmLaunched();
 }

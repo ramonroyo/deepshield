@@ -53,11 +53,11 @@ SmpRunPerProcessor(
     
     ProcessorCount = SmpActiveProcessorCount();
 
-    if ( ProcessorCount > 1)
+    if (ProcessorCount > 1)
     {
-        KDPC           dpcTraps[MAXIMUM_PROCESSORS] = { 0 };
-        PROCESSOR_INFO info                         = { 0 };
-        UINT32         i;
+        KDPC dpcTraps[MAXIMUM_PROCESSORS] = { 0 };
+        PROCESSOR_INFO info               = { 0 };
+        UINT32 i;
 
         info.callback = callback;
         info.context  = context;

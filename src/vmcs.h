@@ -25,4 +25,14 @@ VmcsConfigureCommonEntry(
     _In_ FLAGS_REGISTER rflags
 );
 
+VOID
+VmcsSetGuestPrivilegedTsd(
+    VOID
+    );
+
+VOID
+VmcsSetGuestNoMsrExits(
+    _In_ PHYSICAL_ADDRESS MsrBitmap
+    );
+
 #endif

@@ -276,9 +276,7 @@ DsHvmExitHandler(
                 && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector
                     || VECTOR_GENERAL_PROTECTION_EXCEPTION == InterruptInfo.Bits.Vector )) {
 
-                HardwareExceptionHandler( Vcpu->LocalContext, 
-                                          Registers,
-                                          InterruptInfo );
+                HardwareExceptionHandler( Vcpu->Context, Registers, InterruptInfo );
             }
             else {
                 InjectInterruptOrException( InterruptInfo );

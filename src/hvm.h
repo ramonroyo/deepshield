@@ -3,6 +3,7 @@
 
 #include "x86.h"
 #include "sync.h"
+#include "vmcsinit.h"
 
 typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
 {
@@ -63,16 +64,16 @@ typedef struct _HOST_SAVED_STATE
 
 typedef struct _EXIT_INFO
 {
-    UINT32   exitReason;
+    UINT32 exitReason;
     UINTN exitQualification;
     UINTN guestLinearAddress;
-    UINT64   guestPhyscalAddress;
-    UINT32   exitInterruptionInformation;
-    UINT32   exitInterruptionErrorCode;
-    UINT32   idtVectoringInformation;
-    UINT32   idtVectoringErrorCode;
-    UINT32   exitInstructionLength;
-    UINT32   exitInstructionInformation;
+    UINT64 guestPhyscalAddress;
+    UINT32 exitInterruptionInformation;
+    UINT32 exitInterruptionErrorCode;
+    UINT32 idtVectoringInformation;
+    UINT32 idtVectoringErrorCode;
+    UINT32 exitInstructionLength;
+    UINT32 exitInstructionInformation;
     UINTN ioRcx;
     UINTN ioRsi;
     UINTN ioRdi;
@@ -97,13 +98,14 @@ typedef struct _HVM_LOGGED_EVENTS
 typedef struct _HVM_VCPU HVM_VCPU, *PHVM_VCPU;
 
 typedef 
-VOID(*PHVM_EXIT_HANDLER)(
+VOID (*PHVM_EXIT_HANDLER)(
     _In_ UINT32 ExitReason,
     _In_ PHVM_VCPU  Vcpu,
     _In_ PGP_REGISTERS Registers
     );
 
-typedef VOID(*PHVM_SETUP_VMCS)(
+typedef 
+VOID (*PHVM_SETUP_VMCS)(
     _In_ PHVM_VCPU Vcpu
     );
 
@@ -126,7 +128,7 @@ typedef struct _HVM_VCPU
     UINTN Rsp;
     PHVM_EXIT_HANDLER ExitHandler;
     PHVM_SETUP_VMCS SetupVmcs;
-    PVOID LocalContext;
+    PVOID Context;
     ATOMIC Launched;
     HVM_LOGGED_EVENTS LoggedEvents;
 } HVM_VCPU, *PHVM_VCPU;
@@ -135,116 +137,89 @@ typedef struct _HVM
 {
     PHVM_VCPU VcpuArray;
     PVOID HvmContext;
-    ATOMIC launched;
+    VMX_STATE VmState;
+    ATOMIC Launched;
 } HVM, *PHVM;
-
-BOOLEAN
-HvmInitialized(
-    VOID
-);
-
-BOOLEAN
-HvmLaunched(
-    VOID
-);
-
 
 NTSTATUS
 HvmInitialize(
     _In_ UINT32 StackPages,
     _In_ PHVM_EXIT_HANDLER ExitHandlerCb,
-    _In_ PHVM_SETUP_VMCS SetupVmcsCb
-);
+    _In_ PHVM_SETUP_VMCS SetupVmcsCb,
+    _Inout_ PHVM *ReturnHvm
+    );
 
 VOID
-HvmGlobalContextSet(
+HvmSetHvmContext(
+    _Inout_ PHVM Hvm,
     _In_ PVOID context
-);
+    );
 
 PVOID
-HvmGlobalContextGet(
-    VOID
-);
+HvmGetHvmContext(
+    _In_ PHVM Hvm
+    );
 
 VOID
-HvmLocalContextSet(
+HvmSetVcpuContext(
+    _Inout_ PHVM Hvm,
     _In_ UINT32 VcpuId,
     _In_ PVOID  context
-);
+    );
 
 PVOID
-HvmLocalContextGet(
+HvmGetVcpuContext(
+    _In_ PHVM Hvm,
     _In_ UINT32 VcpuId
-);
+    );
 
 NTSTATUS
 HvmStart(
-    VOID
-);
+    _Inout_ PHVM Hvm
+    );
 
 NTSTATUS
 HvmStop(
-    VOID
-);
+    _Inout_ PHVM Hvm
+    );
 
-NTSTATUS
+VOID
 HvmFinalize(
-    VOID
-);
+    _In_ PHVM Hvm
+    );
 
 #define ROOT_MODE_API
 
 PHVM_VCPU ROOT_MODE_API
 HvmGetCurrentVcpu(
-    VOID
-);
+    _In_ PHVM Hvm
+    );
 
 PVOID ROOT_MODE_API
-HvmGetVcpuContext(
+HvmGetHvmContextByVcpu(
     _In_ PHVM_VCPU Vcpu
-);
-
-PVOID ROOT_MODE_API
-HvmGetHvmContext(
-    _In_ PHVM_VCPU Vcpu
-);
+    );
 
 UINT32 ROOT_MODE_API
 HvmGetVcpuId(
     _In_ PHVM_VCPU Vcpu
-);
+    );
 
 PHVM ROOT_MODE_API
 HvmGetVcpuHvm(
     _In_ PHVM_VCPU Vcpu
-);
+    );
 
 PHOST_SAVED_STATE ROOT_MODE_API
 HvmGetVcpuHostState(
     _In_ PHVM_VCPU Vcpu
-);
+    );
 
+PVOID ROOT_MODE_API
+HvmGetVcpuContextByVcpu(
+    _In_ PHVM_VCPU Vcpu
+    );
 
-/*
-* Will handle in a passtrough mode:
-*   EXIT_REASON_INVD
-*   EXIT_REASON_XSETBV
-*   EXIT_REASON_VMXON
-*   EXIT_REASON_VMXOFF
-*   EXIT_REASON_VMCLEAR
-*   EXIT_REASON_VMRESUME
-*   EXIT_REASON_VMLAUNCH
-*   EXIT_REASON_VMPTRLD
-*   EXIT_REASON_VMPTRST
-*   EXIT_REASON_VMREAD
-*   EXIT_REASON_VMWRITE
-*   EXIT_REASON_INVEPT
-*   EXIT_REASON_INVVPID
-*   EXIT_REASON_CR_ACCESS
-*   EXIT_REASON_MSR_READ
-*   EXIT_REASON_MSR_WRITE
-*   EXIT_REASON_CPUID
-*/
 BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
     _In_ UINT32     exitReason,

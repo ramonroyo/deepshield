@@ -5,16 +5,17 @@
 #include "mmu.h"
 #include "smp.h"
 
-PHVM_CONTEXT gGlobalContext = 0;
-PVCPU_CONTEXT gLocalContexts = 0;
+PHVM_CONTEXT gHvmContext = 0;
+PVCPU_CONTEXT gVcpuContexts = 0;
+extern UINTN gSystemPageDirectoryTable;
 
 BOOLEAN
-GlobalContextConfigure(
+InitializeHvmContext(
     _In_ PHVM_CONTEXT HvmContext
-)
+    )
 {
     RtlZeroMemory( HvmContext, sizeof( HVM_CONTEXT ) );
-    HvmContext->SystemCr3 = __readcr3();
+    HvmContext->SystemCr3 = gSystemPageDirectoryTable;
 
     HvmContext->MsrBitmap = MemAllocAligned( PAGE_SIZE, PAGE_SIZE );
     if (HvmContext->MsrBitmap == NULL) {
@@ -27,7 +28,7 @@ GlobalContextConfigure(
 }
 
 VOID
-GlobalContextReset(
+ResetHvmContext(
     _In_ PHVM_CONTEXT HvmContext
     )
 {
@@ -41,7 +42,7 @@ GlobalContextReset(
 }
 
 BOOLEAN
-LocalContextConfigure(
+InitializeVcpuContext(
     _In_ PVCPU_CONTEXT VcpuContext
     )
 {
@@ -60,7 +61,7 @@ LocalContextConfigure(
 }
 
 VOID
-LocalContextReset(
+ResetVcpuContext(
     _In_ PVCPU_CONTEXT VcpuContext
     )
 {
@@ -78,7 +79,7 @@ GlobalCtx(
     VOID
     )
 {
-    return gGlobalContext;
+    return gHvmContext;
 }
 
 PVCPU_CONTEXT
@@ -86,13 +87,13 @@ LocalCtx(
     VOID
     )
 {
-    return &gLocalContexts[SmpGetCurrentProcessor()];
+    return &gVcpuContexts[SmpGetCurrentProcessor()];
 }
 
 PVCPU_CONTEXT
-LocalCtxForVcpu(
+LocalCtxForVcpuId(
     _In_ UINT32 VcpuId
     )
 {
-    return &gLocalContexts[VcpuId];
+    return &gVcpuContexts[VcpuId];
 }

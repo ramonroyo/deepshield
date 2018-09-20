@@ -14,7 +14,7 @@
 * @param context  [in opt] Context of the function.
 * @return Status codes.
 */
-typedef NTSTATUS (__stdcall * PROCESSOR_CALLBACK)(
+typedef NTSTATUS (NTAPI * PROCESSOR_CALLBACK)(
     _In_     UINT32 VcpuId,
     _In_opt_ PVOID  context
     );

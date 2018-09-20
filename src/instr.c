@@ -165,6 +165,10 @@ InstrCr4Emulate(
         Vcpu->HostState.Cr4 = Cr4;
 
         //
+        //  TODO: Do NOT support nested guest -> CR4_VMXE.
+        //
+
+        //
         //  Remove host owned and enforce fixed 0 and fixed 1 bits.
         // 
         VmWriteN( GUEST_CR4, 

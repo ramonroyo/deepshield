@@ -4,11 +4,6 @@
 #include <ntifs.h>
 
 NTSTATUS
-DsIsHvmSupported(
-    VOID
-    );
-
-NTSTATUS
 DsLoadHvm(
     VOID
     );
@@ -19,7 +14,7 @@ DsUnloadHvm(
     );
 
 BOOLEAN
-DsIsHvmRunning(
+DsIsHvmLaunched(
     VOID
     );
 

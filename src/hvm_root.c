@@ -4,35 +4,12 @@
 #include "vmx.h"
 #include "smp.h"
 
-extern PHVM gHvm;
-
 PHVM_VCPU ROOT_MODE_API
 HvmGetCurrentVcpu(
-    VOID
+    _In_ PHVM Hvm
     )
 {
-    return &gHvm->VcpuArray[SmpGetCurrentProcessor()];
-}
-
-PVOID ROOT_MODE_API
-HvmGetVcpuContext(
-    _In_ PHVM_VCPU Vcpu
-    )
-{
-    NT_ASSERT(Vcpu);
-    return Vcpu->LocalContext;
-}
-
-PVOID ROOT_MODE_API
-HvmGetHvmContext(
-    _In_ PHVM_VCPU Vcpu
-    )
-{
-    if (!Vcpu) {
-        return 0;
-    }
-
-    return Vcpu->Hvm->HvmContext;
+    return &Hvm->VcpuArray[SmpGetCurrentProcessor()];
 }
 
 UINT32 ROOT_MODE_API
@@ -40,10 +17,7 @@ HvmGetVcpuId(
     _In_ PHVM_VCPU Vcpu
    )
 {
-    if (!Vcpu) {
-        return (UINT32)-1;
-    }
-
+    NT_ASSERT( Vcpu );
     return Vcpu->Index;
 }
 
@@ -52,10 +26,7 @@ HvmGetVcpuHvm(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    if (!Vcpu) {
-        return 0;
-    }
-
+    NT_ASSERT( Vcpu );
     return Vcpu->Hvm;
 }
 
@@ -64,23 +35,20 @@ HvmGetVcpuHostState(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    if (!Vcpu) {
-        return 0;
-    }
-
+    NT_ASSERT( Vcpu );
     return &Vcpu->HostState;
 }
 
 BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
-    _In_ UINT32 exitReason,
+    _In_ UINT32 ExitReason,
     _In_ PHVM_VCPU Vcpu,
     _In_ PGP_REGISTERS Registers
     )
 {
     UNREFERENCED_PARAMETER(Vcpu);
 
-    switch (exitReason)
+    switch (ExitReason)
     {
         case EXIT_REASON_INVD:
         {
@@ -127,7 +95,7 @@ HvmVcpuCommonExitsHandler(
             Registers->Rflags.Bits.rf = 1;
             VmWriteN( GUEST_RFLAGS, Registers->Rflags.AsUintN );
 
-            //InstrRipAdvance( Registers );
+            InstrRipAdvance( Registers );
             return TRUE;
         }
 

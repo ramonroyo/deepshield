@@ -7,13 +7,13 @@ AsmCpuPause ENDP
 
 AsmReadCs PROC
     xor rax, rax
-    mov eax, cs
+    mov ax, cs
     ret
 AsmReadCs ENDP
 
 AsmReadDs PROC
     xor rax, rax
-    mov eax, ds
+    mov ax, ds
     ret
 AsmReadDs ENDP
 
@@ -25,19 +25,19 @@ AsmReadSs ENDP
 
 AsmReadEs PROC
     xor rax, rax
-    mov eax, es
+    mov ax, es
     ret
 AsmReadEs ENDP
 
 AsmReadFs PROC
     xor rax, rax
-    mov eax, fs
+    mov ax, fs
     ret
 AsmReadFs ENDP
 
 AsmReadGs PROC
     xor rax, rax
-    mov eax, gs
+    mov ax, gs
     ret
 AsmReadGs ENDP
 
@@ -48,7 +48,7 @@ AsmLimitFromSelector ENDP
 
 AsmReadTr PROC
     xor rax, rax
-    str eax
+    str ax
     ret
 AsmReadTr ENDP
 
@@ -108,12 +108,6 @@ AsmReadSp PROC
     mov rax, rsp
     ret
 AsmReadSp ENDP
-
-AsmWriteCr2 PROC
-    mov cr2, rcx
-    mov rax, rcx
-    ret
-AsmWriteCr2 ENDP
 
 AsmWriteGdtr PROC
     lgdt fword ptr [rcx]

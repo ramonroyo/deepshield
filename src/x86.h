@@ -352,7 +352,7 @@ typedef union _IA32_SEGMENT_DESCRIPTOR
             {
                 UINT32 BaseMid : 8;
                 UINT32 Type : 4;
-                UINT32 S : 1;
+                UINT32 System : 1;
                 UINT32 Dpl : 2;
                 UINT32 P : 1;
                 UINT32 LimitHigh : 4;
@@ -494,12 +494,6 @@ UINTN __stdcall AsmReadSp(VOID);
 * Retrieve the value of the flags register (eflags/rflags).
 */
 UINTN __stdcall AsmReadFlags(VOID);
-
-/**
-* Write to cr2 (page-fault address recording register).
-*/
-VOID __stdcall AsmWriteCr2(_In_ UINTN cr2);
-
 
 /**
 * Read/Write from/to cr/dr registers

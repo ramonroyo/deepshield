@@ -10,64 +10,44 @@
 #define MEMORY_UNCACHED        1
 #define MEMORY_WRITE_BACK      2
 
-FORCEINLINE
-ULONG
-GetVmcsMemoryType(
-    VOID
-    )
-{
-    switch (Capabilities.Basic.Bits.VmcsMemoryType ) {
-        case 0:
-            return MEMORY_UNCACHED;
-        case 6:
-            return MEMORY_WRITE_BACK;
-        default:
-            break;
-    }
-
-    return MEMORY_INVALID;
-}
-
 VOID
-VmcsInitializeContext(
-    VOID
+VmInitializeVmState(
+    _Inout_ PVMX_STATE VmState
     )
 { 
-    RtlZeroMemory( &Capabilities, sizeof( Capabilities ));
-    RtlZeroMemory( &Constraints, sizeof( Constraints ));
-    RtlZeroMemory( &Fixed, sizeof( Fixed ));
-
+    RtlZeroMemory( VmState, sizeof( VMX_STATE ));
+    
     //
     //  No matter what people tell you, a small group of thoughtful initializations
     //  can change the world. This is an example.
     //
 
-    Capabilities.Basic.AsUint64 = __readmsr( IA32_MSR_VMX_BASIC_INDEX );
+    VmState->Capabilities.Basic.AsUint64 = __readmsr( IA32_MSR_VMX_BASIC_INDEX );
     NT_ASSERT( VMCS_ABOVE_4G_SUPPORTED );
     
-    Capabilities.PinBasedControls.AsUint64 = __readmsr(IA32_MSR_PIN_BASED_VM_EXECUTION_CONTROLS_INDEX);
-    Capabilities.ProcessorControls.AsUint64 = __readmsr(IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS_INDEX);
+    VmState->Capabilities.PinBasedControls.AsUint64 = __readmsr(IA32_MSR_PIN_BASED_VM_EXECUTION_CONTROLS_INDEX);
+    VmState->Capabilities.ProcessorControls.AsUint64 = __readmsr(IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS_INDEX);
     
-    Capabilities.EptVpidCapabilities.AsUint64 = 0;
-    Capabilities.VmFuncControls.AsUint64 = 0;
+    VmState->Capabilities.EptVpidCapabilities.AsUint64 = 0;
+    VmState->Capabilities.VmFuncControls.AsUint64 = 0;
 
-    if (Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl ) {
+    if (VmState->Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl ) {
 
-        Capabilities.ProcessorControls2.AsUint64 = __readmsr( IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS2_INDEX );
+        VmState->Capabilities.ProcessorControls2.AsUint64 = __readmsr( IA32_MSR_PROCESSOR_BASED_VM_EXECUTION_CONTROLS2_INDEX );
 
-        if (Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt
-            || Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid) {
-            Capabilities.EptVpidCapabilities.AsUint64 = __readmsr(IA32_MSR_EPT_VPID_CAP_INDEX);
+        if (VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt
+            || VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid) {
+            VmState->Capabilities.EptVpidCapabilities.AsUint64 = __readmsr(IA32_MSR_EPT_VPID_CAP_INDEX);
         }
 
-        if ( Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions ) {
-            Capabilities.VmFuncControls.AsUint64 = __readmsr( IA32_MSR_VMX_VMFUNC_CTRL );
+        if ( VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions ) {
+            VmState->Capabilities.VmFuncControls.AsUint64 = __readmsr( IA32_MSR_VMX_VMFUNC_CTRL );
         }
     }
 
-    Capabilities.ExitControl.AsUint64 = __readmsr(IA32_MSR_VM_EXIT_CONTROLS_INDEX);
-    Capabilities.EntryControls.AsUint64 = __readmsr(IA32_MSR_VM_ENTRY_CONTROLS_INDEX);
-    Capabilities.MiscellaneousData.AsUint64 = __readmsr(IA32_MSR_MISCELLANEOUS_DATA_INDEX);
+    VmState->Capabilities.ExitControl.AsUint64 = __readmsr(IA32_MSR_VM_EXIT_CONTROLS_INDEX);
+    VmState->Capabilities.EntryControls.AsUint64 = __readmsr(IA32_MSR_VM_ENTRY_CONTROLS_INDEX);
+    VmState->Capabilities.MiscellaneousData.AsUint64 = __readmsr(IA32_MSR_MISCELLANEOUS_DATA_INDEX);
 
     //
     //  If bit X is 1 in IA32_MSR_CRX_ALLOWED_ZERO_INDEX, then that bit of CRX
@@ -81,83 +61,84 @@ VmcsInitializeContext(
     //  1 in IA32_MSR_CRX_ALLOWED_ONE_INDEX).
     //
 
-    Capabilities.Cr0Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
-    Capabilities.Cr0Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
-    Capabilities.Cr4Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
-    Capabilities.Cr4Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
+    VmState->Capabilities.Cr0Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ZERO_INDEX);
+    VmState->Capabilities.Cr0Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR0_ALLOWED_ONE_INDEX);
+    VmState->Capabilities.Cr4Maybe0.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ZERO_INDEX);
+    VmState->Capabilities.Cr4Maybe1.AsUintN = (UINTN)__readmsr(IA32_MSR_CR4_ALLOWED_ONE_INDEX);
 
 
-    Constraints.PinBasedControlsMaybe1.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
-    Constraints.PinBasedControlsMaybe0.AsUint32 = Capabilities.PinBasedControls.Bits.Maybe0.AsUint32;
-    Constraints.ProcessorControlsMaybe1.AsUint32 = Capabilities.ProcessorControls.Bits.Maybe1.AsUint32;
-    Constraints.ProcessorControlsMaybe0.AsUint32 = Capabilities.ProcessorControls.Bits.Maybe0.AsUint32;
-    Constraints.ProcessorControls2Maybe1.AsUint32 = Capabilities.ProcessorControls2.Bits.Maybe1.AsUint32;
-    Constraints.ProcessorControls2Maybe0.AsUint32 = Capabilities.ProcessorControls2.Bits.Maybe0.AsUint32;
-    Constraints.ExitControlMaybe1.AsUint32 = Capabilities.ExitControl.Bits.Maybe1.AsUint32;
-    Constraints.ExitControlMaybe0.AsUint32 = Capabilities.ExitControl.Bits.Maybe0.AsUint32;
-    Constraints.EntryControlsMaybe1.AsUint32 = Capabilities.EntryControls.Bits.Maybe1.AsUint32;
-    Constraints.EntryControlsMaybe0.AsUint32 = Capabilities.EntryControls.Bits.Maybe0.AsUint32;
+    VmState->Constraints.PinBasedControlsMaybe1.AsUint32 = VmState->Capabilities.PinBasedControls.Bits.Maybe1.AsUint32;
+    VmState->Constraints.PinBasedControlsMaybe0.AsUint32 = VmState->Capabilities.PinBasedControls.Bits.Maybe0.AsUint32;
+    VmState->Constraints.ProcessorControlsMaybe1.AsUint32 = VmState->Capabilities.ProcessorControls.Bits.Maybe1.AsUint32;
+    VmState->Constraints.ProcessorControlsMaybe0.AsUint32 = VmState->Capabilities.ProcessorControls.Bits.Maybe0.AsUint32;
+    VmState->Constraints.ProcessorControls2Maybe1.AsUint32 = VmState->Capabilities.ProcessorControls2.Bits.Maybe1.AsUint32;
+    VmState->Constraints.ProcessorControls2Maybe0.AsUint32 = VmState->Capabilities.ProcessorControls2.Bits.Maybe0.AsUint32;
+    VmState->Constraints.ExitControlMaybe1.AsUint32 = VmState->Capabilities.ExitControl.Bits.Maybe1.AsUint32;
+    VmState->Constraints.ExitControlMaybe0.AsUint32 = VmState->Capabilities.ExitControl.Bits.Maybe0.AsUint32;
+    VmState->Constraints.EntryControlsMaybe1.AsUint32 = VmState->Capabilities.EntryControls.Bits.Maybe1.AsUint32;
+    VmState->Constraints.EntryControlsMaybe0.AsUint32 = VmState->Capabilities.EntryControls.Bits.Maybe0.AsUint32;
 
-    Constraints.Cr0Maybe1.AsUintN = Capabilities.Cr0Maybe1.AsUintN;
-    Constraints.Cr0Maybe0.AsUintN = Capabilities.Cr0Maybe0.AsUintN;
-    Constraints.Cr4Maybe1.AsUintN = Capabilities.Cr4Maybe1.AsUintN;
-    Constraints.Cr4Maybe0.AsUintN = Capabilities.Cr4Maybe0.AsUintN;
+    VmState->Constraints.Cr0Maybe1.AsUintN = VmState->Capabilities.Cr0Maybe1.AsUintN;
+    VmState->Constraints.Cr0Maybe0.AsUintN = VmState->Capabilities.Cr0Maybe0.AsUintN;
+    VmState->Constraints.Cr4Maybe1.AsUintN = VmState->Capabilities.Cr4Maybe1.AsUintN;
+    VmState->Constraints.Cr4Maybe0.AsUintN = VmState->Capabilities.Cr4Maybe0.AsUintN;
 
-    Constraints.VmcsRevision = Capabilities.Basic.Bits.RevisionId;
-    Constraints.NumberOfCr3TargetValues = Capabilities.MiscellaneousData.Bits.NumberOfCr3TargetValue;
-    Constraints.MaxMsrListsSizeInBytes =  (Capabilities.MiscellaneousData.Bits.MaxNumberOfMsrInStoreList + 1) * 512;
-    Constraints.VmxTimerLength = Capabilities.MiscellaneousData.Bits.VmxPreemptionTimerRate;
+    VmState->Constraints.VmcsRevision = VmState->Capabilities.Basic.Bits.RevisionId;
+    VmState->Constraints.NumberOfCr3TargetValues = VmState->Capabilities.MiscellaneousData.Bits.NumberOfCr3TargetValue;
+    VmState->Constraints.MaxMsrListsSizeInBytes =  (VmState->Capabilities.MiscellaneousData.Bits.MaxNumberOfMsrInStoreList + 1) * 512;
+    VmState->Constraints.VmxTimerLength = VmState->Capabilities.MiscellaneousData.Bits.VmxPreemptionTimerRate;
 
-    Constraints.MsegRevisionId = Capabilities.MiscellaneousData.Bits.MsegRevisionId;
-    Constraints.VmEntryInHaltStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportHlt;
-    Constraints.VmEntryInShutdownStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportShutdown;
-    Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)Capabilities.MiscellaneousData.Bits.ActivityStateSupportWaitForSipi;
-    Constraints.ProcessorBasedExecCtrl2Supported = (BOOLEAN)Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl;
+    VmState->Constraints.MsegRevisionId = VmState->Capabilities.MiscellaneousData.Bits.MsegRevisionId;
+    VmState->Constraints.VmEntryInHaltStateSupported = (BOOLEAN)VmState->Capabilities.MiscellaneousData.Bits.ActivityStateSupportHlt;
+    VmState->Constraints.VmEntryInShutdownStateSupported = (BOOLEAN)VmState->Capabilities.MiscellaneousData.Bits.ActivityStateSupportShutdown;
+    VmState->Constraints.VmEntryInWaitForSipiStateSupported = (BOOLEAN)VmState->Capabilities.MiscellaneousData.Bits.ActivityStateSupportWaitForSipi;
+    VmState->Constraints.ProcessorBasedExecCtrl2Supported = (BOOLEAN)VmState->Capabilities.ProcessorControls.Bits.Maybe1.Bits.SecondaryControl;
     
-    if (Constraints.ProcessorBasedExecCtrl2Supported) {
-        Constraints.EptSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt;
-        Constraints.UnrestrictedGuestSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.UnrestrictedGuest;
-        Constraints.VpidSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid;
-        Constraints.VmfuncSupported = (BOOLEAN)Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions;
-        Constraints.VeSupported = (BOOLEAN) Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EptVe;
-        Constraints.EptpSwitchingSupported = Constraints.VmfuncSupported && Capabilities.VmFuncControls.Bits.EptpSwitching;
+    if (VmState->Constraints.ProcessorBasedExecCtrl2Supported) {
+        VmState->Constraints.EptSupported = (BOOLEAN)VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableEpt;
+        VmState->Constraints.UnrestrictedGuestSupported = (BOOLEAN)VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.UnrestrictedGuest;
+        VmState->Constraints.VpidSupported = (BOOLEAN)VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVpid;
+        VmState->Constraints.VmfuncSupported = (BOOLEAN)VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EnableVmFunctions;
+        VmState->Constraints.VeSupported = (BOOLEAN) VmState->Capabilities.ProcessorControls2.Bits.Maybe1.Bits.EptVe;
+        VmState->Constraints.EptpSwitchingSupported = VmState->Constraints.VmfuncSupported && VmState->Capabilities.VmFuncControls.Bits.EptpSwitching;
     }
     
-    Constraints.EptVpidCapabilities = Capabilities.EptVpidCapabilities;
+    VmState->Constraints.EptVpidCapabilities = VmState->Capabilities.EptVpidCapabilities;
 
-    Fixed.PinControlFixed1.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 & Constraints.PinBasedControlsMaybe1.AsUint32;
-    Fixed.PinControlFixed0.AsUint32 = Constraints.PinBasedControlsMaybe0.AsUint32 | Constraints.PinBasedControlsMaybe1.AsUint32;
+    VmState->Fixed.PinControlFixed1.AsUint32 = VmState->Constraints.PinBasedControlsMaybe0.AsUint32 & VmState->Constraints.PinBasedControlsMaybe1.AsUint32;
+    VmState->Fixed.PinControlFixed0.AsUint32 = VmState->Constraints.PinBasedControlsMaybe0.AsUint32 | VmState->Constraints.PinBasedControlsMaybe1.AsUint32;
 
-    Fixed.ProcessorControlsFixed1.AsUint32 = Constraints.ProcessorControlsMaybe0.AsUint32 & Constraints.ProcessorControlsMaybe1.AsUint32;
-    Fixed.ProcessorControlsFixed0.AsUint32 = Constraints.ProcessorControlsMaybe0.AsUint32 | Constraints.ProcessorControlsMaybe1.AsUint32;
+    VmState->Fixed.ProcessorControlsFixed1.AsUint32 = VmState->Constraints.ProcessorControlsMaybe0.AsUint32 & VmState->Constraints.ProcessorControlsMaybe1.AsUint32;
+    VmState->Fixed.ProcessorControlsFixed0.AsUint32 = VmState->Constraints.ProcessorControlsMaybe0.AsUint32 | VmState->Constraints.ProcessorControlsMaybe1.AsUint32;
 
-    Fixed.ProcessorControls2Fixed1.AsUint32 = Constraints.ProcessorControls2Maybe0.AsUint32 & Constraints.ProcessorControls2Maybe1.AsUint32;
-    Fixed.ProcessorControls2Fixed0.AsUint32 = Constraints.ProcessorControls2Maybe0.AsUint32 | Constraints.ProcessorControls2Maybe1.AsUint32;
+    VmState->Fixed.ProcessorControls2Fixed1.AsUint32 = VmState->Constraints.ProcessorControls2Maybe0.AsUint32 & VmState->Constraints.ProcessorControls2Maybe1.AsUint32;
+    VmState->Fixed.ProcessorControls2Fixed0.AsUint32 = VmState->Constraints.ProcessorControls2Maybe0.AsUint32 | VmState->Constraints.ProcessorControls2Maybe1.AsUint32;
 
-    Fixed.ExitControlFixed1.AsUint32 = Constraints.ExitControlMaybe0.AsUint32 & Constraints.ExitControlMaybe1.AsUint32;
-    Fixed.ExitControlFixed0.AsUint32 = Constraints.ExitControlMaybe0.AsUint32 | Constraints.ExitControlMaybe1.AsUint32;
+    VmState->Fixed.ExitControlFixed1.AsUint32 = VmState->Constraints.ExitControlMaybe0.AsUint32 & VmState->Constraints.ExitControlMaybe1.AsUint32;
+    VmState->Fixed.ExitControlFixed0.AsUint32 = VmState->Constraints.ExitControlMaybe0.AsUint32 | VmState->Constraints.ExitControlMaybe1.AsUint32;
 
-    Fixed.EntryControlFixed1.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 & Constraints.EntryControlsMaybe1.AsUint32;
-    Fixed.EntryControlFixed0.AsUint32 = Constraints.EntryControlsMaybe0.AsUint32 | Constraints.EntryControlsMaybe1.AsUint32;
+    VmState->Fixed.EntryControlFixed1.AsUint32 = VmState->Constraints.EntryControlsMaybe0.AsUint32 & VmState->Constraints.EntryControlsMaybe1.AsUint32;
+    VmState->Fixed.EntryControlFixed0.AsUint32 = VmState->Constraints.EntryControlsMaybe0.AsUint32 | VmState->Constraints.EntryControlsMaybe1.AsUint32;
 
-    Fixed.Cr0Fixed1.AsUintN = Constraints.Cr0Maybe0.AsUintN & Constraints.Cr0Maybe1.AsUintN;
+    VmState->Fixed.Cr0Fixed1.AsUintN = VmState->Constraints.Cr0Maybe0.AsUintN & VmState->Constraints.Cr0Maybe1.AsUintN;
 
-    if (Constraints.UnrestrictedGuestSupported ) {
+    if (VmState->Constraints.UnrestrictedGuestSupported ) {
         //
         //  If unrestricted guest is supported then Cr0Fixed1 Value should not
         //  have PG and PE.
         //
 
-        Fixed.Cr0Fixed1.AsUintN &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
+        VmState->Fixed.Cr0Fixed1.AsUintN &= MASK_PE_PG_OFF_UNRESTRICTED_GUEST;
     }
-    Fixed.Cr0Fixed0.AsUintN = Constraints.Cr0Maybe0.AsUintN | Constraints.Cr0Maybe1.AsUintN;
+    VmState->Fixed.Cr0Fixed0.AsUintN = VmState->Constraints.Cr0Maybe0.AsUintN | VmState->Constraints.Cr0Maybe1.AsUintN;
 
-    Fixed.Cr4Fixed1.AsUintN = Constraints.Cr4Maybe0.AsUintN & Constraints.Cr4Maybe1.AsUintN;
-    Fixed.Cr4Fixed0.AsUintN = Constraints.Cr4Maybe0.AsUintN | Constraints.Cr4Maybe1.AsUintN;
+    VmState->Fixed.Cr4Fixed1.AsUintN = VmState->Constraints.Cr4Maybe0.AsUintN & VmState->Constraints.Cr4Maybe1.AsUintN;
+    VmState->Fixed.Cr4Fixed0.AsUintN = VmState->Constraints.Cr4Maybe0.AsUintN | VmState->Constraints.Cr4Maybe1.AsUintN;
 }
 
 PVOID
 VmcsAllocateRegion(
+    _In_ UINT32 Revision,
     _In_ UINT32 RegionSize
     )
 {
@@ -166,7 +147,7 @@ VmcsAllocateRegion(
     VmcsRegion = MemAllocAligned( RegionSize, PAGE_SIZE );
 
     if (VmcsRegion) {
-        VmcsRegion->Bits.RevisionIdentifier = VMCS_REVISION;
+        VmcsRegion->Bits.RevisionIdentifier = Revision;
         VmcsRegion->Bits.ShadowIndicator = 0;
 
         VmcsRegion->AbortIndicator = 0;
@@ -175,14 +156,32 @@ VmcsAllocateRegion(
     return VmcsRegion;
 }
 
+FORCEINLINE
+UINT32
+GetVmcsMemoryType(
+    VOID
+    )
+{
+    switch (gVmState.Capabilities.Basic.Bits.VmcsMemoryType ) {
+        case 0:
+            return MEMORY_UNCACHED;
+        case 6:
+            return MEMORY_WRITE_BACK;
+        default:
+            break;
+    }
+
+    return MEMORY_INVALID;
+}
+
 UINT32
 VmcsMakeCompliantPinBasedCtrl(
     _In_ UINT32 Value
     )
 {
-	Value &= Fixed.PinControlFixed0.AsUint32;
-	Value |= Fixed.PinControlFixed1.AsUint32;
-	return Value;
+    Value &= gVmState.Fixed.PinControlFixed0.AsUint32;
+    Value |= gVmState.Fixed.PinControlFixed1.AsUint32;
+    return Value;
 }
 
 UINT32
@@ -190,9 +189,9 @@ VmcsMakeCompliantProcessorCtrl(
     _In_ UINT32 Value
     )
 {
-	Value &= Fixed.ProcessorControlsFixed0.AsUint32;
-	Value |= Fixed.ProcessorControlsFixed1.AsUint32;
-	return Value;
+    Value &= gVmState.Fixed.ProcessorControlsFixed0.AsUint32;
+    Value |= gVmState.Fixed.ProcessorControlsFixed1.AsUint32;
+    return Value;
 }
 
 UINT32
@@ -200,9 +199,9 @@ VmcsMakeCompliantProcessorCtrl2(
     _In_ UINT32 Value
     )
 {
-	Value &= Fixed.ProcessorControls2Fixed0.AsUint32;
-	Value |= Fixed.ProcessorControls2Fixed1.AsUint32;
-	return Value;
+    Value &= gVmState.Fixed.ProcessorControls2Fixed0.AsUint32;
+    Value |= gVmState.Fixed.ProcessorControls2Fixed1.AsUint32;
+    return Value;
 }
 
 UINT32
@@ -210,9 +209,9 @@ VmcsMakeCompliantExitCtrl(
     _In_ UINT32 Value
     )
 {
-	Value &= Fixed.ExitControlFixed0.AsUint32;
-	Value |= Fixed.ExitControlFixed1.AsUint32;
-	return Value;
+    Value &= gVmState.Fixed.ExitControlFixed0.AsUint32;
+    Value |= gVmState.Fixed.ExitControlFixed1.AsUint32;
+    return Value;
 }
 
 UINT32
@@ -220,9 +219,9 @@ VmcsMakeCompliantEntryCtrl(
     _In_ UINT32 Value
     )
 {
-	Value &= Fixed.EntryControlFixed0.AsUint32;
-	Value |= Fixed.EntryControlFixed1.AsUint32;
-	return Value;
+    Value &= gVmState.Fixed.EntryControlFixed0.AsUint32;
+    Value |= gVmState.Fixed.EntryControlFixed1.AsUint32;
+    return Value;
 }
 
 UINTN 
@@ -230,8 +229,8 @@ VmcsMakeCompliantCr0(
     _In_ UINTN Value
     )
 {
-    Value &= Fixed.Cr0Fixed0.AsUintN;
-    Value |= Fixed.Cr0Fixed1.AsUintN;
+    Value &= gVmState.Fixed.Cr0Fixed0.AsUintN;
+    Value |= gVmState.Fixed.Cr0Fixed1.AsUintN;
     return Value;
 }
 
@@ -240,8 +239,8 @@ VmcsMakeCompliantCr4(
     _In_ UINTN Value
     )
 {
-    Value &= Fixed.Cr4Fixed0.AsUintN;
-    Value |= Fixed.Cr4Fixed1.AsUintN;
+    Value &= gVmState.Fixed.Cr4Fixed0.AsUintN;
+    Value |= gVmState.Fixed.Cr4Fixed1.AsUintN;
     return Value;
 }
 

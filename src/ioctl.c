@@ -28,7 +28,7 @@ Environment:
 #pragma alloc_text(PAGE, DsCtlShieldChannelTeardown)
 #endif
 
-extern DS_VMX_STATE gVmxState;
+extern DS_VMX_FEATURE gVmxFeature;
 
 NTSTATUS
 DsCltGetShieldState(
@@ -78,6 +78,10 @@ DsCtlShieldControl(
     InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
     OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
 
+    if ( DSH_VMX_ABSENT( &gVmxFeature ) ) {
+        return STATUS_NOT_SUPPORTED;
+    }
+
     if (max( InputLength, OutputLength ) < sizeof( SHIELD_CONTROL_DATA )) {
         return STATUS_BUFFER_TOO_SMALL;
     }
@@ -96,7 +100,6 @@ DsCtlShieldControl(
                 break;
             }
 
-            NT_ASSERT( !DSH_VMX_ABSENT( &gVmxState ) );
             NT_ASSERT( !FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ) );
 
             Status = DsStartShield();

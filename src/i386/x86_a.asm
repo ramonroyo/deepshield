@@ -115,12 +115,6 @@ AsmReadSp@0 PROC
     ret
 AsmReadSp@0 ENDP
 
-AsmWriteCr2@4 PROC
-    mov eax, [esp + 4]
-    mov cr2, eax
-    ret 4
-AsmWriteCr2@4 ENDP
-
 AsmWriteGdtr@4 PROC
     mov eax, [esp + 4]
     lgdt fword ptr [eax]

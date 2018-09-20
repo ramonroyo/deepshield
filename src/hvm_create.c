@@ -18,39 +18,6 @@ HvmDeletePerCpu(
     _Inout_ PHVM Hvm
     );
 
-PHVM gHvm = NULL;
-
-BOOLEAN
-HvmInitialized(
-    VOID
-    )
-{
-    return (gHvm != NULL);
-}
-
-BOOLEAN
-HvmLaunched(
-    VOID
-    )
-{
-    return HvmInitialized() && AtomicRead( &gHvm->launched );
-}
-
-VOID
-HvmDestroy(
-    VOID
-    )
-{
-    if (!gHvm) {
-        return;
-    }
-
-    HvmDeletePerCpu( gHvm );
-    MemFree( gHvm );
-
-    gHvm = NULL;
-}
-
 NTSTATUS
 HvmInitializeVmxOn(
     _Inout_ PHVM_VCPU Vcpu
@@ -85,7 +52,7 @@ HvmInitializeVmcs(
 {
     NTSTATUS Status = STATUS_NO_MEMORY;
 
-    Vcpu->VmcsHva = VmcsAllocateRegion( VMCS_REGION_SIZE );
+    Vcpu->VmcsHva = VmcsAllocateRegion( VMCS_REVISION, VMCS_REGION_SIZE );
     if (Vcpu->VmcsHva) {
 
         Vcpu->VmcsHpa = MmGetPhysicalAddress( Vcpu->VmcsHva );
@@ -220,7 +187,7 @@ HvmDeletePerCpu(
     if (Hvm->VcpuArray) {
         CpuCount = SmpActiveProcessorCount();
 
-        for (CpuIdx = 0; CpuIdx < CpuCount; CpuIdx) {
+        for (CpuIdx = 0; CpuIdx < CpuCount; CpuIdx++) {
             CurrentVcpu = &Hvm->VcpuArray[CpuIdx];
 
             if (CurrentVcpu->Stack) {
@@ -243,23 +210,18 @@ HvmDeletePerCpu(
 NTSTATUS
 HvmInitialize(
     _In_ UINT32 StackPages,
-    _In_ PHVM_EXIT_HANDLER ExitHandlerCb,
-    _In_ PHVM_SETUP_VMCS SetupVmcsCb
+    _In_ PHVM_EXIT_HANDLER HvmExitHandler,
+    _In_ PHVM_SETUP_VMCS HvmSetupVmcs,
+    _Inout_ PHVM *ReturnHvm
     )
 {
-    NTSTATUS Status = STATUS_UNSUCCESSFUL;
+    NTSTATUS Status = STATUS_NO_MEMORY;
     PHVM Hvm = NULL;
+
+    *ReturnHvm = NULL;
 
     if (!NT_SUCCESS( VmxVerifySupport() )) {
         return STATUS_NOT_SUPPORTED;
-    }
-
-    if (HvmInitialized()) {
-        if (AtomicRead( &gHvm->launched ) == TRUE) {
-            return Status;
-        }
-
-        NT_ASSERT( FALSE );
     }
 
     Hvm = MemAlloc( sizeof( HVM ) );
@@ -268,33 +230,26 @@ HvmInitialize(
         RtlZeroMemory( Hvm, sizeof( HVM ) );
         Status = HvmInitializePerCpu( Hvm,
                                       StackPages,
-                                      ExitHandlerCb,
-                                      SetupVmcsCb );
+                                      HvmExitHandler,
+                                      HvmSetupVmcs );
         if (NT_SUCCESS( Status )) {
-            gHvm = Hvm;
-        }
-    }
-    
-    if (!NT_SUCCESS( Status )) {
-        NT_ASSERT( FALSE == HvmInitialized() );
 
-        if (Hvm) {
+            RtlCopyMemory( &Hvm->VmState, &gVmState, sizeof( VMX_STATE ) );
+            *ReturnHvm = Hvm;
+        }
+        else {
             MemFree( Hvm );
         }
     }
-
+    
     return Status;
 }
 
-NTSTATUS
+VOID
 HvmFinalize(
-    VOID
+    _Inout_ PHVM Hvm
     )
 {
-    if (gHvm != 0 && AtomicRead( &gHvm->launched ) == TRUE) {
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    HvmDestroy();
-    return STATUS_SUCCESS;
+    HvmDeletePerCpu( Hvm );
+    MemFree( Hvm );
 }

@@ -16,41 +16,38 @@ typedef struct _HVM_CONTEXT
 } HVM_CONTEXT, *PHVM_CONTEXT;
 
 BOOLEAN
-GlobalContextConfigure(
+InitializeHvmContext(
     _In_ PHVM_CONTEXT context
-);
+    );
 
 VOID
-GlobalContextReset(
+ResetHvmContext(
     _In_ PHVM_CONTEXT context
-);
+    );
 
 BOOLEAN
-LocalContextConfigure(
+InitializeVcpuContext(
     _In_ PVCPU_CONTEXT  local
-);
+    );
 
 VOID
-LocalContextReset(
+ResetVcpuContext(
     _In_ PVCPU_CONTEXT  local
-);
-
+    );
 
 PHVM_CONTEXT
 GlobalCtx(
     VOID
-);
+    );
 
 PVCPU_CONTEXT
 LocalCtx(
     VOID
-);
-
+    );
 
 PVCPU_CONTEXT
-LocalCtxForVcpu(
+LocalCtxForVcpuId(
     _In_ UINT32 VcpuId
-);
-
+    );
 
 #endif

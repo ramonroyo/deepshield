@@ -19,14 +19,14 @@
 //  VMX Error Codes
 //
 #define NO_INSTRUCTION_ERROR                        0                  /* VMxxxxx */
-#define VMCALL_IN_ROOT_ERROR                        1                  /* VMCALL */
-#define VMCLEAR_INVALID_PHYSICAL_ADDRESS_ERROR      2                  /* VMCLEAR */
-#define VMCLEAR_WITH_CURRENT_CONTROLLING_PTR_ERROR  3                  /* VMCLEAR */
+#define VMCALL_IN_VMX_ROOT_ERROR                        1              /* VMCALL */
+#define VMCLEAR_WITH_INVALID_ADDR      2                               /* VMCLEAR */
+#define VMCLEAR_WITH_VMXON_VMCS_PTR  3                                 /* VMCLEAR */
 #define VMLAUNCH_WITH_NON_CLEAR_VMCS_ERROR          4                  /* VMLAUNCH */
 #define VMRESUME_WITH_NON_LAUNCHED_VMCS_ERROR       5                  /* VMRESUME */
-#define VMRESUME_WITH_NON_CHILD_VMCS_ERROR          6                  /* VMRESUME */
+#define VMRESUME_VMCS_CORRUPTED                     6                  /* VMRESUME */
 #define VMENTER_BAD_CONTROL_FIELD_ERROR             7                  /* VMENTER */
-#define VMENTER_BAD_MONITOR_STATE_ERROR             8                  /* VMENTER */
+#define VMENTER_INVALID_VM_HOST_STATE               8                  /* VMENTER */
 #define VMPTRLD_INVALID_PHYSICAL_ADDRESS_ERROR      9                  /* VMPTRLD */
 #define VMPTRLD_WITH_CURRENT_CONTROLLING_PTR_ERROR  10                 /* VMPTRLD */
 #define VMPTRLD_WITH_BAD_REVISION_ID_ERROR          11                 /* VMPTRLD */
@@ -52,13 +52,13 @@
 //  VMCS VM_INSTRUCTION_ERROR field.
 //
 #define STATUS_VM_ENTRY_WITH_INVALID_CONTROL_FIELDS                             VMX_STATUS(VMENTER_BAD_CONTROL_FIELD_ERROR)
-#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS                          VMX_STATUS(VMENTER_BAD_MONITOR_STATE_ERROR)
+#define STATUS_VM_ENTRY_WITH_INVALID_HOST_STATE_FIELDS                          VMX_STATUS(VMENTER_INVALID_VM_HOST_STATE)
 #define STATUS_VM_ENTRY_WITH_INVALID_EXECUTIVE_VMCS_POINTER                     VMX_STATUS(VMENTRY_WITH_BAD_OSV_CONTROLLING_VMCS_ERROR)
 #define STATUS_VM_ENTRY_WITH_NON_LAUNCHED_EXECUTIVE_VMCS                        VMX_STATUS(VMENTRY_WITH_NON_LAUNCHED_OSV_CONTROLLING_VMCS_ERROR)
 #define STATUS_VM_ENTRY_WITH_EXECUTIVE_VMCS_POINTER_NOT_VMXON                   VMX_STATUS(VMENTRY_WITH_NON_ROOT_OSV_CONTROLLING_VMCS_ERROR)
 #define STATUS_VM_ENTRY_WITH_INVALID_VM_EXEC_CONTROL_FIELDS_IN_EXECUTIVE_VMCS   VMX_STATUS(RETURN_FROM_SMM_WITH_BAD_VM_EXECUTION_CONTROLS_ERROR)
 #define STATUS_VM_ENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS                           VMX_STATUS(VMENTRY_WITH_EVENTS_BLOCKED_BY_MOV_SS_ERROR)
-#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION                            VMX_STATUS(VMCALL_IN_ROOT_ERROR)
+#define STATUS_VMCALL_EXECUTED_IN_VMX_ROOT_OPERATION                            VMX_STATUS(VMCALL_IN_VMX_ROOT_ERROR)
 #define STATUS_VMCALL_WITH_NON_CLEAR_VMCS                                       VMX_STATUS(VMCALL_WITH_NON_CLEAR_VMCS_ERROR)
 #define STATUS_VMCALL_WITH_INVALID_VM_EXIT_CONTROL_FIELDS                       VMX_STATUS(VMCALL_WITH_BAD_VMEXIT_FIELDS_ERROR)
 #define STATUS_VMCALL_WITH_INCORRECT_MSEG_REVISION_ID                           VMX_STATUS(VMCALL_WITH_INVALID_MSEG_REVISION_ERROR)
@@ -66,11 +66,11 @@
 #define STATUS_VMPTRLD_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(VMPTRLD_INVALID_PHYSICAL_ADDRESS_ERROR)
 #define STATUS_VMPTRLD_WITH_VMXON_POINTER                                       VMX_STATUS(VMPTRLD_WITH_CURRENT_CONTROLLING_PTR_ERROR)
 #define STATUS_VMPTRLD_WITH_INCORRECT_VMCS_REVISION_IDENTIFIER                  VMX_STATUS(VMPTRLD_WITH_BAD_REVISION_ID_ERROR)
-#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(VMCLEAR_INVALID_PHYSICAL_ADDRESS_ERROR)
-#define STATUS_VMCLEAR_WITH_VMXON_POINTER                                       VMX_STATUS(VMCLEAR_WITH_CURRENT_CONTROLLING_PTR_ERROR)
+#define STATUS_VMCLEAR_WITH_INVALID_PHYSICAL_ADDRESS                            VMX_STATUS(VMCLEAR_WITH_INVALID_ADDR)
+#define STATUS_VMCLEAR_WITH_VMXON_POINTER                                       VMX_STATUS(VMCLEAR_WITH_VMXON_VMCS_PTR)
 #define STATUS_VMLAUNCH_WITH_NON_CLEAR_VMCS                                     VMX_STATUS(VMLAUNCH_WITH_NON_CLEAR_VMCS_ERROR)
 #define STATUS_VMRESUME_WITH_NON_LAUNCHED_VMCS                                  VMX_STATUS(VMRESUME_WITH_NON_LAUNCHED_VMCS_ERROR)
-#define STATUS_VMRESUME_AFTER_VMXOFF                                            VMX_STATUS(VMRESUME_WITH_NON_CHILD_VMCS_ERROR)
+#define STATUS_VMRESUME_AFTER_VMXOFF                                            VMX_STATUS(VMRESUME_VMCS_CORRUPTED)
 #define STATUS_VMREAD_VMWRITE_FROM_TO_UNSSUPORTED_VMCS_COMPONENT                VMX_STATUS(VMREAD_OR_VMWRITE_OF_UNSUPPORTED_COMPONENT_ERROR)
 #define STATUS_VMWRITE_TO_READONLY_VMCS_COMPONENT                               VMX_STATUS(VMWRITE_OF_READ_ONLY_COMPONENT_ERROR)
 #define STATUS_VMXON_EXECUTED_IN_VMX_ROOT_OPERATION                             VMX_STATUS(VMXON_IN_VMX_ROOT_OPERATION_ERROR)
@@ -82,7 +82,7 @@
 //
 #define STATUS_VMX_NOT_SUPPORTED                                                VMX_STATUS(30)  //!< No virtualization technology present for Intel
 #define STATUS_VMX_BIOS_DISABLED                                                VMX_STATUS(31)  //!< Virtualization technology disabled in BIOS
-#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS                                VMX_STATUS(32)  //!< Mixed environment with different kind of processors with different capabilities
+#define STATUS_VMX_DIFFERENT_CONFIG_ACROSS_PROCESSORS                           VMX_STATUS(32)  //!< Mixed environment with different kind of processors with different capabilities
 #define STATUS_VMX_EPT_NOT_SUPPORTED                                            VMX_STATUS(33)  //!< Mixed environment with different kind of processors with different capabilities
 
 //

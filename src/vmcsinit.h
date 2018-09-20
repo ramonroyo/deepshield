@@ -5,14 +5,14 @@
 #include "vmx.h"
 #include "x86.h"
 
-#define VMCS_REGION_SIZE                                  \
-    (Capabilities.Basic.Bits.VmcsRegionSize)
+#define VMCS_REGION_SIZE                                       \
+    ((gVmState.Capabilities).Basic.Bits.VmcsRegionSize)
 
-#define VMCS_REVISION                                     \
-	(Capabilities.Basic.Bits.RevisionId)
+#define VMCS_REVISION                                          \
+    ((gVmState.Capabilities).Basic.Bits.RevisionId)
 
-#define VMCS_ABOVE_4G_SUPPORTED                           \
-    (Capabilities.Basic.Bits.VmcsAddrWidth  == 0)  \
+#define VMCS_ABOVE_4G_SUPPORTED                                \
+    ((gVmState.Capabilities).Basic.Bits.VmcsAddrWidth  == 0)
 
 //
 //  VMX MSR Indexes.
@@ -132,17 +132,23 @@ typedef struct VMX_VMCS_FIXED {
     VMX_MSR_CR4 Cr4Fixed0;
 } VMX_VMCS_FIXED;
 
-extern VMX_CAPABILITIES Capabilities;
-extern VMX_CONSTRAINS Constraints;
-extern VMX_VMCS_FIXED Fixed;
+typedef struct _VMX_STATE
+{
+    VMX_CAPABILITIES Capabilities;
+    VMX_CONSTRAINS Constraints;
+    VMX_VMCS_FIXED Fixed;
+} VMX_STATE, *PVMX_STATE;
+
+extern VMX_STATE gVmState;
 
 VOID
-VmcsInitializeContext(
-    VOID
+VmInitializeVmState(
+    _Inout_ PVMX_STATE VmState
     );
 
 PVOID
 VmcsAllocateRegion(
+    _In_ UINT32 Revision,
     _In_ UINT32 RegionSize
     );
 

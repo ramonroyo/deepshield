@@ -47,9 +47,9 @@ DsCheckHvciCompliance(
     );
 #endif
 
-NTSTATUS
-DsVerifyVmxState(
-    _Inout_ PDS_VMX_STATE VmxState
+VOID
+DsInitializeVmxFeature(
+    _Inout_ PDS_VMX_FEATURE VmxFeature
 );
 
 #ifdef ALLOC_PRAGMA
@@ -60,7 +60,7 @@ DsVerifyVmxState(
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 #pragma alloc_text(PAGE, DsCheckHvciCompliance)
 #endif
-#pragma alloc_text(PAGE, DsVerifyVmxState)
+#pragma alloc_text(PAGE, DsInitializeVmxFeature)
 #endif
 
 #ifdef DBG
@@ -77,12 +77,9 @@ ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
 PDS_CHANNEL gChannel;
 UNICODE_STRING gDriverKeyName;
-VMX_CAPABILITIES Capabilities;
-VMX_CONSTRAINS Constraints;
-VMX_VMCS_FIXED Fixed;
-
 PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
-DS_VMX_STATE gVmxState;
+DS_VMX_FEATURE gVmxFeature;
+VMX_STATE gVmState;
 
 NTSTATUS
 DriverEntry(
@@ -103,9 +100,11 @@ DriverEntry(
     WPP_INIT_TRACING( DriverObject, RegistryPath );
 
     RtlInitUnicodeString( &gDriverKeyName, NULL );
+    gSystemPageDirectoryTable = __readcr3();
 
 #if (NTDDI_VERSION >= NTDDI_VISTA)
-    #pragma warning(disable:4055)
+
+#pragma warning(disable:4055)
     ExInitializeDriverRuntime( DrvRtPoolNxOptIn );
 
     if (RtlIsNtDdiVersionAvailable( NTDDI_WIN10 )) {
@@ -125,6 +124,7 @@ DriverEntry(
         DsMmMapIoSpaceEx = NULL;
     }
 #endif
+    DsInitializeVmxFeature( &gVmxFeature );
 
     Status = DsInitializeNonPagedPoolList( 256 * PAGE_SIZE );
 
@@ -188,12 +188,6 @@ DriverEntry(
 
     SymbolicLink = TRUE;
 
-    Status = DsVerifyVmxState( &gVmxState );
-
-    if (!NT_SUCCESS( Status )) {
-        goto RoutineExit;
-    }
-
     //
     //  Register the power change callback to load / unload VMM on
     //  sleep (S1/S2/S3) and hibernate (S4) state changes.
@@ -214,20 +208,6 @@ DriverEntry(
     }
     
     SetFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
-
-    /*
-    Status = DsQueryLoadModePolicy( &LoadMode );
-    if (NT_SUCCESS( Status ) && LoadMode == DSH_RUN_MODE_AUTO_START) {
-
-        Status = DsStartShield();
-        if (!NT_SUCCESS( Status )) {
-
-            Status = STATUS_SUCCESS;
-            goto RoutineExit;
-        }
-
-        SetFlag( gStateFlags, DSH_GFL_SHIELD_STARTED );
-    }*/
 
 RoutineExit:
 
@@ -565,46 +545,49 @@ DsCheckHvciCompliance(
 }
 #endif
 
-NTSTATUS
-DsVerifyVmxState(
-    _Inout_ PDS_VMX_STATE VmxState
+VOID
+DsInitializeVmxFeature(
+    _Inout_ PDS_VMX_FEATURE VmxFeature
     )
 {
     PAGED_CODE();
 
-    RtlZeroMemory( VmxState, sizeof( DS_VMX_STATE ) );
+    RtlZeroMemory( VmxFeature, sizeof( DS_VMX_FEATURE ) );
 
     if (FALSE == DsCheckCpuFamilyIntel() ) {
-        VmxState->Flags.NoIntelCpu = TRUE;
-        goto Exit;
+        VmxFeature->Bits.NoIntelCpu = 1;
+        return;
     }
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 
     if (FALSE == DsCheckHvciCompliance() ) {
-        VmxState->Flags.HvciEnabled = TRUE;
+        VmxFeature->Bits.HvciEnabled = 1;
 
         //
         //  Nothing else to check. In this situation a simple rdmsr might
         //  cause a privileged instruction exception.
         //
-        goto Exit;
+        return;
     }
 #endif
 
     if (FALSE == DsCheckCpuVmxCapable() ) {
-        VmxState->Flags.NoVtxExtension = TRUE;
-        goto Exit;
+        VmxFeature->Bits.NoVtxExtension = 1;
+        return;
     } 
 
     if (FALSE == DsCheckVmxFirmwareState() ) {
-        VmxState->Flags.FirmwareDisabled = TRUE;
-        goto Exit;
+        VmxFeature->Bits.FirmwareDisabled = 1;
+        return;
     }
 
-Exit:
+    VmInitializeVmState( &gVmState );
 
-    return STATUS_SUCCESS;
+    NT_ASSERT( VM_STATE_SIZE == sizeof( gVmState ) );
+    RtlCopyMemory( VmxFeature->VmStateBlob,
+                   &gVmState, 
+                   VM_STATE_SIZE );
 }
 
 #if !defined(WPP_EVENT_TRACING)
