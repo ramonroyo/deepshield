@@ -178,7 +178,7 @@ DsInitializeHvm(
             HvmFinalize( Hvm );
 
         } else {
-            
+            gHvm = Hvm;
         }
     }
 

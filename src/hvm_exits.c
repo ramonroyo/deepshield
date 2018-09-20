@@ -14,7 +14,7 @@ HvmpExitEventLogVmcsInfo(
     info->exitReason                  = VmRead32(EXIT_REASON);
     info->exitQualification           = VmReadN(EXIT_QUALIFICATION);
     info->guestLinearAddress          = VmReadN(GUEST_LINEAR_ADDRESS);
-    info->guestPhyscalAddress         = VmRead64(GUEST_PHYSICAL_ADDRESS);
+    info->guestPhysicalAddress        = VmRead64(GUEST_PHYSICAL_ADDRESS);
     info->exitInterruptionInformation = VmRead32(EXIT_INTERRUPTION_INFORMATION);
     info->exitInterruptionErrorCode   = VmRead32(EXIT_INTERRUPTION_ERRORCODE);
     info->idtVectoringInformation     = VmRead32(IDT_VECTORING_INFORMATION);
