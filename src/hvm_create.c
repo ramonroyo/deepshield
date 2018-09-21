@@ -85,7 +85,7 @@ HvmInitializeStack(
         //
         //  Store the VCPU at the start of the stack frame.
         //
-        *(PUINTN)(&StackFrame[StackSize - sizeof(UINTN)]) = (UINTN)&Vcpu;
+        *(PUINTN)(&StackFrame[StackSize - sizeof(UINTN)]) = (UINTN)Vcpu;
 
         Vcpu->Stack = StackFrame;
         Status = STATUS_SUCCESS;
@@ -135,7 +135,7 @@ HvmInitializePerCpu(
 
         CurrentVcpu->Hvm = Hvm;
         CurrentVcpu->Index = CpuIdx;
-        CurrentVcpu->SetupVmcs = SetupVmcsCb;
+        CurrentVcpu->VmcsSetCustomField = SetupVmcsCb;
         CurrentVcpu->ExitHandler = ExitHandlerCb;
         CurrentVcpu->Launched = FALSE;
         

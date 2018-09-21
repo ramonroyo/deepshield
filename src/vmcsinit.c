@@ -175,7 +175,7 @@ GetVmcsMemoryType(
 }
 
 UINT32
-VmcsMakeCompliantPinBasedCtrl(
+VmMakeCompliantPinBasedCtrl(
     _In_ UINT32 Value
     )
 {
@@ -185,7 +185,7 @@ VmcsMakeCompliantPinBasedCtrl(
 }
 
 UINT32
-VmcsMakeCompliantProcessorCtrl(
+VmMakeCompliantProcessorCtrl(
     _In_ UINT32 Value
     )
 {
@@ -195,7 +195,7 @@ VmcsMakeCompliantProcessorCtrl(
 }
 
 UINT32
-VmcsMakeCompliantProcessorCtrl2(
+VmMakeCompliantProcessorCtrl2(
     _In_ UINT32 Value
     )
 {
@@ -205,7 +205,7 @@ VmcsMakeCompliantProcessorCtrl2(
 }
 
 UINT32
-VmcsMakeCompliantExitCtrl(
+VmMakeCompliantExitCtrl(
     _In_ UINT32 Value
     )
 {
@@ -215,7 +215,7 @@ VmcsMakeCompliantExitCtrl(
 }
 
 UINT32
-VmcsMakeCompliantEntryCtrl(
+VmMakeCompliantEntryCtrl(
     _In_ UINT32 Value
     )
 {
@@ -225,7 +225,7 @@ VmcsMakeCompliantEntryCtrl(
 }
 
 UINTN 
-VmcsMakeCompliantCr0(
+VmMakeCompliantCr0(
     _In_ UINTN Value
     )
 {
@@ -235,7 +235,7 @@ VmcsMakeCompliantCr0(
 }
 
 UINTN 
-VmcsMakeCompliantCr4(
+VmMakeCompliantCr4(
     _In_ UINTN Value
     )
 {
@@ -245,7 +245,7 @@ VmcsMakeCompliantCr4(
 }
 
 UINTN 
-VmcsGetGuestVisibleCr4(
+VmGetGuestVisibleCr4(
     _In_ UINTN Cr4Value
     )
 {
