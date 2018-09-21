@@ -102,13 +102,13 @@ typedef union _FLAGS_REGISTER
 {
     struct
     {
-        UINT32 cf         : 1;   // 0 - Carry flag
+        UINT32 Cf         : 1;   // 0 - Carry flag
         UINT32 _reserved0 : 1;   // 1 - Always 1
         UINT32 pf         : 1;   // 2 - Parity flag
         UINT32 _reserved1 : 1;   // 3 - Always 0
         UINT32 af         : 1;   // 4 - Borrow flag
         UINT32 _reserved2 : 1;   // 5 - Always 0
-        UINT32 zf         : 1;   // 6 - Zero flag
+        UINT32 Zf         : 1;   // 6 - Zero flag
         UINT32 sf         : 1;   // 7 - Sign flag
         UINT32 tf         : 1;   // 8 - Trap flag
         UINT32 intf       : 1;   // 9 - Interrupt flag

@@ -83,27 +83,19 @@ HvmHandleService(
             Registers->Rax = (UINTN)STATUS_SUCCESS;
 
             HvmpStop( Vcpu, Registers );
-
-            //
-            // Never reached
-            //
             break;
         }
 
         default:
         {
             Registers->Rax = (UINT32)STATUS_UNSUCCESSFUL;
-            Registers->Rflags.Bits.cf = 1;
+            Registers->Rflags.Bits.Cf = 1;
 
             break;
         }
     }
 }
 
-//
-// There are some assumptions when HOST state is loaded, most important are described at 
-// Intel® 64 and IA-32 Architectures Software Developer’s Manual, Volume 3 27.5 (Loading Host State)
-// 
 VOID __stdcall
 HvmpExitHandler(
     _In_ PHVM_VCPU Vcpu,

@@ -127,7 +127,7 @@ typedef struct _HVM_VCPU
     PVOID Stack;
     UINTN Rsp;
     PHVM_EXIT_HANDLER ExitHandler;
-    PHVM_SETUP_VMCS SetupVmcs;
+    PHVM_SETUP_VMCS VmcsSetCustomField;
     PVOID Context;
     ATOMIC Launched;
     HVM_LOGGED_EVENTS LoggedEvents;

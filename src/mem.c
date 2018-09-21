@@ -675,7 +675,7 @@ ArenaInit(
                                           HighAddress,
                                           SkipBytes,
                                           RequestBytes,
-                                          MmCached, 
+                                          MmCached,
                                           Flags );
 
     if (RtlIsNtDdiVersionAvailable( NTDDI_WIN8 )) {

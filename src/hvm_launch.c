@@ -5,6 +5,7 @@
 #include "x86.h"
 #include "mmu.h"
 #include "smp.h"
+#include "context.h"
 
 extern PHVM gHvm;
 
@@ -37,11 +38,6 @@ extern VOID __stdcall
 AsmHvmpStop(
     _In_ UINTN iret,
     _In_ UINTN Registers
-);
-
-extern VOID
-AsmHvmpExitHandler(
-    VOID
 );
 
 VOID
@@ -154,12 +150,12 @@ HvmpEnterRoot(
     )
 {
     NTSTATUS Status;
-    FLAGS_REGISTER RegFlags;
+    PHVM_CONTEXT HvmContext;
 
     NT_ASSERT( Vcpu );
-    RegFlags.AsUintN = Flags;
 
     HvmpSaveHostState( &Vcpu->HostState );
+    HvmContext = (PHVM_CONTEXT) HvmGetHvmContextByVcpu( Vcpu );
 
     Status = VmxpEnable( Vcpu->VmxOnHpa );
     
@@ -168,7 +164,7 @@ HvmpEnterRoot(
     }
 
     //
-    // Load current VMCS, after that we can access VMCS region.
+    //  Clear and load current VMCS and after that we can access the VMCS.
     //
 
     if (AsmVmxClear((PUINT64)&Vcpu->VmcsHpa) != 0) {
@@ -179,15 +175,17 @@ HvmpEnterRoot(
         goto RoutineExit;
     }
 
-    Vcpu->SetupVmcs( Vcpu );
+    VmcsSetHostField( HvmContext->SystemCr3 );
+    VmcsSetControlField();
+    VmcsSetGuestField();
 
-    VmWriteN( HOST_RSP, Vcpu->Rsp );
-    VmWriteN( HOST_RIP, (UINTN)AsmHvmpExitHandler );
-    VmcsConfigureCommonEntry( Code, Stack, RegFlags );
+    //
+    //  Callback to set the specifics for the Hvm.
+    //
+    Vcpu->VmcsSetCustomField( Vcpu );
+
+    VmcsSetCommonField( Vcpu->Rsp, Code, Stack, Flags );
    
-    //
-    //  TODO: but it is not Launched indeed!
-    //
     AtomicWrite( &Vcpu->Launched, TRUE );
 
 RoutineExit:

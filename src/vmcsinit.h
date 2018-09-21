@@ -153,17 +153,17 @@ VmcsAllocateRegion(
     );
 
 UINTN
-VmcsMakeCompliantCr0(
+VmMakeCompliantCr0(
     _In_ UINTN Value
     );
 
 UINTN
-VmcsMakeCompliantCr4(
+VmMakeCompliantCr4(
     _In_ UINTN Value
     );
 
 UINTN
-VmcsGetGuestVisibleCr4(
+VmGetGuestVisibleCr4(
     _In_ UINTN Cr4Value
     );
 

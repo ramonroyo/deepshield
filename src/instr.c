@@ -154,27 +154,29 @@ InstrCr4Emulate(
     CR4_REGISTER Cr4;
     PUINTN Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
     INT32 AccessType = Qualification.CrAccess.AccessType;
+    UINTN OperandTsd;
 
     if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
 
         Cr4.AsUintN = *Gp;
+        OperandTsd = Cr4.AsUintN & CR4_TSD;
 
         //
-        //  Save CR4 changes into the Vcpu although it is not used.
+        //  Save CR4 changes although it is not being used.
         //
         Vcpu->HostState.Cr4 = Cr4;
 
         //
-        //  TODO: Do NOT support nested guest -> CR4_VMXE.
+        //  Remove host owned and enforce fixed 0 and fixed 1 bits, and force
+        //  TSD bit as it might be not visible (shadow bit 0).
         //
+        Cr4.AsUintN = VmMakeCompliantCr4( VmGetGuestVisibleCr4( Cr4.AsUintN ));
+        Cr4.AsUintN |= CR4_TSD;
 
-        //
-        //  Remove host owned and enforce fixed 0 and fixed 1 bits.
-        // 
-        VmWriteN( GUEST_CR4, 
-                  VmcsMakeCompliantCr4( VmcsGetGuestVisibleCr4( Cr4.AsUintN ) ) );
+        VmWriteN( GUEST_CR4, Cr4.AsUintN );
 
 #ifndef DISABLE_OSXSAVE_TRACKING
+
         if (Cr4.Bits.OsXsave) {
 
             if (IsXStateSupported() ) {
@@ -186,7 +188,14 @@ InstrCr4Emulate(
         }
 #endif
 
+        //
+        //  By last update TSD bit as guest visible.
+        //
+        VmWriteN( CR4_READ_SHADOW,
+                  (VmReadN( CR4_READ_SHADOW ) & ~CR4_TSD) | OperandTsd );
     }
+
+
     else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType ) {
         *Gp = VmReadN( GUEST_CR4 );
     }

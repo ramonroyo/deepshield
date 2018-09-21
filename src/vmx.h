@@ -19,9 +19,9 @@
 //  VMX Error Codes
 //
 #define NO_INSTRUCTION_ERROR                        0                  /* VMxxxxx */
-#define VMCALL_IN_VMX_ROOT_ERROR                        1              /* VMCALL */
-#define VMCLEAR_WITH_INVALID_ADDR      2                               /* VMCLEAR */
-#define VMCLEAR_WITH_VMXON_VMCS_PTR  3                                 /* VMCLEAR */
+#define VMCALL_IN_VMX_ROOT_ERROR                    1                  /* VMCALL */
+#define VMCLEAR_WITH_INVALID_ADDR                   2                  /* VMCLEAR */
+#define VMCLEAR_WITH_VMXON_VMCS_PTR                 3                  /* VMCLEAR */
 #define VMLAUNCH_WITH_NON_CLEAR_VMCS_ERROR          4                  /* VMLAUNCH */
 #define VMRESUME_WITH_NON_LAUNCHED_VMCS_ERROR       5                  /* VMRESUME */
 #define VMRESUME_VMCS_CORRUPTED                     6                  /* VMRESUME */

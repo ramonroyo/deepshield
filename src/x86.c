@@ -143,7 +143,7 @@ ArFromSelector(
     Descriptor = (PIA32_SEGMENT_DESCRIPTOR)
                         ((PUINT64)GetGdtrBase() + Segment.Bits.Index);
 
-    AccessRights = (UINT32)((Descriptor->DataLow & 0x00F0FF0000000000) >> 40);
+    AccessRights = (UINT32)((Descriptor->DataLow >> 40 ) & 0x00F0FF);
 
     if (Selector == 0) {
         AccessRights |= 0x10000;

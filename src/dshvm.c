@@ -31,20 +31,10 @@ DsHvmSetupVmcs(
     _In_ PHVM_VCPU Vcpu
     )
 {
-    PHYSICAL_ADDRESS MsrBitmap;
-    PHVM_CONTEXT HvmContext = (PHVM_CONTEXT) HvmGetVcpuContextByVcpu( Vcpu );
+    PHVM_CONTEXT HvmContext = (PHVM_CONTEXT)HvmGetHvmContextByVcpu( Vcpu );
 
-    VmcsSetGuestField();
-    VmcsSetHostField( HvmContext->SystemCr3 );
-    VmcsSetControlField();
-
-    VmcsSetGuestPrivilegedTsd();
-
-    //
-    //  TODO: use conditionally.
-    //
-    MsrBitmap = MmuGetPhysicalAddress( 0, HvmContext->MsrBitmap );
-    VmcsSetGuestNoMsrExits( MsrBitmap ); 
+    VmSetPrivilegedTimeStamp();
+    VmcsSetGuestNoMsrExits( HvmContext->MsrBitmap );
 }
 
 NTSTATUS
