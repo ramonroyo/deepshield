@@ -124,7 +124,9 @@ DriverEntry(
         DsMmMapIoSpaceEx = NULL;
     }
 #endif
+
     DsInitializeVmxFeature( &gVmxFeature );
+    RtlCopyMemory( &gVmState, &gVmxFeature.VmState, sizeof( VMX_STATE ) );
 
     Status = DsInitializeNonPagedPoolList( 256 * PAGE_SIZE );
 
@@ -366,6 +368,12 @@ DriverDeviceControl(
             break;
         }
 
+        case IOCTL_SHIELD_GET_VMFEATURE:
+        {
+            Status = DsCtlShieldGetVmFeature( Irp, IrpStack );
+            break;
+        }
+
 //
 // TODO: Enable only-debug when tests are finished.
 // #ifdef DBG
@@ -582,12 +590,7 @@ DsInitializeVmxFeature(
         return;
     }
 
-    VmInitializeVmState( &gVmState );
-
-    NT_ASSERT( VM_STATE_SIZE == sizeof( gVmState ) );
-    RtlCopyMemory( VmxFeature->VmStateBlob,
-                   &gVmState, 
-                   VM_STATE_SIZE );
+    VmInitializeVmState( &VmxFeature->VmState );
 }
 
 #if !defined(WPP_EVENT_TRACING)

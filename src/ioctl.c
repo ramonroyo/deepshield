@@ -26,6 +26,7 @@ Environment:
 #pragma alloc_text(PAGE, DsCtlTestRdtscDetection)
 #pragma alloc_text(PAGE, DsCtlShieldChannelSetup)
 #pragma alloc_text(PAGE, DsCtlShieldChannelTeardown)
+#pragma alloc_text(PAGE, DsCtlShieldGetVmFeature)
 #endif
 
 extern DS_VMX_FEATURE gVmxFeature;
@@ -237,5 +238,35 @@ DsCtlShieldChannelTeardown(
     DsDestroyChannel( gChannel, TeardownReason );
 
     Irp->IoStatus.Information = 0;
+    return Status;
+}
+
+NTSTATUS
+DsCtlShieldGetVmFeature(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    )
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+    PSHIELD_VM_FEATURE VmFeature;
+    ULONG InputLength;
+    ULONG OutputLength;
+
+    PAGED_CODE();
+
+    InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
+    OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
+
+    NT_ASSERT( sizeof( SHIELD_VM_FEATURE ) >= sizeof( DS_VMX_FEATURE ) );
+    if (max( InputLength, OutputLength ) < sizeof( SHIELD_VM_FEATURE )) {
+        return STATUS_BUFFER_TOO_SMALL;
+    }
+
+    VmFeature = (PSHIELD_VM_FEATURE)Irp->AssociatedIrp.SystemBuffer;
+
+    RtlZeroMemory( VmFeature, sizeof( SHIELD_VM_FEATURE ) );
+    RtlCopyMemory( VmFeature, &gVmxFeature, sizeof( DS_VMX_FEATURE ) );
+    
+    Irp->IoStatus.Information = sizeof( SHIELD_VM_FEATURE );
     return Status;
 }

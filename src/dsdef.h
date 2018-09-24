@@ -95,10 +95,9 @@ PVOID
 
 extern PMM_MAP_IO_SPACE_EX DsMmMapIoSpaceEx;
 
-#define VM_STATE_SIZE    (288)
 typedef struct _DS_VMX_FEATURE {
 
-    UINT32 Length;
+    UINT32 Version;
 
     union {
         struct {
@@ -112,8 +111,7 @@ typedef struct _DS_VMX_FEATURE {
         UINT32 AsUint32;
     } Bits;
 
-    UCHAR VmStateBlob[VM_STATE_SIZE];
-
+    VMX_STATE VmState;
 } DS_VMX_FEATURE, *PDS_VMX_FEATURE;
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
