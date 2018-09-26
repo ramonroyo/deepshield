@@ -37,49 +37,56 @@ typedef enum _IA32_CONTROL_REGISTERS {
 
 #define UNSUPPORTED_CR IA32_CTRL_COUNT
 
-#define RFLAGS_CF   1u
-#define RFLAGS_ZF   (1u << 6)
-#define RFLAGS_TF   (1u << 8)
-#define RFLAGS_IF   (1u << 9)
-#define RFLAGS_DF   (1u << 10)
-#define RFLAGS_IOPL (3u << 12)
-#define RFLAGS_NT   (1u << 14)
-#define RFLAGS_RF   (1u << 16)
-#define RFLAGS_VM   (1u << 17)
-#define RFLAGS_AC   (1u << 18)
-#define RFLAGS_VIF  (1u << 19)
-#define RFLAGS_VIP  (1u << 20)
+#define RFLAGS_CF   1ULL
+#define RFLAGS_ZF   (1ULL << 6)
+#define RFLAGS_TF   (1ULL << 8)
+#define RFLAGS_IF   (1ULL << 9)
+#define RFLAGS_DF   (1ULL << 10)
+#define RFLAGS_IOPL (3ULL << 12)
+#define RFLAGS_NT   (1ULL << 14)
+#define RFLAGS_RF   (1ULL << 16)
+#define RFLAGS_VM   (1ULL << 17)
+#define RFLAGS_AC   (1ULL << 18)
+#define RFLAGS_VIF  (1ULL << 19)
+#define RFLAGS_VIP  (1ULL << 20)
 
 //
 //  IA-32 Control Register #0 (CR0)
 //
 
-#define CR0_PE    1u
-#define CR0_TS    (1u << 3)
-#define CR0_NE    (1u << 5)
-#define CR0_WP    (1u << 16)
-#define CR0_NW    (1u << 29)
-#define CR0_CD    (1u << 30)
-#define CR0_PG    (1u << 31)
+#define CR0_PE    1ULL
+#define CR0_MP    (1ULL << 1)
+#define CR0_EM    (1ULL << 2)
+#define CR0_TS    (1ULL << 3)
+#define CR0_NE    (1ULL << 5)
+#define CR0_WP    (1ULL << 16)
+#define CR0_NW    (1ULL << 29)
+#define CR0_CD    (1ULL << 30)
+#define CR0_PG    (1ULL << 31)
 
 //
-//  IA-32 Control Register #0 (CR4)
+//  IA-32 Control Register #4 (CR4)
 //
 
-#define CR4_VME          1u
-#define CR4_TSD          (1u << 2)
-#define CR4_PSE          (1u << 4)
-#define CR4_PAE          (1u << 5)
-#define CR4_PGE          (1u << 7)
-#define CR4_OSFXSR       (1u << 9)
-#define CR4_OSXMMEXCPT   (1u << 10)
-#define CR4_VMXE         (1u << 13)
-#define CR4_SMXE         (1u << 14)
-#define CR4_OSXSAVE      (1u << 18)
+#define CR4_VME          1ULL
+#define CR4_PVI          (1ULL << 1)
+#define CR4_TSD          (1ULL << 2)
+#define CR4_PSE          (1ULL << 4)
+#define CR4_PAE          (1ULL << 5)
+#define CR4_MCE          (1ULL << 6)
+#define CR4_PGE          (1ULL << 7)
+#define CR4_PCE          (1ULL << 8)
+#define CR4_OSFXSR       (1ULL << 9)
+#define CR4_OSXMM        (1ULL << 10)
+#define CR4_VMXE         (1ULL << 13)
+#define CR4_SMXE         (1ULL << 14)
+#define CR4_PCIDE        (1ULL << 17)
+#define CR4_OSXSAVE      (1ULL << 18)
+#define CR4_SMEP         (1ULL << 20)
 
-#define IA32_CPUID_ECX_VMX         (1u << 5)
-#define IA32_CPUID_ECX_XSAVE       (1u << 26)
-#define IA32_CPUID_ECX_OSXSAVE     (1u << 27)
+#define IA32_CPUID_ECX_VMX         (1UL << 5)
+#define IA32_CPUID_ECX_XSAVE       (1UL << 26)
+#define IA32_CPUID_ECX_OSXSAVE     (1UL << 27)
 
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
@@ -211,6 +218,43 @@ typedef union _CR4_REGISTER
 
     UINTN AsUintN;
 } CR4_REGISTER, VMX_MSR_CR4;
+
+//
+//  IA-32 EFER Register.
+//
+
+#define EFER_SCE         1ULL           // System Call Extensions (R/W)
+#define EFER_LME         (1ULL << 8)    // Long mode enable (R/W)
+#define EFER_LMA         (1ULL << 10)   // Long mode active (R)
+#define EFER_NXE         (1ULL << 11)   // PTE No-Execute bit enable (R/W)
+#define EFER_SVM         (1ULL << 12)   // SVM enable bit for AMD, reserved for Intel
+#define EFER_LMSLE       (1ULL << 13)   // Long Mode Segment Limit Enable
+#define EFER_FFXSR       (1ULL << 14)   // Fast FXSAVE/FSRSTOR
+#define EFER_TCE         (1ULL << 15)   // Translation Cache Extension
+
+//
+//  Intel Extended Features registers.
+//
+
+#define XCR0        0
+
+#define XFEATURE_ENABLED_X87        0x00000001
+#define XFEATURE_ENABLED_SSE        0x00000002
+#define XFEATURE_ENABLED_YMM_HI128  0x00000004
+#define XFEATURE_ENABLED_AVX        XFEATURE_ENABLED_YMM_HI128
+#define XFEATURE_ENABLED_BNDREGS    0x00000008
+#define XFEATURE_ENABLED_BNDCSR     0x00000010
+#define XFEATURE_ENABLED_OPMASK     0x00000020
+#define XFEATURE_ENABLED_ZMM_HI256  0x00000040
+#define XFEATURE_ENABLED_HI16_ZMM   0x00000080
+
+#define XFEATURE_AVX                        \
+    (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE | XFEATURE_ENABLED_AVX)
+#define XFEATURE_AVX512                                        \
+    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |    \
+    XFEATURE_ENABLED_HI16_ZMM)
+#define XFEATURE_MPX                        \
+    (XFEATURE_ENABLED_BNDREGS | XFEATURE_ENABLED_BNDCSR)
 
 typedef struct _DR7_REGISTER
 {

@@ -6,6 +6,12 @@
 
 MMU gMmu = { 0 };
 
+PTE_ENTRY DefaultMmuPte = { PTE_PRESENT |
+                            PTE_RW |
+                            // PTE_GLOBAL |
+                            PTE_DIRTY |
+                            PTE_ACCESSED };
+
 typedef struct _MATCH_ITEM {
     UCHAR Byte;
     UCHAR Mask;
@@ -17,9 +23,8 @@ MatchSignature(
     ULONG   SignatureSize,
     PUCHAR  Target,
     ULONG   TargetSize
-)
+    )
 {
-
     ULONG  SignatureOffset = 0;
     ULONG  TargetOffset = 0;
     ULONG  Offset = 0;
@@ -54,7 +59,7 @@ MatchSignature(
 ULONG_PTR
 HackishSearchPML4(
     VOID
-)
+    )
 {
 
 //              MmAccessFault+2E6  48 B8 00 D0 BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBED000h
@@ -103,11 +108,13 @@ HackishSearchPML4(
 
     Routine += 0x3a1c;
 
-    if ( Routine ) {
-        ULONG Offset = MatchSignature(PML4Instructions, sizeof(PML4Instructions) / sizeof(USHORT), Routine, 0x500);
+    if (Routine) {
+        ULONG Offset = MatchSignature( PML4Instructions, 
+                                       sizeof(PML4Instructions) / sizeof(USHORT),
+                                       Routine,
+                                       0x500);
 
-        if ( Offset > 0 ) {
-
+        if (Offset > 0) {
             Return = *(PULONG_PTR)&Routine[Offset + 51];
 
             // Add some verifications to retrieved offset
@@ -175,12 +182,11 @@ MmupLocateAutoEntryIndex(
         PUINT64 pml4 = (PUINT64)cr3Va;
         UINT16  i;
 
-        for (i = 0; i < 512; i++)
-        {
-            UINT64 entry = pml4[i];
+        for (i = 0; i < 512; i++) {
 
-            if((entry & 0x7FFFFFFFFFFFF000) == cr3)
-            {
+            UINT64 entry = pml4[i];
+            if ((entry & 0x7FFFFFFFFFFFF000) == cr3) {
+
                 *autoEntryIndex = i;
                 found = TRUE;
                 break;
@@ -193,53 +199,55 @@ MmupLocateAutoEntryIndex(
     return found;
 }
 
+#define PDPTE_PFN_MASK    0x0000FFFFFFFFF000
+
 UINT64
 MmupCreatePte(
-    _In_ PHYSICAL_ADDRESS address,
-    _In_ UINT64           flags
-)
+    _In_ PHYSICAL_ADDRESS PhysicalAddress,
+    _In_ UINT64 PteContents
+    )
 {
 #ifdef _WIN64
-    return (address.QuadPart & 0x0000FFFFFFFFF000) | flags;
+    return (PhysicalAddress.QuadPart & PDPTE_PFN_MASK) | PteContents;
+
 #else
-    if (gMmu.paeEnabled)
-    {
-        return (address.QuadPart & 0x0000FFFFFFFFF000) | flags;
+    if (gMmu.PaeEnabled) {
+        return (PhysicalAddress.QuadPart & PDPTE_PFN_MASK) | PteContents;
     }
-    else
-    {
-        return (address.LowPart & 0xFFFFF000) | (UINT32)flags;
+    else {
+        return (PhysicalAddress.LowPart & 0xFFFFF000) | (UINT32)PteContents;
     }
 #endif
 }
 
 VOID
-MmupChangeMapping(
-    _In_ PMMU_MAPPING mapping,
-    _In_ UINT64       pte
-)
+MmupWriteMappingPte(
+    _In_ PMMU_MAPPING Mapping,
+    _In_ UINT64 PteContents
+    )
 {
 #ifdef _WIN64
-    *(PUINT64)mapping->pte = pte;
+    *(PUINT64)Mapping->PointerPte = PteContents;
+
 #else
-    if (gMmu.paeEnabled)
-    {
-        *(PUINT64)mapping->pte = pte;
+    if (gMmu.PaeEnabled) {
+        *(PUINT64)Mapping->PointerPte = PteContents;
     }
-    else
-    {
-        *(PUINT32)mapping->pte = (UINT32)pte;
+    else {
+        *(PUINT32)Mapping->PointerPte = (UINT32)PteContents;
     }
 #endif
     
-    __invlpg(mapping->page);
+    //
+    //  Flush the address from TLB for the current processor. 
+    //
+    __invlpg( Mapping->SystemVa );
 }
 
-
 PVOID
-MmupMap(
-    _In_ PHYSICAL_ADDRESS address,
-    _In_ UINT64           flags
+MmupMapPage(
+    _In_ PHYSICAL_ADDRESS TargetPa,
+    _In_ UINT64 PteContents
     )
 {
     UINT32 i;
@@ -248,19 +256,22 @@ MmupMap(
     MmuVcpu = &gMmu.Processors[SmpGetCurrentProcessor()];
 
     //
-    // Find an empty slot in this Vcpu
+    //  Find an available mapping PTE for this VCPU.
     //
-    for (i = 0; i < MAX_MAPPING_SLOTS; i++)
-    {
-        if (0 == InterlockedCompareExchange( &MmuVcpu->mappings[i].MapInUse, 1, 0 ) ) {
+
+    for (i = 0; i < MAX_MAPPING_SLOTS; i++) {
+        if (0 == InterlockedCompareExchange( &MmuVcpu->Mappings[i].MapInUse, 
+                                             TRUE,
+                                             FALSE ) ) {
 
             //
-            // Write adequate PTE in paging structures so 
-            // physical address becomes accesible at this slot
+            //  Write valid PTE in paging structures so this physical address
+            //  becomes accessible.
             //
-            MmupChangeMapping( &MmuVcpu->mappings[i],
-                               MmupCreatePte( address, flags ));
-            return MmuVcpu->mappings[i].page;
+            MmupWriteMappingPte( &MmuVcpu->Mappings[i],
+                               MmupCreatePte( TargetPa, PteContents ) );
+
+            return MmuVcpu->Mappings[i].SystemVa;
         }
     }
 
@@ -272,18 +283,27 @@ MmuFinalize(
     VOID
 );
 
+//#define MMU_LOWEST_USABLE_PHYSICAL_ADDRESS    (64 * 1024 * 1024)
+
 NTSTATUS
 MmuInitialize(
     VOID
     )
 {
+    LARGE_INTEGER MaxAddress = { MAXULONG64 };
+    NTSTATUS Status = STATUS_INSUFFICIENT_RESOURCES;
+    UINT32 ProcessorCount = SmpActiveProcessorCount();
+    UINT64 PteContents;
+    PVOID ZeroPage;
+    PMMU_MAPPING Mapping;
     UINT32 i, j;
+
 #ifdef _WIN64
 #if (NTDDI_VERSION >= NTDDI_VISTA)
-    NTSTATUS Status;
     PKD_DEBUGGER_DATA_BLOCK DebuggerData;
     
     if (gSecuredPageTables) {
+
 #if DBG
         ULONG_PTR PdeBase;
         ULONG_PTR PteBase;
@@ -305,7 +325,7 @@ MmuInitialize(
     } else {
 #endif
         //
-        //  Find processor page structures in memory as now they are ASLR'd
+        //  Find processor page structures in memory as now they are ASLR'd.
         //
         if (!MmupLocateAutoEntryIndex( &gMmu.autoEntryIndex )) {
             return STATUS_UNSUCCESSFUL;
@@ -313,150 +333,168 @@ MmuInitialize(
 
         gMmu.lowerBound =  (((UINT64)0xFFFF) << 48) | (gMmu.autoEntryIndex << 39);
         gMmu.upperBound = (gMmu.lowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+
 #if (NTDDI_VERSION >= NTDDI_VISTA)
     }
 #endif
+
 #else // !WIN64
     ULONG_PTR cr4 = 0;
 
     cr4 = __readcr4();
     if (cr4 & CR4_PAE_ENABLED)
     {
-        gMmu.paeEnabled = TRUE;
-        gMmu.pxeShift = 3;
+        gMmu.PaeEnabled = TRUE;
+        gMmu.PxeShift = 3;
     }
     else
     {
-        gMmu.paeEnabled = FALSE;
-        gMmu.pxeShift = 2;
+        gMmu.PaeEnabled = FALSE;
+        gMmu.PxeShift = 2;
     }
 #endif
-    gMmu.pxeBase = (UINTN)MmuGetPxeAddress(0);
+    gMmu.PxeBase = (UINTN)MmuGetPxeAddress( 0 );
 
     //
-    //  Allocate one MMU per Vcpu.
+    //  Allocate one MMU per VCPU.
     //
-    gMmu.Processors = MemAllocArray(SmpActiveProcessorCount(), sizeof(MMU_PROCESSOR));
+    gMmu.Processors = MemAllocArray( ProcessorCount, sizeof( MMU_PROCESSOR ));
     
-    if(!gMmu.Processors) {
+    if (!gMmu.Processors) {
         return STATUS_INSUFFICIENT_RESOURCES;
     }
 
-    RtlZeroMemory(gMmu.Processors, SmpActiveProcessorCount() * sizeof(MMU_PROCESSOR));
+    RtlZeroMemory( gMmu.Processors, ProcessorCount * sizeof( MMU_PROCESSOR ));
 
-    for (i = 0; i < SmpActiveProcessorCount(); i++)
-    {
-        for (j = 0; j < MAX_MAPPING_SLOTS; j++)
-        {
-            //
-            // Allocate mapping slot
-            //
-            PVOID slot = MmAllocateMappingAddress(4096, 'MMAP');
-            if (slot == NULL)
-                goto failure;
+    for (i = 0; i < ProcessorCount; i++) {
 
-            gMmu.Processors[i].mappings[j].MapInUse = FALSE;
-            gMmu.Processors[i].mappings[j].page     = slot;
-            gMmu.Processors[i].mappings[j].pte      = MmuGetPxeAddress(slot);
+        ZeroPage = MmAllocateContiguousMemory( PAGE_SIZE, MaxAddress );
 
-            MmupChangeMapping(&gMmu.Processors[i].mappings[j], 0);
+        if (NULL == ZeroPage) {
+            Status = STATUS_INSUFFICIENT_RESOURCES;
+            goto RoutineExit;
+        }
+
+        gMmu.Processors[i].ZeroPte = MmuGetPxeAddress( ZeroPage );
+        gMmu.Processors[i].ZeroPage = ZeroPage;
+
+        for (j = 0; j < MAX_MAPPING_SLOTS; j++) {
+
+            PteContents = *(PUINT64)gMmu.Processors[i].ZeroPte;
+            Mapping = &gMmu.Processors[i].Mappings[j];
+
+            Mapping->SystemVa = MmAllocateMappingAddress( PAGE_SIZE, 'MMAP' );
+
+            if (NULL == Mapping->SystemVa) {
+                Status = STATUS_INSUFFICIENT_RESOURCES;
+                goto RoutineExit;
+            }
+
+            Mapping->PointerPte = MmuGetPxeAddress( Mapping->SystemVa );
+            Mapping->MapInUse = FALSE;
+
+            MmupWriteMappingPte( Mapping, PteContents );
         }
     }
 
-    return STATUS_SUCCESS;
+    Status = STATUS_SUCCESS;
 
-failure:
-    MmuFinalize();
+RoutineExit:
 
-    return STATUS_UNSUCCESSFUL;
+    if (!NT_SUCCESS(Status)) {
+        MmuFinalize();
+    }
+
+    return Status;
 }
-
 
 VOID
 MmuFinalize(
     VOID
     )
 {
+    PMMU_PROCESSOR MmuVcpu;
     UINT32 i, j;
 
-    for (i = 0; i < SmpActiveProcessorCount(); i++)
-    {
-        for (j = 0; j < MAX_MAPPING_SLOTS; j++)
-        {
-            //
-            // Free mapping slot
-            //
-            if(gMmu.Processors[i].mappings[j].page)
-            {
-                MmFreeMappingAddress(gMmu.Processors[i].mappings[j].page, 'MMAP');
+    for (i = 0; i < SmpActiveProcessorCount(); i++) {
+        MmuVcpu = &gMmu.Processors[i];
+
+        //
+        //  Time to free all address mappings for each VCPU.
+        //
+
+        for (j = 0; j < MAX_MAPPING_SLOTS; j++) {
+
+            if (MmuVcpu->Mappings[j].SystemVa) {
+                MmFreeMappingAddress( MmuVcpu->Mappings[j].SystemVa,
+                                      'MMAP' );
             }
+        }
+
+        if (MmuVcpu->ZeroPage) {
+            MmFreeContiguousMemory( MmuVcpu->ZeroPage );
         }
     }
 
-    MemFree(gMmu.Processors);
+    MemFree( gMmu.Processors );
     gMmu.Processors = 0;
 
 #ifdef _WIN64
     gMmu.lowerBound = 0;
     gMmu.upperBound = 0;
 #else
-    gMmu.paeEnabled = FALSE;
-    gMmu.pxeShift = 0;
+    gMmu.PaeEnabled = FALSE;
+    gMmu.PxeShift = 0;
 #endif
 }
 
-
 PVOID
-MmuMap(
-    _In_ PHYSICAL_ADDRESS address
+MmuMapPage(
+    _In_ PHYSICAL_ADDRESS PhysicalPage,
+    _In_ BOOLEAN Uncached
     )
 {
-    //
-    // Map with usual (present, etc) flags
-    //
-    return MmupMap(address, 0x03);
-}
+    UINT64 PteContents;
+    BOOLEAN Nxe = FALSE;
 
-PVOID
-MmuMapUncached(
-    _In_ PHYSICAL_ADDRESS address
-    )
-{
-    //
-    // Map with no cache memory flags
-    //
-    return MmupMap(address, 0x1B);
+    PteContents = DefaultMmuPte.AsUintN;
+
+    if (Nxe) {
+        //
+        //   TODO: Disabled now but check CR4.NXE.
+        //
+        PteContents |= PTE_XD;
+    }
+
+    if (Uncached) {
+        PteContents |= PAGE_CACHE_UC;
+    }
+
+    return MmupMapPage( PhysicalPage, PteContents );
 }
 
 VOID
-MmuUnmap(
-    _In_ PVOID address
+MmuUnmapPage(
+    _In_ PVOID VirtualAddress
     )
 {
     UINT32 i;
     PMMU_PROCESSOR MmuVcpu;
+    PMMU_MAPPING Mapping;
 
     MmuVcpu = &gMmu.Processors[SmpGetCurrentProcessor()];
-    
-    //
-    // Search address
-    //
-    for (i = 0; i < MAX_MAPPING_SLOTS; i++)
-    {
+
+    for (i = 0; i < MAX_MAPPING_SLOTS; i++) {
+        Mapping = &MmuVcpu->Mappings[i];
+
         //
-        // Entry is used and address match
+        //  Look for the matching VirtualAddress to unmap.
         //
-        if (MmuVcpu->mappings[i].MapInUse &&
-            MmuVcpu->mappings[i].page == address) {
 
-            InterlockedCompareExchange( &MmuVcpu->mappings[i].MapInUse, 0, 1 );
+        if (Mapping->MapInUse && Mapping->SystemVa == VirtualAddress) {
+            InterlockedCompareExchange( &Mapping->MapInUse, 0, 1 );
 
-            //
-            //  Set PTE to 0.
-            //  TODO: is this arquitecturally valid (NXE)?.
-            //
-
-            MmupChangeMapping( &MmuVcpu->mappings[i], 0 );
+            MmupWriteMappingPte( Mapping, *(PUINT64)MmuVcpu->ZeroPte );
             break;
         }
     }
@@ -464,56 +502,52 @@ MmuUnmap(
 
 PVOID
 MmuGetPxeAddress(
-    _In_opt_ PVOID address
+    _In_opt_ PVOID VirtualAddress
     )
 {
+    UINTN PointerPte = 0;
+
 #ifdef _WIN64
-    UINT64 result = 0;
-
-    result = ((UINT64)address) >> 9;
-    result = result | gMmu.lowerBound;
-    result = result & gMmu.upperBound;
-
-    return (PVOID)result;
+    PointerPte = ((UINT64)VirtualAddress) >> 9;
+    PointerPte = PointerPte | gMmu.lowerBound;
+    PointerPte = PointerPte & gMmu.upperBound;
 #else
-    UINT32 result = 0;
-
-    result = ((UINT32)address) >> 12;
-    result = result << gMmu.pxeShift;
-    result = result + 0xC0000000;
-
-    return (PVOID)result;
+    PointerPte = ((UINT32)VirtualAddress) >> 12;
+    PointerPte = PointerPte << gMmu.PxeShift;
+    PointerPte = PointerPte + 0xC0000000;
 #endif
+
+    return (PVOID)PointerPte;
 }
 
 PVOID
-MmuGetPageAddress(
-    _In_ PVOID pxeAddress
-)
+MmuGetPhysicalAddressMappedByPte(
+    _In_ PVOID PxeAddress
+    )
 {
-    UINTN pfn;
-    UINTN pageAddress;
+    UINTN Pfn;
+    UINTN PageAddress;
 
 #ifdef _WIN64
-        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINTN);
+        Pfn = ((UINTN)PxeAddress - gMmu.PxeBase) / sizeof( UINT64 );
 
-        pageAddress = pfn << 12;
+        PageAddress = Pfn << 12;
 
-        if (pageAddress & ((UINT64)1 << 47))
-            pageAddress |= ((UINT64)0xFFFF << 48);
+        if (PageAddress & ((UINT64)1 << 47)) {
+            PageAddress |= ((UINT64)0xFFFF << 48);
+        }
 #else
-    if(gMmu.paeEnabled)
-    {
-        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINT64);
+    if (gMmu.PaeEnabled) {
+        Pfn = ((UINTN)PxeAddress - gMmu.PxeBase) / sizeof( UINT64 );
     }
-    else
-    {
-        pfn = ((UINTN)pxeAddress - gMmu.pxeBase) / sizeof(UINTN);
+    else {
+        Pfn = ((UINTN)PxeAddress - gMmu.PxeBase) / sizeof( UINT32 );
     }
-    pageAddress = pfn << 12;
+
+    PageAddress = Pfn << 12;
 #endif
 
-    return (PVOID)pageAddress;
+    return (PVOID)PageAddress;
 }
 
 BOOLEAN
@@ -533,12 +567,10 @@ MmuAddressIsInPagingRange(
     return (start <= (UINTN)address) && ((UINTN)address <= end);
 }
 
-
-
 PHYSICAL_ADDRESS
 MmuGetPhysicalAddress(
     _In_ UINTN cr3,
-    _In_ PVOID    address
+    _In_ PVOID address
 )
 {
     PHYSICAL_ADDRESS result;
@@ -567,11 +599,11 @@ MmuGetPhysicalAddress(
 
         while(level)
         {
-            PVOID   pml;
-            UINT16  index;
-            UINT64  entry;
+            PVOID pml;
+            UINT16 index;
+            UINT64 entry;
 
-            pml = MmuMapUncached(pa);
+            pml = MmuMapPage( pa, TRUE );
 
             //
             // We went out of cached slots, exit
@@ -581,25 +613,23 @@ MmuGetPhysicalAddress(
                 break; 
             }
 
-            index = MmuGetPxeIndex(level, address);
-            entry = MmuGetPmlEntry(pml, index);
-            MmuUnmap(pml);
+            index = MmuGetPxeIndex( level, address );
+            entry = MmuGetPmlEntry( pml, index );
 
-            if(entry & 1)
-            {
-                if (entry & 8) {
+            MmuUnmapPage( pml );
+
+            if (entry & 1) {
+                if (level != 1 && (entry & PDE_PSE)) {
                     //
                     //   Check what happens with a 2-MB page.
                     //
                     NT_ASSERT( FALSE );
                 }
 
-                if (level == 1)
-                {
+                if (level == 1) {
                     result.QuadPart = entry & 0xFFFFFFFFFFFFF000 | (((UINTN)address) & 0xFFF);
                 }
-                else
-                {
+                else {
                     pa.QuadPart = entry & 0xFFFFFFFFFFFFF000;
                 }
             }
@@ -624,7 +654,7 @@ MmuGetNumberOfPageEntries(
 #ifdef _WIN64
     return 512;
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         return 512;
     }
@@ -643,7 +673,7 @@ MmuGetPageEntrySize(
 #ifdef _WIN64
     return 8;
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         return 8;
     }
@@ -665,7 +695,7 @@ MmuGetPmlEntry(
     table = (PUINT64) pml;
     return table[index];
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         PUINT64 table;
         table = (PUINT64) pml;
@@ -690,7 +720,7 @@ MmuGetPmlIndexFromOffset(
 #ifdef _WIN64
     sizeOfEntry = sizeof(UINTN);
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         sizeOfEntry = 8;
     }
@@ -711,7 +741,7 @@ MmuGetPagingLevels(
 #ifdef _WIN64
     return 4;
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         return  3;
     }
@@ -731,7 +761,7 @@ MmuGetPxeIndex(
 #ifdef _WIN64
     return  ((((UINTN)va) >> (12 + 9 * (level - 1))) & 0x1FF);
 #else
-    if (gMmu.paeEnabled)
+    if (gMmu.PaeEnabled)
     {
         return  ((((UINTN)va) >> (12 + 9 * (level - 1))) & 0x1FF);
     }
