@@ -283,15 +283,15 @@ MmuFinalize(
     VOID
 );
 
-//#define MMU_LOWEST_USABLE_PHYSICAL_ADDRESS    (64 * 1024 * 1024)
+#define HIGHEST_PHYSICAL_ADDRESS   ((ULONG64)~((ULONG64)0))
 
 NTSTATUS
 MmuInitialize(
     VOID
     )
 {
-    LARGE_INTEGER MaxAddress = { MAXULONG64 };
     NTSTATUS Status = STATUS_INSUFFICIENT_RESOURCES;
+    LARGE_INTEGER MaxAddress = { HIGHEST_PHYSICAL_ADDRESS };
     UINT32 ProcessorCount = SmpActiveProcessorCount();
     UINT64 PteContents;
     PVOID ZeroPage;

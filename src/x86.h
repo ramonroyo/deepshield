@@ -91,6 +91,8 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
 #define CPUID_PROCESSOR_EXTENDED_STATE_EMULATION  0xD
+#define CPUID_VMM_VENDOR_SIGNATURE                0x40000000
+#define CPUID_VMM_INTERFACE_SIGNATURE             0x40000001
 #define CPUID_EXTENDED_INFORMATION                0x80000000
 #define CPUID_EXTENDED_ADDRESS_SIZE               0x80000008
 
@@ -102,8 +104,6 @@ typedef struct _CPU_INFO {
 #define CPUID_VALUE_EBX(c) ((UINT32)((c).Data[1]))
 #define CPUID_VALUE_ECX(c) ((UINT32)((c).Data[2]))
 #define CPUID_VALUE_EDX(c) ((UINT32)((c).Data[3]))
-
-#pragma warning( disable : 4214 ) //Bit field types other than int
 
 typedef union _FLAGS_REGISTER
 {
