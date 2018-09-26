@@ -30,12 +30,12 @@ typedef struct _SEGMENT_CTX
     SEGMENT_SELECTOR Ldtr;
 } SEGMENT_CTX;
 
-#define VM_LOAD_SEGMENT(s, SEG_NAME)                    \
-{                                                       \
-    VmWrite16( SEG_NAME##_SELECTOR, (s).Selector);      \
-    VmWriteN( SEG_NAME##_BASE, (s).Base);               \
-    VmWrite32( SEG_NAME##_LIMIT, (s).Limit);            \
-    VmWrite32( SEG_NAME##_ACCESS_RIGHTS, (s).Attr);     \
+#define VM_LOAD_SEGMENT(s, SEG_NAME)                   \
+{                                                      \
+    VmWrite16( SEG_NAME##_SELECTOR, (s).Selector );    \
+    VmWriteN( SEG_NAME##_BASE, (s).Base );             \
+    VmWrite32( SEG_NAME##_LIMIT, (s).Limit );          \
+    VmWrite32( SEG_NAME##_ACCESS_RIGHTS, (s).Attr );   \
 }
 
 VOID
@@ -176,22 +176,19 @@ VmcsSetControlField(
     VMX_EXIT_CTLS ExitControls = { 0 };
     VMX_ENTRY_CTLS EntryControls = { 0 };
 
-    //
-    //  TODO: enable INVPCID and RDTSCP conditionally.
-    //
-
-    Proc2Controls.Bits.EnableInvpcid = 1;
-    Proc2Controls.Bits.EnableRdtscp = 1;
-    ProcControls.Bits.SecondaryControl = 1;
-
     if (IsXStateSupported()) {
 
         //
-        // Expose XSAVES only when XSAVE is supported.
+        // Expose XSAVES only if XSAVE is supported.
         //
         Proc2Controls.Bits.EnableXsavesXrstors = 1;
         VmWrite64( XSS_EXITING_BITMAP, VMX_XSS_EXIT_BITMAP );
     }
+
+    Proc2Controls.Bits.EnableInvpcid = IsInvpcidSupported();
+    Proc2Controls.Bits.EnableRdtscp = IsRdtscpSupported();
+
+    ProcControls.Bits.SecondaryControl = 1;
 
     //
     //  No flush of TLBs on VM entry or VM exit if VPID active. Tagged TLB

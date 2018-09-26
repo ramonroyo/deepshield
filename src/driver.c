@@ -483,7 +483,7 @@ DsCheckCpuVmxCapable(
     //
     __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
-    if (0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX )) {
+    if (0 == (CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_VMX)) {
        return FALSE;
     }
 

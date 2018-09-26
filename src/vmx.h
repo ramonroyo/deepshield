@@ -1557,6 +1557,16 @@ InjectInterruptOrException(
     );
 
 BOOLEAN
+IsRdtscpSupported(
+    VOID
+    );
+
+BOOLEAN
+IsInvpcidSupported(
+    VOID
+    );
+
+BOOLEAN
 IsXStateSupported(
     VOID
     );

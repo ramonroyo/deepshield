@@ -84,16 +84,22 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CR4_OSXSAVE      (1ULL << 18)
 #define CR4_SMEP         (1ULL << 20)
 
-#define IA32_CPUID_ECX_VMX         (1UL << 5)
-#define IA32_CPUID_ECX_XSAVE       (1UL << 26)
-#define IA32_CPUID_ECX_OSXSAVE     (1UL << 27)
+#define CPUID_LEAF_1H_ECX_VMX               (1UL << 5)
+#define CPUID_LEAF_1H_ECX_XSAVE             (1UL << 26)
+#define CPUID_LEAF_1H_ECX_OSXSAVE           (1UL << 27)                 
+#define CPUID_EXT_LEAF_1H_EDX_RDTSCP        (1UL << 27)
+#define CPUID_LEAF_7H_0H_EBX_SMEP_BIT       (1UL << 7)
+#define CPUID_LEAF_7H_0H_EBX_INVPCID        (1UL << 10)
+#define CPUID_LEAF_7H_0H_EBX_SMAP_BIT       (1UL << 20)
 
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
-#define CPUID_PROCESSOR_EXTENDED_STATE_EMULATION  0xD
+#define CPUID_EXTENDED_FEATURE_FLAGS              0x7
+#define CPUID_PROCESSOR_EXTENDED_STATE            0xD
 #define CPUID_VMM_VENDOR_SIGNATURE                0x40000000
 #define CPUID_VMM_INTERFACE_SIGNATURE             0x40000001
 #define CPUID_EXTENDED_INFORMATION                0x80000000
+#define CPUID_EXTENDED_PROCESSOR_SIGNATURE        0x80000001
 #define CPUID_EXTENDED_ADDRESS_SIZE               0x80000008
 
 typedef struct _CPU_INFO {

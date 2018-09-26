@@ -77,7 +77,7 @@ VmxpVerifyFeatureControl(
 
     __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
-    if ( 0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX) ) {
+    if ( 0 == (CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_VMX) ) {
         return STATUS_VMX_NOT_SUPPORTED;
     }
 
@@ -659,6 +659,38 @@ InjectInterruptOrException(
 }
 
 BOOLEAN
+IsRdtscpSupported(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    __cpuid( &CpuInfo, CPUID_EXTENDED_PROCESSOR_SIGNATURE );
+
+    if (CPUID_VALUE_EDX( CpuInfo ) & CPUID_EXT_LEAF_1H_EDX_RDTSCP) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOLEAN
+IsInvpcidSupported(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    __cpuid( &CpuInfo, CPUID_EXTENDED_FEATURE_FLAGS );
+
+    if (CPUID_VALUE_EBX( CpuInfo ) & CPUID_LEAF_7H_0H_EBX_INVPCID) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOLEAN
 IsXStateSupported(
     VOID
     )
@@ -667,9 +699,9 @@ IsXStateSupported(
 
     __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
-    if ((CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_XSAVE) &&
-        (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_OSXSAVE)) {
-       return TRUE;
+    if ((CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_XSAVE) &&
+        (CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_OSXSAVE)) {
+        return TRUE;
     }
 
     return FALSE;
