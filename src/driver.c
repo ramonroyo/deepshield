@@ -124,7 +124,9 @@ DriverEntry(
         DsMmMapIoSpaceEx = NULL;
     }
 #endif
+
     DsInitializeVmxFeature( &gVmxFeature );
+    RtlCopyMemory( &gVmState, &gVmxFeature.VmState, sizeof( VMX_STATE ) );
 
     Status = DsInitializeNonPagedPoolList( 256 * PAGE_SIZE );
 
@@ -366,6 +368,12 @@ DriverDeviceControl(
             break;
         }
 
+        case IOCTL_SHIELD_GET_VMFEATURE:
+        {
+            Status = DsCtlShieldGetVmFeature( Irp, IrpStack );
+            break;
+        }
+
 //
 // TODO: Enable only-debug when tests are finished.
 // #ifdef DBG
@@ -506,6 +514,36 @@ DsCheckVmxFirmwareState(
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 BOOLEAN
+DsCheckMicrosoftHyperV(
+    VOID
+    )
+{
+    CPU_INFO CpuInfo = { 0 };
+
+    //
+    //  Check if the hypervisor is Hyper-V.
+    //
+    __cpuid( &CpuInfo, CPUID_VMM_VENDOR_SIGNATURE );
+
+   if (CPUID_VALUE_EBX( CpuInfo ) == (UINT32)'Micr' &&
+       CPUID_VALUE_ECX( CpuInfo ) == (UINT32)'osof' &&
+       CPUID_VALUE_EDX( CpuInfo ) == (UINT32)'t Hv' &&
+       CPUID_VALUE_EAX( CpuInfo ) >= 0x40000005) {
+
+       __cpuid( &CpuInfo, CPUID_VMM_INTERFACE_SIGNATURE );
+
+        if (CPUID_VALUE_EAX( CpuInfo ) == (UINT32)'1#vH') {
+            //
+            //  The check fails when Hyper-V is detected.
+            //
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+BOOLEAN
 DsCheckHvciCompliance(
     VOID
     )
@@ -561,15 +599,17 @@ DsInitializeVmxFeature(
 
 #if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 
-    if (FALSE == DsCheckHvciCompliance() ) {
-        VmxFeature->Bits.HvciEnabled = 1;
+    if (FALSE == DsCheckHvciCompliance() 
+        || FALSE == DsCheckMicrosoftHyperV()) {
+        //
+        //  Nothing else to check. In this situation a single RDMSR might
+        //  cause Hyper-V to raise a privileged instruction exception.
+        //
 
-        //
-        //  Nothing else to check. In this situation a simple rdmsr might
-        //  cause a privileged instruction exception.
-        //
+        VmxFeature->Bits.HvciEnabled = 1;
         return;
     }
+
 #endif
 
     if (FALSE == DsCheckCpuVmxCapable() ) {
@@ -582,12 +622,7 @@ DsInitializeVmxFeature(
         return;
     }
 
-    VmInitializeVmState( &gVmState );
-
-    NT_ASSERT( VM_STATE_SIZE == sizeof( gVmState ) );
-    RtlCopyMemory( VmxFeature->VmStateBlob,
-                   &gVmState, 
-                   VM_STATE_SIZE );
+    VmInitializeVmState( &VmxFeature->VmState );
 }
 
 #if !defined(WPP_EVENT_TRACING)

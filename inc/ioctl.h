@@ -3,6 +3,9 @@
 
 #include <ntifs.h>
 #include "wdk7.h"
+#include "..\src\dsdef.h"
+
+#pragma warning(disable:4201)   // nameless struct/union
 
 #define DS_WINNT_DEVICE_NAME L"\\Device\\DeepShield"
 #define DS_MSDOS_DEVICE_NAME L"\\DosDevices\\DeepShield"
@@ -60,12 +63,31 @@ typedef struct _SHIELD_CHANNEL_ID {
     ULONG ChannelId;
 } SHIELD_CHANNEL_ID, *PSHIELD_CHANNEL_ID;
 
-#define IOCTL_SHIELD_QUERY_CAPABILITIES \
+#define IOCTL_SHIELD_GET_VMFEATURE \
     CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A201, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
 
+#define VM_STATE_SIZE    (512)
+typedef struct _SHIELD_VM_FEATURE {
+
+    UINT32 Version;
+
+    union {
+        struct {
+            UINT32 NoIntelCpu : 1;
+            UINT32 HvciEnabled : 1;
+            UINT32 NoVtxExtension : 1;
+            UINT32 FirmwareDisabled : 1;
+            UINT32 Rsvd4To31 : 28;
+        };
+
+        UINT32 AsUint32;
+    } Bits;
+
+    UCHAR VmStateBlob[VM_STATE_SIZE];
+} SHIELD_VM_FEATURE, *PSHIELD_VM_FEATURE;
+
 // 
-// 
-// TESTS of RDTSC Detection
+//  Tests for RDTSC Detection
 //
 #define IOCTL_TEST_RDTSC \
     CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A20, METHOD_BUFFERED, FILE_ANY_ACCESS )
@@ -90,6 +112,12 @@ DsCtlShieldChannelSetup(
 
 NTSTATUS
 DsCtlShieldChannelTeardown(
+    _In_ PIRP Irp,
+    _In_ PIO_STACK_LOCATION IrpStack
+    );
+
+NTSTATUS
+DsCtlShieldGetVmFeature(
     _In_ PIRP Irp,
     _In_ PIO_STACK_LOCATION IrpStack
     );

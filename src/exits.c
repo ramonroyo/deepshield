@@ -190,7 +190,7 @@ HardwareExceptionHandler(
         goto Inject;
     }
 
-    MappedVa = (PUINT8)MmuMap( PhysicalAddress );
+    MappedVa = (PUINT8)MmuMapPage( PhysicalAddress, FALSE );
     if (!MappedVa) {
         goto Inject;
     }
@@ -223,7 +223,7 @@ Inject:
 
 Unmap:
     if (MappedVa) {
-        MmuUnmap( MappedVa );
+        MmuUnmapPage( MappedVa );
     }
 }
 

@@ -162,7 +162,7 @@ VmcsSetHostField(
     //VmWrite64( HOST_IA32_EFER, __readmsr( IA32_MSR_EFER ) );
 }
 
-#define VMX_XSS_EXIT_BITMAP 0UL
+#define VMX_XSS_EXIT_BITMAP 0ULL
 #define HMV_VPID            0x01B0
 
 VOID
@@ -190,7 +190,7 @@ VmcsSetControlField(
         // Expose XSAVES only when XSAVE is supported.
         //
         Proc2Controls.Bits.EnableXsavesXrstors = 1;
-        //VmWrite64( XSS_EXITING_BITMAP, VMX_XSS_EXIT_BITMAP );
+        VmWrite64( XSS_EXITING_BITMAP, VMX_XSS_EXIT_BITMAP );
     }
 
     //

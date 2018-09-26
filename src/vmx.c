@@ -74,6 +74,7 @@ VmxpVerifyFeatureControl(
     //  supported and that the overall feature set of each logical
     //  processor is compatible.
     //
+
     __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
     if ( 0 == (CPUID_VALUE_ECX( CpuInfo ) & IA32_CPUID_ECX_VMX) ) {
