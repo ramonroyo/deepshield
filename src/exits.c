@@ -61,21 +61,24 @@ CpuidEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINTN function;
-    UINTN subleaf;
+    UINT32 Function;
+    UINT32 SubLeaf;
 
-    function = Registers->Rax;
-    subleaf  = Registers->Rcx;
+    Function = (Registers->Rax & 0xFFFFFFFF);
+    SubLeaf = (Registers->Rcx & 0xFFFFFFFF);
 
     InstrCpuidEmulate( Registers );
 
-    //
-    // Disable RTM if available
-    //
-    if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
-    {
-        Registers->Rbx &= ~(1 << 11);
+#ifdef REMOVE_TSX_SUPPORT
+    if (Function == CPUID_EXTENDED_FEATURE_FLAGS 
+        && (SubLeaf == 0)) {
+
+        //
+        //  Disable Transactional Synchronization Extensions.
+        //
+        Registers->Rbx &= ~CPUID_LEAF_7H_0H_EBX_RTM;
     }
+#endif
 
     InstrRipAdvance( Registers );
 }
@@ -148,82 +151,87 @@ HardwareExceptionHandler(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
-    PHYSICAL_ADDRESS PhysicalAddress = { 0 };
-    UINTN Process = 0;
-    PUINT8 MappedVa = NULL;
-    UINT32 InsLenght;
+    PHYSICAL_ADDRESS RipGpa = { 0 };
+    UINTN GuestCr3 = 0;
+    PUINT8 RipGva = NULL;
+    //UINT32 InsLenght = 0;
     BOOLEAN IsRdtsc  = FALSE;
     BOOLEAN IsRdtscp = FALSE;
+    UINT32 Dpl = 0;
 
     //
-    // Only interested in exceptions from user-mode.
+    //  Skip and reinject exceptions from kernel mode.
     //
-    if (!MmuIsUserModeAddress((PVOID)Registers->Rip)) {
+    if (!MmuIsUserModeAddress( (PVOID)Registers->Rip) ) {
 
-        UINT32 Dpl;
         //
-        //  Get current privilege level for the descriptor.
+        //  Get current privilege level for the descriptor as CPL = SS.DPL.
         //
         Dpl = VmRead32( GUEST_CS_ACCESS_RIGHTS );
         Dpl = (Dpl >> 5) & 3;
 
         NT_ASSERT( Dpl == 0 );
-        goto Inject;
-    }
-
-    InsLenght = VmRead32( EXIT_INSTRUCTION_LENGTH );
-    if (InsLenght != 2 && InsLenght != 3 ) {
-        goto Inject;
+        goto InjectException;
     }
 
     //
-    //  Map (avoidable if KVAS is not enabled and hypervisor follows CR3)
+    //  Fix: sometimes the value read is 0.
     //
-    //  Check: the process CR3 for kernel has the whole address space mapped,
+    //  InsLenght = VmRead32( EXIT_INSTRUCTION_LENGTH );
+    //  if (InsLenght != 2 && InsLenght != 3 ) {
+    //      goto Inject;
+    //  }
+    //
+
+    //
+    //  Judas note: avoidable if KVA Shadow is not enabled and hypervisor
+    //  follows CR3.
+    //
+    //  TODO: the process CR3 for kernel has the whole address space mapped,
     //  so it might be convenient to change the host CR3 to opportunistically
     //  exit with the most frequently used CR3 to call RDTSC/P.
     //
-    Process = VmReadN( GUEST_CR3 );
 
-    PhysicalAddress = MmuGetPhysicalAddress( Process, (PVOID)Registers->Rip );
-    if (!PhysicalAddress.QuadPart) {
-        goto Inject;
+    GuestCr3 = VmReadN( GUEST_CR3 );
+
+    RipGpa = MmuGetPhysicalAddress( GuestCr3, (PVOID)Registers->Rip );
+    if (!RipGpa.QuadPart) {
+        goto InjectException;
     }
 
-    MappedVa = (PUINT8)MmuMapPage( PhysicalAddress, FALSE );
-    if (!MappedVa) {
-        goto Inject;
+    RipGva = (PUINT8)MmuMapPage( RipGpa, FALSE );
+    if (!RipGva) {
+        goto InjectException;
     }
 
     //
     //  Check if offending instruction is RDTSC / RDTSCP.
     //
-    if (InsLenght == 2) {
-        IsRdtsc = (MappedVa[BYTE_OFFSET(Registers->Rip)] == 0x0F
-                && MappedVa[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
 
-        if (IsRdtsc) {
-            RdtscEmulate( Local, Registers, Process, MappedVa );
-            goto Unmap;
-        }
+    IsRdtsc = (RipGva[BYTE_OFFSET(Registers->Rip)] == 0x0F
+            && RipGva[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
 
-    } else {
-        IsRdtscp = (MappedVa[BYTE_OFFSET(Registers->Rip)] == 0x0F
-                 && MappedVa[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
-                 && MappedVa[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
-
-        if (IsRdtscp) {
-            RdtscpEmulate(Local, Registers, Process, MappedVa );
-            goto Unmap;
-        }
+    if (IsRdtsc) {
+        RdtscEmulate( Local, Registers, GuestCr3, RipGva );
+        goto UnmapPage;
     }
 
-Inject:
-    InjectHardwareException( InterruptInfo );
+    IsRdtscp = (RipGva[BYTE_OFFSET(Registers->Rip)] == 0x0F
+                && RipGva[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
+                && RipGva[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
 
-Unmap:
-    if (MappedVa) {
-        MmuUnmapPage( MappedVa );
+    if (IsRdtscp) {
+        RdtscpEmulate( Local, Registers, GuestCr3, RipGva );
+        goto UnmapPage;
+    }
+
+InjectException:
+    VmInjectHardwareException( InterruptInfo );
+
+UnmapPage:
+
+    if (RipGva) {
+        MmuUnmapPage( RipGva );
     }
 }
 
@@ -279,7 +287,7 @@ DsHvmExitHandler(
                 HardwareExceptionHandler( Vcpu->Context, Registers, InterruptInfo );
             }
             else {
-                InjectInterruptOrException( InterruptInfo );
+                VmInjectInterruptOrException( InterruptInfo );
             }
 
             break;

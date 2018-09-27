@@ -1537,23 +1537,33 @@ UINT8 VmxInvEpt(_In_ UINTN type, _In_ PVOID eptPointer);
 #endif
 
 VOID
-InjectUdException(
+VmInjectUdException(
     VOID
     );
 
 VOID
-InjectGpException(
+VmInjectGpException(
     _In_ UINT32 ErrorCode
     );
 
 VOID
-InjectHardwareException(
+VmInjectHardwareException(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     );
 
 VOID
-InjectInterruptOrException(
+VmInjectInterruptOrException(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
+    );
+
+BOOLEAN
+IsRdtscpSupported(
+    VOID
+    );
+
+BOOLEAN
+IsInvpcidSupported(
+    VOID
     );
 
 BOOLEAN

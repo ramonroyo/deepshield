@@ -90,7 +90,7 @@ HvmVcpuCommonExitsHandler(
         case EXIT_REASON_INVEPT:
         case EXIT_REASON_INVVPID:
         {
-            InjectUdException();
+            VmInjectUdException();
 
             Registers->Rflags.Bits.rf = 1;
             VmWriteN( GUEST_RFLAGS, Registers->Rflags.AsUintN );

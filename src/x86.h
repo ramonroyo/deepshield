@@ -84,16 +84,23 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CR4_OSXSAVE      (1ULL << 18)
 #define CR4_SMEP         (1ULL << 20)
 
-#define IA32_CPUID_ECX_VMX         (1UL << 5)
-#define IA32_CPUID_ECX_XSAVE       (1UL << 26)
-#define IA32_CPUID_ECX_OSXSAVE     (1UL << 27)
+#define CPUID_LEAF_1H_ECX_VMX               (1UL << 5)
+#define CPUID_LEAF_1H_ECX_XSAVE             (1UL << 26)
+#define CPUID_LEAF_1H_ECX_OSXSAVE           (1UL << 27)                 
+#define CPUID_EXT_LEAF_1H_EDX_RDTSCP        (1UL << 27)
+#define CPUID_LEAF_7H_0H_EBX_SMEP_BIT       (1UL << 7)
+#define CPUID_LEAF_7H_0H_EBX_INVPCID        (1UL << 10)
+#define CPUID_LEAF_7H_0H_EBX_RTM            (1UL << 11)
+#define CPUID_LEAF_7H_0H_EBX_SMAP_BIT       (1UL << 20)
 
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
-#define CPUID_PROCESSOR_EXTENDED_STATE_EMULATION  0xD
+#define CPUID_EXTENDED_FEATURE_FLAGS              0x7
+#define CPUID_PROCESSOR_EXTENDED_STATE            0xD
 #define CPUID_VMM_VENDOR_SIGNATURE                0x40000000
 #define CPUID_VMM_INTERFACE_SIGNATURE             0x40000001
 #define CPUID_EXTENDED_INFORMATION                0x80000000
+#define CPUID_EXTENDED_PROCESSOR_SIGNATURE        0x80000001
 #define CPUID_EXTENDED_ADDRESS_SIZE               0x80000008
 
 typedef struct _CPU_INFO {
@@ -248,12 +255,12 @@ typedef union _CR4_REGISTER
 #define XFEATURE_ENABLED_ZMM_HI256  0x00000040
 #define XFEATURE_ENABLED_HI16_ZMM   0x00000080
 
-#define XFEATURE_AVX                        \
+#define XFEATURE_AVX                                             \
     (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE | XFEATURE_ENABLED_AVX)
-#define XFEATURE_AVX512                                        \
-    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |    \
+#define XFEATURE_AVX512                                          \
+    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |      \
     XFEATURE_ENABLED_HI16_ZMM)
-#define XFEATURE_MPX                        \
+#define XFEATURE_MPX                                             \
     (XFEATURE_ENABLED_BNDREGS | XFEATURE_ENABLED_BNDCSR)
 
 typedef struct _DR7_REGISTER

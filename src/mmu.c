@@ -426,6 +426,7 @@ MmuFinalize(
         for (j = 0; j < MAX_MAPPING_SLOTS; j++) {
 
             if (MmuVcpu->Mappings[j].SystemVa) {
+                MmupWriteMappingPte( &MmuVcpu->Mappings[j], 0 );
                 MmFreeMappingAddress( MmuVcpu->Mappings[j].SystemVa,
                                       'MMAP' );
             }
