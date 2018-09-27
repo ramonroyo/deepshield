@@ -39,8 +39,30 @@ InstrXsetbvEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
+    UINT64 Xcr0Value;
+
+    //
+    //  The processor raises a GP# fault on its own if xsetbv is executed for
+    //  CPL != 0, so we do not have to emulate the fault here.
+    //
+
+    if (Registers->Rcx != 0) {
+
+        //
+        //  ECX must be zero since only XCR0 is supported.
+        //
+
+        VmInjectGpException(0);
+        return FALSE;
+    }
+
     if (FALSE == IsXStateEnabled()) {
-        InjectUdException();
+
+        //
+        //  Only handle XCR0 if the guest have XSAVE enabled.
+        //
+
+        VmInjectUdException();
         return FALSE;
     }
 
@@ -51,16 +73,25 @@ InstrXsetbvEmulate(
     //  ((~((UINT32)Cpuid.Rdx)) & Xcr0MaskHigh) != (UINT32) (~Cpuid.Rdx & Registers->Rdx))
     //
 
-    if ( (Registers->Rcx != 0) || 
-        ((Registers->Rax & 1) == 0) || 
-        ((Registers->Rax & 0x6) == 0x4) ) {
+    Xcr0Value = Registers->Rdx << 32 | (Registers->Rax & 0xFFFFFFFF);
+
+    if (((Xcr0Value & XFEATURE_ENABLED_X87) != 0)
+          || (Xcr0Value & XFEATURE_ENABLED_AVX &&
+             (Xcr0Value & XFEATURE_AVX)
+                       != XFEATURE_AVX)
+          || (Xcr0Value & XFEATURE_AVX512 &&
+             (Xcr0Value & (XFEATURE_AVX512 | XFEATURE_AVX))
+                       != (XFEATURE_AVX512 | XFEATURE_AVX))
+          || ((Xcr0Value & XFEATURE_ENABLED_BNDREGS) != (Xcr0Value & XFEATURE_ENABLED_BNDCSR))) {
 
         //
-        //  1. ECX must be zero since only XCR0 is supported.
-        //  2 .Bit 0 of XCR0 must be one and it cannot be cleared.
-        //  3. No attempt to write XCR0[ 2:1 ] = 10.
+        //  1 .XFEATURE_ENABLED_X87 cannot be cleared.
+        //  2. AVX requires SSE.
+        //  3. AVX512 requires base AVX, OPMASK, ZMM_HI256 and HI16_ZMM.
+        //  5. Intel MPX requires setting both bound register state flags.
         //
-        InjectGpException( 0 );
+
+        VmInjectGpException( 0 );
         return FALSE;
     }
 
@@ -68,8 +99,7 @@ InstrXsetbvEmulate(
     __writecr4( __readcr4() | (VmReadN( GUEST_CR4 ) & CR4_OSXSAVE) );
 #endif
 
-    __xsetbv( (UINT32) Registers->Rcx, Registers->Rdx << 32 |
-                              (UINT32) Registers->Rax );
+    __xsetbv( (UINT32) Registers->Rcx, Xcr0Value );
     return TRUE;
 }
 #else

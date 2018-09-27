@@ -574,7 +574,7 @@ IsErrorCodeRequired(
 }
 
 VOID
-InjectUdException(
+VmInjectUdException(
     VOID
     )
 {
@@ -585,11 +585,11 @@ InjectUdException(
     InterruptInfo.Bits.ErrorCodeValid = 0;
     InterruptInfo.Bits.Valid = 1;
 
-    InjectHardwareException( InterruptInfo );
+    VmInjectHardwareException( InterruptInfo );
 }
 
 VOID
-InjectGpException(
+VmInjectGpException(
     _In_ UINT32 ErrorCode
     )
 {
@@ -603,7 +603,7 @@ InjectGpException(
 }
 
 VOID
-InjectHardwareException(
+VmInjectHardwareException(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
@@ -612,7 +612,6 @@ InjectHardwareException(
     NT_ASSERT( InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION );
 
     if (InterruptInfo.Bits.ErrorCodeValid) {
-
         NT_ASSERT( ExceptionType[Vector] & EXCEPTION_ERROR_CODE_VALID );
         NT_ASSERT( IsErrorCodeRequired( Vector ) );
 
@@ -627,7 +626,7 @@ InjectHardwareException(
 }
 
 VOID
-InjectInterruptOrException(
+VmInjectInterruptOrException(
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {

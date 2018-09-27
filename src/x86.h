@@ -254,12 +254,12 @@ typedef union _CR4_REGISTER
 #define XFEATURE_ENABLED_ZMM_HI256  0x00000040
 #define XFEATURE_ENABLED_HI16_ZMM   0x00000080
 
-#define XFEATURE_AVX                        \
+#define XFEATURE_AVX                                             \
     (XFEATURE_ENABLED_X87 | XFEATURE_ENABLED_SSE | XFEATURE_ENABLED_AVX)
-#define XFEATURE_AVX512                                        \
-    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |    \
+#define XFEATURE_AVX512                                          \
+    (XFEATURE_ENABLED_OPMASK | XFEATURE_ENABLED_ZMM_HI256 |      \
     XFEATURE_ENABLED_HI16_ZMM)
-#define XFEATURE_MPX                        \
+#define XFEATURE_MPX                                             \
     (XFEATURE_ENABLED_BNDREGS | XFEATURE_ENABLED_BNDCSR)
 
 typedef struct _DR7_REGISTER
