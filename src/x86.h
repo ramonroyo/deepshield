@@ -90,6 +90,7 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CPUID_EXT_LEAF_1H_EDX_RDTSCP        (1UL << 27)
 #define CPUID_LEAF_7H_0H_EBX_SMEP_BIT       (1UL << 7)
 #define CPUID_LEAF_7H_0H_EBX_INVPCID        (1UL << 10)
+#define CPUID_LEAF_7H_0H_EBX_RTM            (1UL << 11)
 #define CPUID_LEAF_7H_0H_EBX_SMAP_BIT       (1UL << 20)
 
 #define CPUID_BASIC_INFORMATION                   0x0

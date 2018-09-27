@@ -61,21 +61,24 @@ CpuidEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINTN function;
-    UINTN subleaf;
+    UINT32 Function;
+    UINT32 SubLeaf;
 
-    function = Registers->Rax;
-    subleaf  = Registers->Rcx;
+    Function = (Registers->Rax & 0xFFFFFFFF);
+    SubLeaf = (Registers->Rcx & 0xFFFFFFFF);
 
     InstrCpuidEmulate( Registers );
 
-    //
-    // Disable RTM if available
-    //
-    if (((function & 0xF) == 0x7) && ((subleaf & 0xFFFFFFFF) == 0))
-    {
-        Registers->Rbx &= ~(1 << 11);
+#ifdef REMOVE_TSX_SUPPORT
+    if (Function == CPUID_EXTENDED_FEATURE_FLAGS 
+        && (SubLeaf == 0)) {
+
+        //
+        //  Disable Transactional Synchronization Extensions.
+        //
+        Registers->Rbx &= ~CPUID_LEAF_7H_0H_EBX_RTM;
     }
+#endif
 
     InstrRipAdvance( Registers );
 }
@@ -162,7 +165,7 @@ HardwareExceptionHandler(
     if (!MmuIsUserModeAddress( (PVOID)Registers->Rip) ) {
 
         //
-        //  Get current privilege level for the descriptor.
+        //  Get current privilege level for the descriptor as CPL = SS.DPL.
         //
         Dpl = VmRead32( GUEST_CS_ACCESS_RIGHTS );
         Dpl = (Dpl >> 5) & 3;
