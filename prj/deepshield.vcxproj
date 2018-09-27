@@ -106,7 +106,7 @@
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86;10_RS4_X86</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -114,7 +114,7 @@
     <OutDir>$(SolutionDir)..\bin\$(Platform)\$(ConfigurationName)\</OutDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86;10_RS4_X86</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -122,7 +122,7 @@
     <OutDir>$(installer_bin)\x86\</OutDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X86;Server2008_X86;7_X86;8_X86;6_3_X86;;10_X86;10_AU_X86;10_RS2_X86;10_RS3_X86;10_RS4_X86</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -130,7 +130,7 @@
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64;10_RS4_X64;ServerRS4_X64</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -138,7 +138,7 @@
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64;10_RS4_X64;ServerRS4_X64</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='msi|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -146,7 +146,7 @@
     <IntDir>$(SolutionDir)del\$(ProjectName)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>dpshield</TargetName>
     <Inf2CatWindowsVersionList>Vista_X64;Server2008_X64;7_X64;Server2008R2_X64;8_X64;Server8_X64;6_3_X64;Server6_3_X64;10_X64;Server10_X64;10_AU_X64;Server2016_X64;10_RS2_X64;ServerRS2_X64;10_RS3_X64;ServerRS3_X64;10_RS4_X64;ServerRS4_X64</Inf2CatWindowsVersionList>
-    <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
+    <Inf2CatUseLocalTime>false</Inf2CatUseLocalTime>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
