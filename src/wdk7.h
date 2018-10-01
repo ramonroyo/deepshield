@@ -25,6 +25,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _Function_class_( c )
 
 #define MdlMappingNoExecute     0x40000000
+#define NTDDI_WIN8              0x06020000
 
 typedef struct _PHYSICAL_MEMORY_RUN {
     ULONG BasePage;

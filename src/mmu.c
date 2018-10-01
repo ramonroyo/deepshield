@@ -4,132 +4,22 @@
 #include "mem.h"
 #include "os.h"
 
+VOID
+MmuFinalize(
+    VOID
+);
+
+#define HIGHEST_PHYSICAL_ADDRESS   ((ULONG64)~((ULONG64)0))
+
 MMU gMmu = { 0 };
 
-PTE_ENTRY DefaultMmuPte = { PTE_PRESENT |
-                            PTE_RW |
-                            // PTE_GLOBAL |
-                            PTE_DIRTY |
-                            PTE_ACCESSED };
+PTE DefaultMmuPte = { PTE_PRESENT |
+                      PTE_RW |
+                      // PTE_GLOBAL |
+                      PTE_DIRTY |
+                      PTE_ACCESSED };
 
-typedef struct _MATCH_ITEM {
-    UCHAR Byte;
-    UCHAR Mask;
-} MATCH_ITEM, *PMATCH_ITEM;
-
-ULONG
-MatchSignature(
-    PUSHORT Signature,
-    ULONG   SignatureSize,
-    PUCHAR  Target,
-    ULONG   TargetSize
-    )
-{
-    ULONG  SignatureOffset = 0;
-    ULONG  TargetOffset = 0;
-    ULONG  Offset = 0;
-    ULONG  Limit = 0;
-
-    PMATCH_ITEM Item;
-
-    NT_ASSERT( Signature != NULL );
-    NT_ASSERT( Target != NULL );
-
-    Limit = TargetSize - SignatureSize;
-
-    for ( TargetOffset = 0; TargetOffset < Limit; TargetOffset++ ) {
-        for ( SignatureOffset = 0; SignatureOffset < SignatureSize; SignatureOffset++ ) {
-
-            Item = (PMATCH_ITEM) &Signature[SignatureOffset];
-
-            if ( !((Target[TargetOffset + SignatureOffset] & Item->Mask) == Item->Byte) ) {
-                break;
-            }
-        }
-
-        if ( SignatureOffset == SignatureSize ) {
-            Offset = TargetOffset;
-            break;
-        }
-    }
-
-    return Offset;
-}
-
-ULONG_PTR
-HackishSearchPML4(
-    VOID
-    )
-{
-
-//              MmAccessFault+2E6  48 B8 00 D0 BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBED000h
-//              MmAccessFault+2F0  48 8B C0                      mov     rax, rax
-//              MmAccessFault+2F3  4C 3B C8                      cmp     r9, rax
-//              MmAccessFault+2F6  0F 82 72 FF FF FF             jb      loc_FFFFF803FBE8E74E
-//              MmAccessFault+2FC  48 B8 FF DF BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBEDFFFh
-//              MmAccessFault+306  48 8B C0                      mov     rax, rax
-//              MmAccessFault+309  4C 3B C8                      cmp     r9, rax
-//              MmAccessFault+30C  0F 87 5C FF FF FF             ja      loc_FFFFF803FBE8E74E
-//              MmAccessFault+312  E9 36 C1 16 00                jmp     sub_FFFFF803FBFFA92D
-//              MmAccessFault+317                                ; ---------------------------------------------------------------------------
-//              MmAccessFault+317
-//              MmAccessFault+317                                loc_FFFFF803FBE8E7F7:                   ; CODE XREF: MmAccessFault+281
-//              MmAccessFault+317  48 B8 F8 D7 BE 7D FB F6 FF FF mov     rax, 0FFFFF6FB7DBED7F8h         // PML4 Static Address
-//              MmAccessFault+321  48 8B C0                      mov     rax, rax
-//              MmAccessFault+324  4C 3B C8                      cmp     r9, rax
-//              MmAccessFault+327  0F 87 5A FF FF FF             ja      loc_FFFFF803FBE8E767
-//              MmAccessFault+32D  E9 4B C1 16 00                jmp     sub_FFFFF803FBFFA95D
-//              MmAccessFault+332                                ; ----------------------------------------------------
-//
-//              Python> dump_bytes(0xFFFFF803FBE8E7C6, 0xFFFFF803FBE8E7F2-0xFFFFF803FBE8E7C6)
-//
-//              48 b8 00 d0 be 7d fb f6 ff ff 48 8b c0 4c 3b c8 0f 82 72 ff ff ff 48 b8 ff df be 7d fb f6 ff ff 48 8b c0 4c 3b c8 0f 87 5c ff ff ff
-
-    PUCHAR    Routine = NULL;
-    ULONG_PTR Return  = 0;
-
-    USHORT PML4Instructions[] = { 0xff48, 0xffb8, 0x0000, 0x0000,
-                                  0x0000, 0x0000, 0x0000, 0x0000,
-                                  0x0000, 0x0000, 0xff48, 0xff8b,
-                                  0xffc0, 0xff4c, 0xff3b, 0xffc8,
-                                  0xff0f, 0xff82, 0xff72, 0xffff,
-                                  0xffff, 0xffff, 0xff48, 0xffb8,
-                                  0xffff, 0x0000, 0x0000, 0x0000,
-                                  0x0000, 0x0000, 0x0000, 0x0000,
-                                  0xff48, 0xff8b, 0xffc0, 0xff4c,
-                                  0xff3b, 0xffc8, 0xff0f, 0xff87,
-                                  0xff5c, 0xffff, 0xffff, 0xffff };
-
-    UNICODE_STRING FunctionName = { 0 };
-
-    RtlInitUnicodeString(&FunctionName, L"MmProbeAndLockPages");
-
-    Routine = (PUCHAR)MmGetSystemRoutineAddress(&FunctionName);
-
-    Routine += 0x3a1c;
-
-    if (Routine) {
-        ULONG Offset = MatchSignature( PML4Instructions, 
-                                       sizeof(PML4Instructions) / sizeof(USHORT),
-                                       Routine,
-                                       0x500);
-
-        if (Offset > 0) {
-            Return = *(PULONG_PTR)&Routine[Offset + 51];
-
-            // Add some verifications to retrieved offset
-            // NT_ASSERT(Return & 0xFFFFFF0000000000 = 0xFFFFFF00000000);
-
-            return Return;
-        }
-    }
-
-    return Return;
-}
-
-//
-//  Sanity check routine.
-//
+#if DBG
 NTSTATUS 
 MmuLocatePageTables(
     _Inout_ PULONG_PTR PdeBase,
@@ -149,6 +39,7 @@ MmuLocatePageTables(
 
     return STATUS_NOT_FOUND;
 }
+#endif
 
 _Success_(return)
 BOOLEAN
@@ -244,6 +135,141 @@ MmupWriteMappingPte(
     __invlpg( Mapping->SystemVa );
 }
 
+typedef union _VIRTUAL_ADDRESS
+{
+    struct
+    {
+        UINT64 Offset : 12;
+        UINT64 PtIndex : 9;
+        UINT64 PdIndex : 9;
+        UINT64 PdptIndex : 9;
+        UINT64 Pml4Index : 9;
+        UINT64 Reserved : 16;
+    };
+
+    PVOID AsPointer;
+} VIRTUAL_ADDRESS;
+
+typedef struct _PTE_MAPPER
+{
+    VIRTUAL_ADDRESS MappingPage;
+    PHYSICAL_ADDRESS AllocatedAddress;
+    PPTE MappingPte;
+} PTE_MAPPER, *PPTE_MAPPER;
+
+static PTE_MAPPER gMapper;
+static PMDL MdlArray[32] = { NULL };
+static CHAR MappingSpace[PAGE_SIZE * 32] = { 0 };
+
+#define PAGE_MASK (~(PAGE_SIZE-1))
+
+#define PFN_TO_PAGE(pfn) (pfn << PAGE_SHIFT)
+#define PAGE_TO_PFN(pfn) (pfn >> PAGE_SHIFT)
+
+#define PAGE_ALIGN(Va) ((PVOID)((ULONG_PTR)(Va) & ~(PAGE_SIZE - 1)))
+
+PVOID
+MmuAllocateMappingPage(
+    _In_ UINT32 Index
+    ) 
+{
+    PVOID MappingVa = NULL;
+    PMDL *MappingMdl = &MdlArray[Index];
+
+    NT_ASSERT( *MappingMdl == NULL );
+
+    if (Index > 32) {
+        //
+        //  TODO: Remove when not a prototype.
+        //
+
+        return NULL;
+    }
+
+    //
+    //  Use data section as non-paged pool pages allocated from large pages
+    //  are not suitable for PTE remapping.
+    //
+
+    *MappingMdl = IoAllocateMdl( PAGE_ALIGN( &MappingSpace[Index] ),
+                                       PAGE_SIZE, 
+                                       FALSE,
+                                       FALSE, 
+                                       NULL );
+
+    if (NULL == *MappingMdl) {
+		return NULL;
+	}
+
+	try {
+
+		//
+        //  Lock the physical page into memory to avoid paging I/O.
+        //
+
+		MmProbeAndLockPages( *MappingMdl, KernelMode, IoReadAccess );
+        MappingVa = MmMapLockedPagesSpecifyCache( *MappingMdl,
+                                                  KernelMode,
+                                                  MmCached,
+                                                  NULL,
+                                                  0,
+                                                  NormalPagePriority );
+	} except( EXCEPTION_EXECUTE_HANDLER ) {
+
+		IoFreeMdl( *MappingMdl );
+        *MappingMdl = NULL;
+	}
+
+    return MappingVa;
+}
+
+VOID
+MmuFreeMappingPage(
+    _In_ UINT32 Index
+    )
+{
+    PMDL *MappingMdl = &MdlArray[ Index ];
+
+    if (NULL != *MappingMdl) {
+
+        MmUnlockPages( *MappingMdl );
+        IoFreeMdl( *MappingMdl );
+
+        *MappingMdl = NULL;
+    }
+}
+
+#ifdef _WIN64
+//
+//  TODO: Complete routines and then replace.
+//
+NTSTATUS
+MmuInitializePteMapper(
+    VOID
+    )
+{
+    gMapper.MappingPage.AsPointer = MmuAllocateMappingPage( 0 );
+    if (gMapper.MappingPage.AsPointer == NULL) {
+        return STATUS_NO_MEMORY;
+    }
+
+    //
+    //  While locked there is no need to traverses the page tables to find
+    //  the pte for the mapping page.
+    //
+    gMapper.MappingPte = (PPTE)MmuGetPteAddress( gMapper.MappingPage.AsPointer );
+    return STATUS_SUCCESS;
+}
+
+VOID
+MmuDeletePteMapper(
+    VOID
+    )
+{
+    MmuFreeMappingPage( 0 );
+}
+#endif
+
 PVOID
 MmupMapPage(
     _In_ PHYSICAL_ADDRESS TargetPa,
@@ -277,13 +303,6 @@ MmupMapPage(
 
     return NULL;
 }
-
-VOID
-MmuFinalize(
-    VOID
-);
-
-#define HIGHEST_PHYSICAL_ADDRESS   ((ULONG64)~((ULONG64)0))
 
 NTSTATUS
 MmuInitialize(
@@ -353,7 +372,7 @@ MmuInitialize(
         gMmu.PxeShift = 2;
     }
 #endif
-    gMmu.PxeBase = (UINTN)MmuGetPxeAddress( 0 );
+    gMmu.PxeBase = (UINTN)MmuGetPteAddress( 0 );
 
     //
     //  Allocate one MMU per VCPU.
@@ -375,7 +394,7 @@ MmuInitialize(
             goto RoutineExit;
         }
 
-        gMmu.Processors[i].ZeroPte = MmuGetPxeAddress( ZeroPage );
+        gMmu.Processors[i].ZeroPte = MmuGetPteAddress( ZeroPage );
         gMmu.Processors[i].ZeroPage = ZeroPage;
 
         for (j = 0; j < MAX_MAPPING_SLOTS; j++) {
@@ -383,14 +402,14 @@ MmuInitialize(
             PteContents = *(PUINT64)gMmu.Processors[i].ZeroPte;
             Mapping = &gMmu.Processors[i].Mappings[j];
 
-            Mapping->SystemVa = MmAllocateMappingAddress( PAGE_SIZE, 'MMAP' );
+            Mapping->SystemVa = MmuAllocateMappingPage( j + (i * j) );
 
             if (NULL == Mapping->SystemVa) {
                 Status = STATUS_INSUFFICIENT_RESOURCES;
                 goto RoutineExit;
             }
 
-            Mapping->PointerPte = MmuGetPxeAddress( Mapping->SystemVa );
+            Mapping->PointerPte = MmuGetPteAddress( Mapping->SystemVa );
             Mapping->MapInUse = FALSE;
 
             MmupWriteMappingPte( Mapping, PteContents );
@@ -427,8 +446,9 @@ MmuFinalize(
 
             if (MmuVcpu->Mappings[j].SystemVa) {
                 MmupWriteMappingPte( &MmuVcpu->Mappings[j], 0 );
-                MmFreeMappingAddress( MmuVcpu->Mappings[j].SystemVa,
-                                      'MMAP' );
+                MmuFreeMappingPage( j + (i * j) );
+               // MmFreeMappingAddress( MmuVcpu->Mappings[j].SystemVa,
+               //                       'MMAP' );
             }
         }
 
@@ -502,7 +522,7 @@ MmuUnmapPage(
 }
 
 PVOID
-MmuGetPxeAddress(
+MmuGetPteAddress(
     _In_opt_ PVOID VirtualAddress
     )
 {
@@ -554,15 +574,15 @@ MmuGetPhysicalAddressMappedByPte(
 BOOLEAN
 MmuAddressIsInPagingRange(
     _In_ PVOID address
-)
+    )
 {
     static UINTN start = 0;
     static UINTN end   = 0;
     
     if(start == 0)
     {
-        start = (UINTN)MmuGetPxeAddress(0);
-        end   = (UINTN)MmuGetPxeAddress(((PVOID)((UINTN)-1)));
+        start = (UINTN)MmuGetPteAddress(0);
+        end   = (UINTN)MmuGetPteAddress(((PVOID)((UINTN)-1)));
     }
 
     return (start <= (UINTN)address) && ((UINTN)address <= end);
@@ -572,7 +592,7 @@ PHYSICAL_ADDRESS
 MmuGetPhysicalAddress(
     _In_ UINTN cr3,
     _In_ PVOID address
-)
+    )
 {
     PHYSICAL_ADDRESS result;
     UINTN         currentCr3;
