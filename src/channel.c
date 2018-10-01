@@ -158,6 +158,7 @@ Return Value:
     NTSTATUS Status = STATUS_INSUFFICIENT_RESOURCES;
     PDS_CHANNEL Channel = NULL;
     LARGE_INTEGER TickCount;
+    ULONG MappingPriority = NormalPagePriority;
     ULONG BucketsSize;
     ULONG Idx;
 
@@ -181,6 +182,10 @@ Return Value:
 
     Channel->BucketsBitMap = (1Ui32 << DS_MAX_BUCKETS) - 1;
     Channel->BucketCount = BucketCount;
+
+    if (RtlIsNtDdiVersionAvailable( NTDDI_WIN8 )) {
+        MappingPriority |= MdlMappingNoExecute;
+    }
 
     Channel->Mdl = IoAllocateMdl( &Channel->Buckets[0],
                                   BucketsSize,
@@ -206,7 +211,7 @@ Return Value:
                                     MmNonCached,
                                     NULL,
                                     FALSE,
-                                    NormalPagePriority | MdlMappingNoExecute );
+                                    MappingPriority );
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         Channel->UserVa = NULL;
