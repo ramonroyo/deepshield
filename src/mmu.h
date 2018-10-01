@@ -12,12 +12,12 @@
 
 #define CR4_PAE_ENABLED 0x20
 
-#define MAX_MAPPING_SLOTS 4
+#define MAX_MAPPING_SLOTS 2
 
 typedef struct _MMU_MAPPING
 {
-    volatile LONG MapInUse;     //!< State of the mapping.
-    PVOID SystemVa;             //!< Virtual Address of the mapping where we can map memory.
+    volatile LONG MapInUse;          //!< State of the mapping.
+    PVOID SystemVa;                  //!< Virtual Address of the mapping where we can map memory.
     PVOID PointerPte;                //!< Address of the PTE to be able to map on demand.
 } MMU_MAPPING, *PMMU_MAPPING;
 
@@ -96,36 +96,38 @@ typedef struct PTE_ENTRY32
 
         struct
         {
-            UINT32 x3 : 6;            // The 6 bits are always identical
+            UINT32 x3 : 6;               // The 6 bits are always identical
             UINT32 Dirty : 1;
             UINT32 Pat : 1;
             UINT32 x4 : 4;
-            UINT32 BaseAddress : 20;
+            UINT32 PageFrame : 20;
         } Pte;
 
         struct
         {
-            UINT32 x5 : 7;            // The 7 bits are always identical
+            UINT32 x5 : 7;               // The 7 bits are always identical
             UINT32 LargePage : 1;
             UINT32 x6 : 4;
-            UINT32 BaseAddress : 20;
+            UINT32 PageFrame : 20;
         } Pde;
 
         struct
         {
-            UINT32 x7 : 7;            // The 7 bits are always identical
+            UINT32 x7 : 6;               // The 6 bits are always identical
+            UINT32 Dirty : 1;
             UINT32 LargePage : 1;
             UINT32 x8 : 4;
             UINT32 Pat : 1;
-            UINT32 x9 : 9;
-            UINT32 BaseAddress : 10;
-        } Pde4M;
+            UINT32 PageFrameTo39 : 4;    //  When MAXPHYADDR is 40 (PSE-36)
+            UINT32 x9 : 5;
+            UINT32 PageFrame : 10;
+        } Pde4M;                         //  When CR4.PSE = 1.
 
         UINT32 AsUintN;
     };
-} PTE_ENTRY32;
+} PTE32;
 
-typedef struct _PTE_ENTRY64
+typedef struct _PTE64
 {
     union
     {
@@ -141,8 +143,8 @@ typedef struct _PTE_ENTRY64
             UINT64 GlobalPage : 1;
             UINT64 Lock : 1;
             UINT64 x1 : 2;
-            UINT64 BaseAddress : 28;
-            UINT64 Rsvd : 23;
+            UINT64 PageFrame : 40;
+            UINT64 Rsvd : 11;
             UINT64 NoExecute : 1;
         } Bits;
         
@@ -152,28 +154,74 @@ typedef struct _PTE_ENTRY64
             UINT64 Dirty : 1;
             UINT64 Pat : 1;
             UINT64 x3 : 4;
-            UINT64 BaseAddress : 28;
-            UINT64 x4 : 24;
+            UINT64 PageFrame : 40;
+            UINT64 x4 : 7;
+            UINT64 Key : 4;
+            UINT64 x5 : 1;
         } Pte;
+
+        struct
+        {
+            UINT64 x6 : 6;            // The 6 bits are always identical
+            UINT64 Dirty : 1;
+            UINT64 Pat : 1;
+            UINT64 x7 : 4;
+            UINT64 PageFrame : 28;
+            UINT64 x8 : 24;
+        } PtePae;
         
         struct
         {
-            UINT64 x5 : 7;            // The bits are identical or reserved
+            UINT64 x9 : 7;            // The bits are identical or reserved
             UINT64 LargePage : 1;     // Page size
-            UINT64 x6 : 3;
-            UINT64 Pat : 1;
-            UINT64 BaseAddress : 28;
-            UINT64 x7 : 24;
+            UINT64 x10 : 4;
+            UINT64 PageFrame : 40;
+            UINT64 x11 : 12;
         } Pde;
+
+        struct
+        {
+            UINT64 x12 : 7;            // The bits are identical or reserved
+            UINT64 LargePage : 1;     // Page size
+            UINT64 x13 : 4;
+            UINT64 PageFrame : 28;
+            UINT64 x14 : 24;
+        } PdePae;
+
+        struct
+        {
+            UINT64 x15 : 6;            // The 6 bits are always identical
+            UINT64 Dirty : 1;
+            UINT32 LargePage : 1;
+            UINT32 x16 : 4;
+            UINT32 Pat : 1;
+            UINT32 x17 : 8;
+            UINT32 PageFrame : 31;   // Address of 2MB page frame.
+            UINT64 x18 : 7;
+            UINT64 Key : 4;
+            UINT64 x19 : 1;
+        } Pde2M;
+
+        struct
+        {
+            UINT64 x7 : 6;            // The 6 bits are always identical
+            UINT64 Dirty : 1;
+            UINT32 LargePage : 1;
+            UINT32 x8 : 4;
+            UINT32 Pat : 1;
+            UINT32 x9 : 8;
+            UINT32 PageFrame : 19;   // Address of 2MB page frame.
+            UINT64 x10 : 24;
+        } Pde2MPae;
 
         UINT64 AsUintN;
     };
-} PTE_ENTRY64;
+} PTE64;
 
 #ifdef _WIN64
-typedef PTE_ENTRY64 PTE_ENTRY;
+typedef PTE64 PTE, *PPTE;
 #else
-typedef PTE_ENTRY32 PTE_ENTRY;
+typedef PTE32 PTE, *PPTE;
 #endif
 
 /**
@@ -243,7 +291,7 @@ MmuGetPhysicalAddress(
 * @return Virtual address of the corresponding PTE mapping that VA.
 */
 PVOID
-MmuGetPxeAddress(
+MmuGetPteAddress(
     _In_opt_ PVOID address
 );
 
