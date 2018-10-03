@@ -83,7 +83,7 @@ VmInitializeVmState(
     VmState->Constraints.Cr4Maybe1.AsUintN = VmState->Capabilities.Cr4Maybe1.AsUintN;
     VmState->Constraints.Cr4Maybe0.AsUintN = VmState->Capabilities.Cr4Maybe0.AsUintN;
 
-    VmState->Constraints.VmcsRevision = VmState->Capabilities.Basic.Bits.RevisionId;
+    VmState->Constraints.VmcsRevision = (UINT32)VmState->Capabilities.Basic.Bits.RevisionId;
     VmState->Constraints.NumberOfCr3TargetValues = VmState->Capabilities.MiscellaneousData.Bits.NumberOfCr3TargetValue;
     VmState->Constraints.MaxMsrListsSizeInBytes =  (VmState->Capabilities.MiscellaneousData.Bits.MaxNumberOfMsrInStoreList + 1) * 512;
     VmState->Constraints.VmxTimerLength = VmState->Capabilities.MiscellaneousData.Bits.VmxPreemptionTimerRate;

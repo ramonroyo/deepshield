@@ -351,9 +351,10 @@ ProcessTscEvent(
     return FALSE;
 }
 
-VOID InjectTerminateProcess(
-    PUINT8     Mapping,
-    PGP_REGISTERS Registers
+VOID
+InjectTerminateProcess(
+    _Inout_ PUINT8 Mapping,
+    _In_ PGP_REGISTERS Registers
     )
 {
 
@@ -386,9 +387,11 @@ VOID InjectTerminateProcess(
                                    0x0F, 0x05};
 #endif
 
-    memcpy(Mapping, TerminateProcessStub, sizeof(TerminateProcessStub));
+    RtlCopyMemory( Mapping, TerminateProcessStub, sizeof( TerminateProcessStub ) );
 
-    // Rip will point to TerminateProcessStub
+    //
+    //  Rip will point to TerminateProcessStub.
+    //
     Registers->Rip = (UINTN) PAGE_ALIGN(Registers->Rip);
 }
 

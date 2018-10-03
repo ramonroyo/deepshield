@@ -145,16 +145,15 @@ FlushCurrentTb(
 }*/
 
 VOID
-HardwareExceptionHandler(
+VmHwExceptionHandler(
     _In_ PVOID Local,
     _In_ PGP_REGISTERS Registers,
     _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
     )
 {
-    PHYSICAL_ADDRESS RipGpa = { 0 };
+    PHYSICAL_ADDRESS RipPa = { 0 };
     UINTN GuestCr3 = 0;
-    PUINT8 RipGva = NULL;
-    //UINT32 InsLenght = 0;
+    PUINT8 RipPage = NULL;
     BOOLEAN IsRdtsc  = FALSE;
     BOOLEAN IsRdtscp = FALSE;
     UINT32 Dpl = 0;
@@ -175,15 +174,6 @@ HardwareExceptionHandler(
     }
 
     //
-    //  Fix: sometimes the value read is 0.
-    //
-    //  InsLenght = VmRead32( EXIT_INSTRUCTION_LENGTH );
-    //  if (InsLenght != 2 && InsLenght != 3 ) {
-    //      goto Inject;
-    //  }
-    //
-
-    //
     //  Judas note: avoidable if KVA Shadow is not enabled and hypervisor
     //  follows CR3.
     //
@@ -194,13 +184,13 @@ HardwareExceptionHandler(
 
     GuestCr3 = VmReadN( GUEST_CR3 );
 
-    RipGpa = MmuGetPhysicalAddress( GuestCr3, (PVOID)Registers->Rip );
-    if (!RipGpa.QuadPart) {
+    RipPa = MmuGetPhysicalAddress( GuestCr3, (PVOID)Registers->Rip );
+    if (!RipPa.QuadPart) {
         goto InjectException;
     }
 
-    RipGva = (PUINT8)MmuMapPage( RipGpa, FALSE );
-    if (!RipGva) {
+    RipPage = (PUINT8)MmuMapIoPage( RipPa, FALSE );
+    if (!RipPage) {
         goto InjectException;
     }
 
@@ -208,20 +198,20 @@ HardwareExceptionHandler(
     //  Check if offending instruction is RDTSC / RDTSCP.
     //
 
-    IsRdtsc = (RipGva[BYTE_OFFSET(Registers->Rip)] == 0x0F
-            && RipGva[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
+    IsRdtsc = (RipPage[BYTE_OFFSET(Registers->Rip)] == 0x0F
+            && RipPage[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
 
     if (IsRdtsc) {
-        RdtscEmulate( Local, Registers, GuestCr3, RipGva );
+        RdtscEmulate( Local, Registers, GuestCr3, RipPage );
         goto UnmapPage;
     }
 
-    IsRdtscp = (RipGva[BYTE_OFFSET(Registers->Rip)] == 0x0F
-                && RipGva[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
-                && RipGva[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
+    IsRdtscp = (RipPage[BYTE_OFFSET(Registers->Rip)] == 0x0F
+                && RipPage[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
+                && RipPage[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
 
     if (IsRdtscp) {
-        RdtscpEmulate( Local, Registers, GuestCr3, RipGva );
+        RdtscpEmulate( Local, Registers, GuestCr3, RipPage );
         goto UnmapPage;
     }
 
@@ -230,8 +220,8 @@ InjectException:
 
 UnmapPage:
 
-    if (RipGva) {
-        MmuUnmapPage( RipGva );
+    if (RipPage) {
+        MmuUnmapIoPage( RipPage );
     }
 }
 
@@ -284,7 +274,7 @@ DsHvmExitHandler(
                 && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector
                     || VECTOR_GENERAL_PROTECTION_EXCEPTION == InterruptInfo.Bits.Vector )) {
 
-                HardwareExceptionHandler( Vcpu->Context, Registers, InterruptInfo );
+                VmHwExceptionHandler( Vcpu->Context, Registers, InterruptInfo );
             }
             else {
                 VmInjectInterruptOrException( InterruptInfo );

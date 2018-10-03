@@ -104,7 +104,7 @@ VmxpVerifyFeatureControl(
 NTSTATUS
 VmxpVerifyCapabilities(
     _In_ PVMX_VERIFY_INFO VerifyInfo
-)
+    )
 {
     VMX_MSR_BASIC VmxBasic;
 
@@ -189,7 +189,7 @@ VmxVerifySupport(
     //
     VmxBasic.AsUint64 = __readmsr( IA32_VMX_BASIC );
 
-    VerifyInfo.RevisionId = VmxBasic.Bits.RevisionId;
+    VerifyInfo.RevisionId = (UINT32)VmxBasic.Bits.RevisionId;
     VerifyInfo.PinCtls = VmxAllowed( IA32_VMX_PIN_CTLS );
     VerifyInfo.ProcPrimaryCtls = VmxAllowed( IA32_VMX_PROC_PRIMARY_CTLS );
     VerifyInfo.ProcSecondaryCtls = VmxAllowed( IA32_VMX_PROC_SECONDARY_CTLS );
