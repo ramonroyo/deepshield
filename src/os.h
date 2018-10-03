@@ -544,7 +544,7 @@ OsVerifyBuildNumber(
     _In_ ULONG BuildNumber
     );
 
-#if (NTDDI_VERSION >= NTDDI_VISTA)
+#ifdef _WIN64
 NTSTATUS
 OsGetDebuggerDataBlock(
     _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData

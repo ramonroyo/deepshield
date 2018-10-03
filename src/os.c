@@ -77,7 +77,7 @@ Return value:
     return FALSE;
 }
 
-#if (NTDDI_VERSION >= NTDDI_VISTA)
+#ifdef _WIN64
 NTSTATUS
 OsGetDebuggerDataBlock(
     _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
