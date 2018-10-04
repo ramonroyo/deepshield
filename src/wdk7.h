@@ -12,6 +12,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _In_opt_
 #define _Out_
 #define _Out_opt_
+#define _Deref_out_
 #define _Inout_
 #define _Success_(X)
 #define _IRQL_raises_   __drv_raisesIRQL

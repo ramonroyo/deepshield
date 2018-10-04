@@ -9,6 +9,8 @@
 
 #include <ntifs.h>
 
+#pragma warning(disable:4214)
+
 //
 // VMX NTSTATUS Errors
 //
@@ -440,16 +442,16 @@ typedef union _VMX_MSR_BASIC
 {
     struct
     {
-        UINT32 RevisionId : 31;
-        UINT32 Rsvd31 : 1;
-        UINT32 VmcsRegionSize : 13;
-        UINT32 Rsvd45To47 : 3;
-        UINT32 VmcsAddrWidth : 1;
-        UINT32 DualMonitorTreatment : 1;
-        UINT32 VmcsMemoryType : 4;
-        UINT32 VmExitInstructionInformation : 1;
-        UINT32 VmxControlDefaultClear : 1;
-        UINT32 Rsvd56To63 : 8;
+        UINT64 RevisionId : 31;
+        UINT64 Rsvd31 : 1;
+        UINT64 VmcsRegionSize : 13;
+        UINT64 Rsvd45To47 : 3;
+        UINT64 VmcsAddrWidth : 1;
+        UINT64 DualMonitorTreatment : 1;
+        UINT64 VmcsMemoryType : 4;
+        UINT64 VmExitInstructionInformation : 1;
+        UINT64 VmxControlDefaultClear : 1;
+        UINT64 Rsvd56To63 : 8;
     } Bits;
 
     UINT64 AsUint64;

@@ -77,6 +77,7 @@ Return value:
     return FALSE;
 }
 
+#ifdef _WIN64
 #if (NTDDI_VERSION >= NTDDI_VISTA)
 NTSTATUS
 OsGetDebuggerDataBlock(
@@ -113,4 +114,14 @@ OsGetDebuggerDataBlock(
     ExFreePoolWithTag( Buffer, 'hDgM' );
     return Status;
 }
+#else
+NTSTATUS
+OsGetDebuggerDataBlock(
+    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
+    )
+{
+    UNREFERENCED_PARAMETER( DebuggerData );
+    return STATUS_NOT_SUPPORTED;
+}
+#endif
 #endif

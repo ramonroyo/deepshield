@@ -12,41 +12,41 @@
 
 #define CR4_PAE_ENABLED 0x20
 
-#define MAX_MAPPING_SLOTS 2
+#define MAX_MAPPING_SLOTS 4
 
 typedef struct _MMU_MAPPING
 {
     volatile LONG MapInUse;          //!< State of the mapping.
-    PVOID SystemVa;                  //!< Virtual Address of the mapping where we can map memory.
+    PVOID BaseVa;                  //!< Virtual Address of the mapping where we can map memory.
     PVOID PointerPte;                //!< Address of the PTE to be able to map on demand.
+    PMDL BaseMdl;
+    UINT64 OriginalPte;
 } MMU_MAPPING, *PMMU_MAPPING;
 
-typedef struct _MMU_PROCESSOR
+typedef struct _MMU_PERCPU
 {
-    PVOID ZeroPage;
-    PVOID ZeroPte;
     MMU_MAPPING Mappings[MAX_MAPPING_SLOTS];
-} MMU_PROCESSOR, *PMMU_PROCESSOR;
+} MMU_PERCPU, *PMMU_PERCPU;
 
 typedef struct _MMU
 {
 #ifdef _WIN64
     UINT64 autoEntryIndex;
-    UINT64 lowerBound;
-    UINT64 upperBound;
+    UINT64 LowerBound;
+    UINT64 UpperBound;
 #else
     BOOLEAN PaeEnabled;
     UINT32  PxeShift;
 #endif
-    UINTN  PxeBase;
-    PMMU_PROCESSOR Processors;
+    UINTN PteBase;
+    PMMU_PERCPU MmuArray;
 } MMU, *PMMU;
 
 //
 //  Define bit fields for PTE and PDE entry.
 //
 
-#define PTE_PRESENT       1ULL
+#define PTE_VALID         1ULL
 #define PTE_RW            (1ULL << 1)
 #define PTE_USER          (1ULL << 2)
 #define PTE_PWT           (1ULL << 3)
@@ -57,7 +57,7 @@ typedef struct _MMU
 #define PTE_GLOBAL        (1ULL << 8)
 #define PTE_XD            (1ULL << 63)
 
-#define PTE_PRESENT       1ULL
+#define PTE_VALID         1ULL
 #define PDE_RW            (1ULL << 1)
 #define PDE_USER          (1ULL << 2)
 #define PDE_PWT           (1ULL << 3)
@@ -123,7 +123,7 @@ typedef struct PTE_ENTRY32
             UINT32 PageFrame : 10;
         } Pde4M;                         //  When CR4.PSE = 1.
 
-        UINT32 AsUintN;
+        UINT32 AsUint32;
     };
 } PTE32;
 
@@ -166,8 +166,8 @@ typedef struct _PTE64
             UINT64 Dirty : 1;
             UINT64 Pat : 1;
             UINT64 x7 : 4;
-            UINT64 PageFrame : 28;
-            UINT64 x8 : 24;
+            UINT64 PageFrame : 40;
+            UINT64 x8 : 12;
         } PtePae;
         
         struct
@@ -182,10 +182,10 @@ typedef struct _PTE64
         struct
         {
             UINT64 x12 : 7;            // The bits are identical or reserved
-            UINT64 LargePage : 1;     // Page size
+            UINT64 LargePage : 1;      // Page size
             UINT64 x13 : 4;
-            UINT64 PageFrame : 28;
-            UINT64 x14 : 24;
+            UINT64 PageFrame : 40;
+            UINT64 x14 : 12;
         } PdePae;
 
         struct
@@ -204,25 +204,22 @@ typedef struct _PTE64
 
         struct
         {
-            UINT64 x7 : 6;            // The 6 bits are always identical
+            UINT64 x20 : 6;            // The 6 bits are always identical
             UINT64 Dirty : 1;
             UINT32 LargePage : 1;
-            UINT32 x8 : 4;
+            UINT32 x21 : 4;
             UINT32 Pat : 1;
-            UINT32 x9 : 8;
-            UINT32 PageFrame : 19;   // Address of 2MB page frame.
-            UINT64 x10 : 24;
+            UINT32 x22 : 8;
+            UINT32 PageFrame : 31;    // Address of 2MB page frame.
+            UINT64 x23 : 12;
         } Pde2MPae;
 
-        UINT64 AsUintN;
+        UINT64 AsUint64;
     };
 } PTE64;
 
-#ifdef _WIN64
 typedef PTE64 PTE, *PPTE;
-#else
-typedef PTE32 PTE, *PPTE;
-#endif
+typedef PTE32 PTE_NOPAE, *PPTE_NOPAE;
 
 /**
 * Prepares and allocates resources for the logical MMU to work.
@@ -254,19 +251,19 @@ MmuFinalize(
 * @return Virtual address if mapped. NULL on error.
 */
 PVOID
-MmuMapPage(
+MmuMapIoPage(
     _In_ PHYSICAL_ADDRESS PhysicalPage,
     _In_ BOOLEAN Uncached
 );
 
 /**
 * Unmaps (and frees an underlying resource) a previously
-* mapped page. Page should have been mapped with MmuMapPage
+* mapped page. Page should have been mapped with MmuMapIoPage
 *
 * @param address [in] Previously returned virtual address.
 */
 VOID
-MmuUnmapPage(
+MmuUnmapIoPage(
     _In_ PVOID VirtualAddress
 );
 
@@ -291,18 +288,24 @@ MmuGetPhysicalAddress(
 * @return Virtual address of the corresponding PTE mapping that VA.
 */
 PVOID
-MmuGetPteAddress(
-    _In_opt_ PVOID address
+MmuAddressToPte(
+    _In_ PVOID Address
+);
+
+UINT16
+MmuAddressToPti(
+    _In_ UINT8 Level,
+    _In_ PVOID Address
 );
 
 PVOID
 MmuGetPhysicalAddressMappedByPte(
-    _In_ PVOID pxe
+    _In_ PVOID Pte
 );
 
 BOOLEAN
 MmuAddressIsInPagingRange(
-    _In_ PVOID address
+    _In_ PVOID Address
 );
 
 UINT16
@@ -317,25 +320,18 @@ MmuGetPageEntrySize(
 
 UINT64
 MmuGetPmlEntry(
-    _In_ PVOID  pml,
-    _In_ UINT16 index
+    _In_ PVOID Pml,
+    _In_ UINT16 Index
 );
 
 UINT16
 MmuGetPmlIndexFromOffset(
-    _In_ UINT32 offset
+    _In_ UINT32 Offset
 );
 
 UINT8
 MmuGetPagingLevels(
     VOID
-);
-
-
-UINT16
-MmuGetPxeIndex(
-    _In_ UINT8 level,
-    _In_ PVOID va
 );
 
 BOOLEAN
@@ -351,6 +347,11 @@ MmuIsKernelModeAddress(
 BOOLEAN
 MmuIsInvalidAddress(
     _In_ PVOID va
+);
+
+VOID
+MmuFinalize(
+    VOID
 );
 
 #endif
