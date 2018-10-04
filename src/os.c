@@ -121,7 +121,7 @@ OsGetDebuggerDataBlock(
     )
 {
     UNREFERENCED_PARAMETER( DebuggerData );
-    return STATUS_NOT_SUPPORTED
+    return STATUS_NOT_SUPPORTED;
 }
 #endif
 #endif
