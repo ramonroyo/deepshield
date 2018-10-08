@@ -15,12 +15,20 @@
 #define PTI_SHIFT 12L
 #endif
 
+#ifndef PTE_SHIFT
+#define PTE_SHIFT 3
+#endif
+
 #define MAX_CPU 64
 static CHAR MappingSpace[MAX_CPU + 1][MAX_MAPPING_SLOTS][PAGE_SIZE] = { 0 };
 
 MMU gMmu = { 0 };
 
 UINT64 ZeroPte = 0ULL;
+
+//
+//  Template PTE for a kernel page.
+//
 UINT64 DefaultPte = PTE_VALID | PTE_RW | PTE_DIRTY | PTE_ACCESSED;
 // PTE DefaultPte = {{PTE_VALID|PTE_READWRITE|PTE_DIRTY|PTE_ACCESSED}}
 
@@ -140,6 +148,122 @@ MmupWriteMappingPte(
     //
     __invlpg( Mapping->BaseVa );
 }
+
+#if defined (_WIN64)
+#define MmuGetPfnFromPte(PTE) ((PTE)->Pte.PageFrame)
+
+PVOID
+MmuPteToAddress(
+    _In_ PPTE PointerPte
+    )
+{
+    //
+    //  Transform a PTE into its corresponding virtual address.
+    //
+    return (PVOID) (((INT64)PointerPte << 25) >> 16);
+}
+
+PPTE
+MmuFindPteForMdl(
+    _In_ PMDL BaseMdl
+    )
+{
+    NTSTATUS Status;
+    PFN_NUMBER PageFrameIndex;
+    PPTE PteAddress;
+    PMMPFN MmPfnDatabase;
+    PMMPFN PfnEntry;
+
+    Status = OsGetPfnDatabase( (PUINT64)&MmPfnDatabase );
+
+    if (!NT_SUCCESS( Status )) {
+        return NULL;
+    }
+
+    PageFrameIndex = MmGetMdlPfnArray( BaseMdl )[0];
+
+    //
+    //  Sanity check for the page frame number.
+    //
+    NT_ASSERT( (PageFrameIndex << PAGE_SHIFT) == (UINT64)
+        MmGetPhysicalAddress( MmGetMdlBaseVa( BaseMdl ) ).QuadPart );
+
+    //
+    //  Note that the PFN points at a 'hardware' PTE.
+    //
+
+    PfnEntry = &MmPfnDatabase[PageFrameIndex];
+    PteAddress = PfnEntry->PteAddress;
+
+    //
+    //  Sanity checks for the returned PTE.
+    //
+
+    NT_ASSERT( MmGetMdlBaseVa( BaseMdl ) == MmuPteToAddress( PteAddress ) );
+    NT_ASSERT( PageFrameIndex == MmuGetPfnFromPte( PteAddress ) );
+
+    return PteAddress;
+}
+
+#define VA_BITS 48
+#define VA_MASK ((1ULL << VA_BITS) - 1)
+
+PVOID
+MmuGetPteBase(
+    VOID
+    )
+{
+    PVOID ProbeVa = NULL;
+    PMDL ProbeMdl = NULL;
+    UINT64 PteBase = 0;
+    UINT64 PointerPte;
+    UINT64 PartialPte;
+
+    //
+    //  Start allocating the page-aligned buffer.
+    //
+    
+    ProbeVa = ExAllocatePoolWithTag( NonPagedPool, PAGE_SIZE, 'bPsD' );
+    if (ProbeVa == NULL) {
+        goto RoutineExit;
+    }
+
+    ProbeMdl = IoAllocateMdl( ProbeVa, PAGE_SIZE, FALSE, FALSE, NULL );
+    if (ProbeMdl == NULL) {
+        goto RoutineExit;
+    }
+    
+    //
+    //  Update the MDL to describe the underlying physical pages.
+    //
+    MmBuildMdlForNonPagedPool( ProbeMdl );
+
+    //
+    //  Find the PTE controlling the frame described by the MDL.
+    //
+    PointerPte = (UINT64)MmuFindPteForMdl( ProbeMdl );
+    
+    if (PointerPte) {
+        //
+        //  Get the base subtracting the partial PTE for the probe address.
+        //
+        PartialPte = ((((UINT64) ProbeVa & VA_MASK) >> PTI_SHIFT) << PTE_SHIFT);
+        PteBase = PointerPte - PartialPte;
+    }
+
+RoutineExit:
+
+    if (ProbeVa) {
+        ExFreePoolWithTag( ProbeVa, 'bPsD' );
+
+        if (ProbeMdl) {
+            IoFreeMdl( ProbeMdl );
+        }
+    }
+
+    return (PVOID)PteBase;
+}
+#endif
 
 PMDL
 MmuAllocateMappingMdl(
@@ -281,22 +405,21 @@ MmuInitialize(
     
     if (gSecuredPageTables) {
 
-#if DBG
-        ULONG_PTR PdeBase;
-        ULONG_PTR PteBase;
+        if (FALSE == gEncodedDebuggerDataBlock) {
 
-        if (OsVerifyBuildNumber( DS_WINVER_10_RS4 )) {
-            Status = MmuLocatePageTablesRS4( &PdeBase, &PteBase );
-            NT_ASSERT( NT_SUCCESS( Status ) );
+            Status = OsGetDebuggerDataBlock( &DebuggerData );
+            if (!NT_SUCCESS( Status )) {
+                return Status;
+            }
+
+            gMmu.LowerBound = DebuggerData->PteBase;
         }
-#endif
+        else {
 
-        Status = OsGetDebuggerDataBlock( &DebuggerData );
-        if (!NT_SUCCESS( Status )) {
-            return Status;
+            gMmu.LowerBound = (UINT64)MmuGetPteBase();
         }
 
-        gMmu.LowerBound = DebuggerData->PteBase;
+
         gMmu.UpperBound = (gMmu.LowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
 
     } else {
@@ -489,6 +612,11 @@ MmuAddressToPte(
     )
 {
     UINTN PointerPte;
+
+    //
+    //  MmuAddressToPte returns the address of the PTE which maps the given
+    //  virtual address.
+    //
 
 #ifdef _WIN64
     PointerPte = ((UINT64)Address) >> (PTI_SHIFT - 3);

@@ -72,6 +72,7 @@ DECLARE_CONST_UNICODE_STRING(
 
 PVOID gPowerRegistration;
 BOOLEAN gSecuredPageTables;
+BOOLEAN gEncodedDebuggerDataBlock;
 UINTN gSystemPageDirectoryTable;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
@@ -95,6 +96,7 @@ DriverEntry(
     BOOLEAN SymbolicLink = FALSE;
 
     gSecuredPageTables = FALSE;
+    gEncodedDebuggerDataBlock = FALSE;
     gStateFlags = 0;
 
     WPP_INIT_TRACING( DriverObject, RegistryPath );
@@ -118,6 +120,7 @@ DriverEntry(
         //  cannot be mapped freely even for kernel mode.
         //
         gSecuredPageTables = OsVerifyBuildNumber( DS_WINVER_10_RS4 );
+        gEncodedDebuggerDataBlock = OsVerifyBuildNumber( DS_WINVER_10_RS5 );
 #endif
 
     } else {

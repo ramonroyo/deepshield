@@ -24,6 +24,7 @@
 #pragma warning(disable:4201)   // nameless struct/union
 
 extern BOOLEAN gSecuredPageTables;
+extern BOOLEAN gEncodedDebuggerDataBlock;
 extern ULONG gStateFlags;
 extern EX_RUNDOWN_REF gChannelRundown;
 extern PDS_CHANNEL gChannel;
@@ -34,6 +35,7 @@ extern MAILBOX gSecureMailbox;
 #define DSH_RUN_MODE_POLICY    L"OperationMode"
 
 #define DS_WINVER_10_RS4       (17134UL)
+#define DS_WINVER_10_RS5       (17763UL)
 
 //
 //  Preserve the state of the protection between driver instances.
