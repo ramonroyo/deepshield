@@ -221,6 +221,48 @@ typedef struct _PTE64
 typedef PTE64 PTE, *PPTE;
 typedef PTE32 PTE_NOPAE, *PPTE_NOPAE;
 
+#if (NTDDI_VERSION >= NTDDI_VISTA)
+typedef struct _MMPFN
+{
+     UINTN u1;
+     UINTN u2;
+     PPTE PteAddress;
+     UINTN u3;
+     PTE OriginalPte;
+     UINTN u4;
+} MMPFN, *PMMPFN;
+
+typedef struct _MMPFN_NOPAE
+{
+     UINTN u1;
+     UINTN u2;
+     PPTE_NOPAE PteAddress;
+     UINTN u3;
+     PTE_NOPAE OriginalPte;
+     UINTN u4;
+} MMPFN_NOPAE, *PMMPFN_NOPAE;
+#else
+typedef struct _MMPFN
+{
+     UINTN u1;
+     PPTE PteAddress;
+     UINTN u2;
+     UINTN u3;
+     PTE OriginalPte;
+     UINTN u4;
+} MMPFN, *PMMPFN;
+
+typedef struct _MMPFN_NOPAE
+{
+     UINTN u1;
+     PPTE_NOPAE PteAddress;
+     UINTN u2;
+     UINTN u3;
+     PTE_NOPAE OriginalPte;
+     UINTN u4;
+} MMPFN_NOPAE, *PMMPFN_NOPAE;
+#endif
+
 /**
 * Prepares and allocates resources for the logical MMU to work.
 *

@@ -429,7 +429,7 @@ typedef struct _DUMP_HEADER {
     ULONG64 BugCheckParameter3;
     ULONG64 BugCheckParameter4;
     CHAR VersionUser[32];
-    ULONG64  KdDebuggerDataBlock;
+    ULONG64 KdDebuggerDataBlock;
     
     union {
         PHYSICAL_MEMORY_DESCRIPTOR PhysicalMemoryBlock;
@@ -547,8 +547,14 @@ OsVerifyBuildNumber(
 #ifdef _WIN64
 NTSTATUS
 OsGetDebuggerDataBlock(
-    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
+    _Deref_out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
     );
+
+NTSTATUS
+OsGetPfnDatabase(
+    _Out_ PUINT64 PfnDataBase
+    );
+
 #endif
 
 #endif

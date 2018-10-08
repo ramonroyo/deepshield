@@ -81,7 +81,7 @@ Return value:
 #if (NTDDI_VERSION >= NTDDI_VISTA)
 NTSTATUS
 OsGetDebuggerDataBlock(
-    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
+    _Deref_out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
     )
 {
     NTSTATUS Status;
@@ -93,14 +93,14 @@ OsGetDebuggerDataBlock(
     Buffer = ExAllocatePoolWithTag( NonPagedPool, BufferSize, 'hDgM' );
 
     if (Buffer == NULL) {
-        return STATUS_INSUFFICIENT_RESOURCES;
+        return STATUS_NO_MEMORY;
     }
 
     Status = KeInitializeCrashDumpHeader( DUMP_TYPE_FULL,
-                                            0, 
-                                            Buffer,
-                                            BufferSize,
-                                            NULL );
+                                          0, 
+                                          Buffer,
+                                          BufferSize,
+                                          NULL );
     if (NT_SUCCESS( Status )) {
 
         DumpHeader = (PDUMP_HEADER)Buffer;
@@ -114,6 +114,35 @@ OsGetDebuggerDataBlock(
     ExFreePoolWithTag( Buffer, 'hDgM' );
     return Status;
 }
+
+NTSTATUS
+OsGetPfnDatabase(
+    _Out_ PUINT64 PfnDataBase
+    )
+{
+    NTSTATUS Status;
+    ULONG BufferSize = 2 * PAGE_SIZE;
+    PVOID Buffer;
+
+    *PfnDataBase = 0;
+    Buffer = ExAllocatePoolWithTag( NonPagedPool, BufferSize, 'hDgM' );
+
+    if (Buffer == NULL) {
+        return STATUS_NO_MEMORY;
+    }
+
+    Status = KeInitializeCrashDumpHeader( DUMP_TYPE_FULL,
+                                          0, 
+                                          Buffer,
+                                          BufferSize,
+                                          NULL );
+    if (NT_SUCCESS( Status )) {
+        *PfnDataBase = ((PDUMP_HEADER)Buffer)->PfnDataBase;
+    }
+
+    ExFreePoolWithTag( Buffer, 'hDgM' );
+    return Status;
+}
 #else
 NTSTATUS
 OsGetDebuggerDataBlock(
@@ -121,6 +150,15 @@ OsGetDebuggerDataBlock(
     )
 {
     UNREFERENCED_PARAMETER( DebuggerData );
+    return STATUS_NOT_SUPPORTED;
+}
+
+NTSTATUS
+OsGetPfnDatabase(
+    _Out_ PUINT64 PfnDataBase
+    )
+{
+    UNREFERENCED_PARAMETER( PfnDataBase );
     return STATUS_NOT_SUPPORTED;
 }
 #endif
