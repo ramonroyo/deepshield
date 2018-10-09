@@ -77,8 +77,7 @@ Return value:
     return FALSE;
 }
 
-#ifdef _WIN64
-#if (NTDDI_VERSION >= NTDDI_VISTA)
+#if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 NTSTATUS
 OsGetDebuggerDataBlock(
     _Deref_out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
@@ -143,23 +142,4 @@ OsGetPfnDatabase(
     ExFreePoolWithTag( Buffer, 'hDgM' );
     return Status;
 }
-#else
-NTSTATUS
-OsGetDebuggerDataBlock(
-    _Out_ PKD_DEBUGGER_DATA_BLOCK* DebuggerData
-    )
-{
-    UNREFERENCED_PARAMETER( DebuggerData );
-    return STATUS_NOT_SUPPORTED;
-}
-
-NTSTATUS
-OsGetPfnDatabase(
-    _Out_ PUINT64 PfnDataBase
-    )
-{
-    UNREFERENCED_PARAMETER( PfnDataBase );
-    return STATUS_NOT_SUPPORTED;
-}
-#endif
 #endif

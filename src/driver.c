@@ -71,8 +71,6 @@ DECLARE_CONST_UNICODE_STRING(
 #endif
 
 PVOID gPowerRegistration;
-BOOLEAN gSecuredPageTables;
-BOOLEAN gEncodedDebuggerDataBlock;
 UINTN gSystemPageDirectoryTable;
 ULONG gStateFlags;
 EX_RUNDOWN_REF gChannelRundown;
@@ -95,8 +93,6 @@ DriverEntry(
     BOOLEAN MailboxInitialized = FALSE;
     BOOLEAN SymbolicLink = FALSE;
 
-    gSecuredPageTables = FALSE;
-    gEncodedDebuggerDataBlock = FALSE;
     gStateFlags = 0;
 
     WPP_INIT_TRACING( DriverObject, RegistryPath );
@@ -114,14 +110,6 @@ DriverEntry(
         RtlInitUnicodeString( &FunctionName, L"MmMapIoSpaceEx" );
         DsMmMapIoSpaceEx = (PMM_MAP_IO_SPACE_EX)
                       MmGetSystemRoutineAddress( &FunctionName );
-#ifdef _WIN64
-        //
-        //  Somehow the page tables address space for RS4 is restricted so it
-        //  cannot be mapped freely even for kernel mode.
-        //
-        gSecuredPageTables = OsVerifyBuildNumber( DS_WINVER_10_RS4 );
-        gEncodedDebuggerDataBlock = OsVerifyBuildNumber( DS_WINVER_10_RS5 );
-#endif
 
     } else {
         DsMmMapIoSpaceEx = NULL;
