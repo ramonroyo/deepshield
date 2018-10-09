@@ -376,11 +376,6 @@ MmuAddressToPti(
     _In_ PVOID Address
 );
 
-PVOID
-MmuGetPhysicalAddressMappedByPte(
-    _In_ PVOID Pte
-);
-
 BOOLEAN
 MmuAddressIsInPagingRange(
     _In_ PVOID Address

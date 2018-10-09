@@ -144,6 +144,8 @@ FlushCurrentTb(
     }
 }*/
 
+#define RDTSCP_INST_LENGHT (3)
+
 VOID
 VmHwExceptionHandler(
     _In_ PVOID Local,
@@ -157,6 +159,7 @@ VmHwExceptionHandler(
     BOOLEAN IsRdtsc  = FALSE;
     BOOLEAN IsRdtscp = FALSE;
     UINT32 Dpl = 0;
+    UINT32 PageCount;
 
     //
     //  Skip and reinject exceptions from kernel mode.
@@ -183,6 +186,17 @@ VmHwExceptionHandler(
     //
 
     GuestCr3 = VmReadN( GUEST_CR3 );
+
+    PageCount = ADDRESS_AND_SIZE_TO_SPAN_PAGES( Registers->Rip, 
+                                                RDTSCP_INST_LENGHT );
+    if (PageCount == 2) {
+        //
+        //  TODO: Map two pages with care. Judas thought that too many pages
+        //  may kill us just as effectively as too much drink, or this is
+        //  another sample of "the little things you forget, kill me'.
+        //
+        goto InjectException;
+    }
 
     RipPa = MmuGetPhysicalAddress( GuestCr3, (PVOID)Registers->Rip );
     if (!RipPa.QuadPart) {

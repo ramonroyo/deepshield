@@ -555,36 +555,6 @@ MmuUnmapIoPage(
     }
 }
 
-PVOID
-MmuGetPhysicalAddressMappedByPte(
-    _In_ PVOID PxeAddress
-    )
-{
-    UINTN Pfn;
-    UINTN PageAddress;
-
-#ifdef _WIN64
-        Pfn = ((UINTN)PxeAddress - gMmu.PteBase) / sizeof( UINT64 );
-
-        PageAddress = PFN_TO_PAGE( Pfn );
-
-        if (PageAddress & ((UINT64)1 << 47)) {
-            PageAddress |= ((UINT64)0xFFFF << 48);
-        }
-#else
-    if (gMmu.PaeEnabled) {
-        Pfn = ((UINTN)PxeAddress - gMmu.PteBase) / sizeof( UINT64 );
-    }
-    else {
-        Pfn = ((UINTN)PxeAddress - gMmu.PteBase) / sizeof( UINT32 );
-    }
-
-    PageAddress = PFN_TO_PAGE( Pfn );
-#endif
-
-    return (PVOID)PageAddress;
-}
-
 BOOLEAN
 MmuAddressIsInPagingRange(
     _In_ PVOID address
