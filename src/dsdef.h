@@ -23,8 +23,6 @@
 
 #pragma warning(disable:4201)   // nameless struct/union
 
-extern BOOLEAN gSecuredPageTables;
-extern BOOLEAN gEncodedDebuggerDataBlock;
 extern ULONG gStateFlags;
 extern EX_RUNDOWN_REF gChannelRundown;
 extern PDS_CHANNEL gChannel;

@@ -10,9 +10,74 @@
 #pragma warning(disable:4201)   // nameless struct/union
 #pragma warning(disable:4214)   // bit field types other than int
 
+#define MAX_MAPPING_SLOTS 4
+#define MAX_CPU 64
+
 #define CR4_PAE_ENABLED 0x20
 
-#define MAX_MAPPING_SLOTS 4
+#define PAGE_MASK (~(PAGE_SIZE - 1))
+#define PAGE_ALIGN(va) ((PVOID)((ULONG_PTR)(va) & ~(PAGE_SIZE - 1)))
+
+#define PFN_TO_PAGE(pfn) (pfn << PAGE_SHIFT)
+#define PAGE_TO_PFN(pfn) (pfn >> PAGE_SHIFT)
+
+#define PTE32_PFN_MASK   0xFFFFF000
+#define PTE64_PFN_MASK   0x000FFFFFFFFFF000
+
+#define MmuGetPfnFromPte(PTE) ((PTE)->Pte.PageFrame)
+
+#if defined(_WIN64)
+
+#define VA_BITS    48
+#define PXI_BITS    9
+#define PPI_BITS    9
+#define PDI_BITS    9
+#define PTI_BITS    9
+
+#ifndef PXI_MASK
+#define PXI_MASK    ((1 << PXI_BITS) - 1)
+#endif
+
+#ifndef PPI_MASK
+#define PPI_MASK    ((1 << PPI_BITS) - 1)
+#endif
+
+#ifndef PDI_MASK
+#define PDI_MASK    ((1 << PDI_BITS) - 1)
+#endif
+
+#ifndef PTI_MASK
+#define PTI_MASK    ((1 << PTI_BITS) - 1)
+#endif
+
+#define VA_MASK     ((1ULL << VA_BITS) - 1)
+
+#ifndef PXI_SHIFT
+#define PXI_SHIFT 39
+#endif
+
+#ifndef PPI_SHIFT
+#define PPI_SHIFT 30
+#endif
+
+#ifndef PDI_SHIFT
+#define PDI_SHIFT 21
+#endif
+
+#ifndef PTI_SHIFT
+#define PTI_SHIFT 12
+#endif
+
+#ifndef PTE_SHIFT
+#define PTE_SHIFT 3
+#endif
+
+#define MmuGetPxeIndex(va) ((((UINT64)(va)) >> PXI_SHIFT) & PXI_MASK)
+#define MmuGetPpeIndex(va) ((((UINT64)(va)) >> PPI_SHIFT) & PPI_MASK)
+#define MmuGetPdeIndex(va) ((((UINT64)(va)) >> PDI_SHIFT) & PDI_MASK)
+#define MmuGetPteIndex(va) ((((UINT64)(va)) >> PTI_SHIFT) & PTI_MASK)
+
+#endif
 
 typedef struct _MMU_MAPPING
 {
@@ -31,12 +96,12 @@ typedef struct _MMU_PERCPU
 typedef struct _MMU
 {
 #ifdef _WIN64
-    UINT64 autoEntryIndex;
+    UINT64 SelfMapPxeIndex;
     UINT64 LowerBound;
     UINT64 UpperBound;
 #else
     BOOLEAN PaeEnabled;
-    UINT32  PxeShift;
+    UINT32 PxeShift;
 #endif
     UINTN PteBase;
     PMMU_PERCPU MmuArray;
@@ -192,11 +257,11 @@ typedef struct _PTE64
         {
             UINT64 x15 : 6;            // The 6 bits are always identical
             UINT64 Dirty : 1;
-            UINT32 LargePage : 1;
-            UINT32 x16 : 4;
-            UINT32 Pat : 1;
-            UINT32 x17 : 8;
-            UINT32 PageFrame : 31;   // Address of 2MB page frame.
+            UINT64 LargePage : 1;
+            UINT64 x16 : 4;
+            UINT64 Pat : 1;
+            UINT64 x17 : 8;
+            UINT64 PageFrame : 31;   // Address of 2MB page frame.
             UINT64 x18 : 7;
             UINT64 Key : 4;
             UINT64 x19 : 1;
@@ -206,11 +271,11 @@ typedef struct _PTE64
         {
             UINT64 x20 : 6;            // The 6 bits are always identical
             UINT64 Dirty : 1;
-            UINT32 LargePage : 1;
-            UINT32 x21 : 4;
-            UINT32 Pat : 1;
-            UINT32 x22 : 8;
-            UINT32 PageFrame : 31;    // Address of 2MB page frame.
+            UINT64 LargePage : 1;
+            UINT64 x21 : 4;
+            UINT64 Pat : 1;
+            UINT64 x22 : 8;
+            UINT64 PageFrame : 31;    // Address of 2MB page frame.
             UINT64 x23 : 12;
         } Pde2MPae;
 
@@ -221,47 +286,18 @@ typedef struct _PTE64
 typedef PTE64 PTE, *PPTE;
 typedef PTE32 PTE_NOPAE, *PPTE_NOPAE;
 
-#if (NTDDI_VERSION >= NTDDI_VISTA)
-typedef struct _MMPFN
-{
-     UINTN u1;
-     UINTN u2;
-     PPTE PteAddress;
-     UINTN u3;
-     PTE OriginalPte;
-     UINTN u4;
-} MMPFN, *PMMPFN;
-
-typedef struct _MMPFN_NOPAE
-{
-     UINTN u1;
-     UINTN u2;
-     PPTE_NOPAE PteAddress;
-     UINTN u3;
-     PTE_NOPAE OriginalPte;
-     UINTN u4;
-} MMPFN_NOPAE, *PMMPFN_NOPAE;
-#else
+#if defined(_WIN64)
 typedef struct _MMPFN
 {
      UINTN u1;
      PPTE PteAddress;
-     UINTN u2;
-     UINTN u3;
      PTE OriginalPte;
+     UINTN u2;
+     UINT64 u3;
      UINTN u4;
 } MMPFN, *PMMPFN;
-
-typedef struct _MMPFN_NOPAE
-{
-     UINTN u1;
-     PPTE_NOPAE PteAddress;
-     UINTN u2;
-     UINTN u3;
-     PTE_NOPAE OriginalPte;
-     UINTN u4;
-} MMPFN_NOPAE, *PMMPFN_NOPAE;
 #endif
+
 
 /**
 * Prepares and allocates resources for the logical MMU to work.
