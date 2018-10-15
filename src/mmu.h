@@ -72,6 +72,10 @@
 #define PTE_SHIFT 3
 #endif
 
+//
+//  Define the macros for those paging level supported in MmuAddressToPti
+//  routine.
+//
 #define MmuGetPxeIndex(va) ((((UINT64)(va)) >> PXI_SHIFT) & PXI_MASK)
 #define MmuGetPpeIndex(va) ((((UINT64)(va)) >> PPI_SHIFT) & PPI_MASK)
 #define MmuGetPdeIndex(va) ((((UINT64)(va)) >> PDI_SHIFT) & PDI_MASK)

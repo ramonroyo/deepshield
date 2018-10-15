@@ -32,19 +32,17 @@ typedef struct _TSC_ENTRY {
 } TSC_ENTRY, *PTSC_ENTRY;
 
 VOID
-RdtscEmulate(
+VmRdtscEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS     Registers,
-    _In_ UINTN       Process,
-    _In_ PUINT8         Mapping
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINTN Process
 );
 
 VOID
-RdtscpEmulate(
+VmRdtscpEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS     Registers,
-    _In_ UINTN       Process,
-    _In_ PUINT8         Mapping
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINTN Process
 );
 
 // TODO: export function only for testing purposes
