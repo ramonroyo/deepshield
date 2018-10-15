@@ -398,52 +398,46 @@ InjectTerminateProcess(
 VOID
 RdtscEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS     Registers,
-    _In_ UINTN       Process,
-    _In_ PUINT8         Mapping
-)
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINTN Process,
+    _In_ PUINT8 BaseAddress
+    )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
+
+    UNREFERENCED_PARAMETER( BaseAddress );
+
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
     Registers->Rdx = TimeStamp.HighPart;
     Registers->Rax = TimeStamp.LowPart;
 
-    if (ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp) ) {
-        InjectTerminateProcess(Mapping, Registers);
-        return;
-    }
-
-    InstrRipAdvance(Registers);
+    ProcessTscEvent( Local->TscHits, Registers->Rip, Process, TimeStamp );
+    InstrRipAdvance( Registers );
 }
 
 VOID
 RdtscpEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS     Registers,
-    _In_ UINTN       Process,
-    _In_ PUINT8         Mapping
-)
+    _In_ PGP_REGISTERS Registers,
+    _In_ UINTN Process,
+    _In_ PUINT8 BaseAddress
+    )
 {
     LARGE_INTEGER Processor = { 0 };
     ULARGE_INTEGER TimeStamp = { 0 };
 
+    UNREFERENCED_PARAMETER( BaseAddress );
+
     Processor.QuadPart = __readmsr(IA32_TSC_AUX);
-
-    Registers->Rcx = Processor.LowPart;
-
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
     Registers->Rdx = TimeStamp.HighPart;
     Registers->Rax = TimeStamp.LowPart;
     Registers->Rcx = Processor.LowPart;
 
-    if (ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp) ) {
-        InjectTerminateProcess(Mapping, Registers);
-        return;
-    }
-
-    InstrRipAdvance(Registers);
+    ProcessTscEvent( Local->TscHits, Registers->Rip, Process, TimeStamp );
+    InstrRipAdvance( Registers );
 }
 
 VOID
