@@ -144,25 +144,111 @@ FlushCurrentTb(
     }
 }*/
 
-#define RDTSCP_INST_LENGHT (3)
+#define TSC_INS_LENGHT      (3)
+#define LAST_BYTE_IN_PAGE   (PAGE_SIZE - 1)
 
-VOID
-VmHwExceptionHandler(
-    _In_ PVOID Local,
-    _In_ PGP_REGISTERS Registers,
-    _In_ VMX_EXIT_INTERRUPT_INFO InterruptInfo
+#define NUMBER_PAGES_SPANNED(Va, Size) ADDRESS_AND_SIZE_TO_SPAN_PAGES(Va,Size)
+
+NTSTATUS
+VmReadGuestOpcode(
+    _In_ UINTN Cr3,
+    _In_ UINTN InsAddress,
+    _Out_ UINT8 *Opcode
     )
 {
-    PHYSICAL_ADDRESS RipPa = { 0 };
-    UINTN GuestCr3 = 0;
-    PUINT8 RipPage = NULL;
-    BOOLEAN IsRdtsc  = FALSE;
-    BOOLEAN IsRdtscp = FALSE;
+    NTSTATUS Status = STATUS_NO_MEMORY;
+    PHYSICAL_ADDRESS CodePa = { 0 };
+    PUINT8 CodePage = NULL;
+    UINT32 PageCount = NUMBER_PAGES_SPANNED( InsAddress, TSC_INS_LENGHT );
+    UINT32 ByteOffset = BYTE_OFFSET( InsAddress );
+
+
+    CodePa = MmuGetPhysicalAddress( Cr3, (PVOID) InsAddress );
+    if (0 == CodePa.QuadPart) {
+        goto RoutineExit;
+    }
+
+    CodePage = (PUINT8)MmuMapIoPage( CodePa, FALSE );
+    if (NULL == CodePage) {
+        goto RoutineExit;
+    }
+
+    Opcode[0] = CodePage[ByteOffset];
+
+    if (PageCount == 1) {
+        Opcode[1] = CodePage[ByteOffset + 1];
+        Opcode[2] = CodePage[ByteOffset + 2];
+
+    } else {
+
+        if (ByteOffset != LAST_BYTE_IN_PAGE) {
+            Opcode[1] = CodePage[ByteOffset + 1];
+        }
+        //
+        //  After using the last byte for the current page we must map the
+        //  next one to get the remaining byte/s.
+        //
+
+        MmuUnmapIoPage( CodePage );
+        CodePage = NULL;
+
+        CodePa = 
+            MmuGetPhysicalAddress( Cr3, (PVOID)(InsAddress + TSC_INS_LENGHT) );
+
+        if (0 == CodePa.QuadPart) {
+            goto RoutineExit;
+        }
+
+        CodePage = (PUINT8)MmuMapIoPage( CodePa, FALSE );
+        if (NULL == CodePage) {
+            goto RoutineExit;
+        }
+
+        if (ByteOffset == LAST_BYTE_IN_PAGE) {
+            //
+            //  The second byte might come from either page.
+            //
+            Opcode[1] = CodePage[0];
+        }
+
+        //
+        //  The third byte always comes from the second page.
+        //
+        Opcode[2] = CodePage[(ByteOffset + 2) % PAGE_SIZE];
+    }
+
+    Status = STATUS_SUCCESS;
+
+RoutineExit:
+    if (CodePage) {
+        MmuUnmapIoPage( CodePage );
+    }
+
+    return Status;
+}
+
+#define IS_RDTSC_OPCODE(Op)    \
+    ((Op)[0] == 0x0F &&        \
+     (Op)[1] ==  0x31)
+
+#define IS_RDTSCP_OPCODE(Op)   \
+    ((Op)[0] == 0x0F &&        \
+     (Op)[1] == 0x01 &&        \
+     (Op)[2] == 0xF9)
+
+BOOLEAN
+DsHvmExceptionHandler(
+    _In_ PVOID Local,
+    _In_ PGP_REGISTERS Registers
+    )
+{
+    NTSTATUS Status;
+    UINTN Cr3 = VmReadN( GUEST_CR3 );
+    UINT8 Opcode[TSC_INS_LENGHT];
     UINT32 Dpl = 0;
-    UINT32 PageCount;
 
     //
-    //  Skip and reinject exceptions from kernel mode.
+    //  Skip exceptions originated from kernel mode.
     //
     if (!MmuIsUserModeAddress( (PVOID)Registers->Rip) ) {
 
@@ -173,70 +259,30 @@ VmHwExceptionHandler(
         Dpl = (Dpl >> 5) & 3;
 
         NT_ASSERT( Dpl == 0 );
-        goto InjectException;
+        return FALSE;
     }
 
-    //
-    //  Judas note: avoidable if KVA Shadow is not enabled and hypervisor
-    //  follows CR3.
     //
     //  TODO: the process CR3 for kernel has the whole address space mapped,
     //  so it might be convenient to change the host CR3 to opportunistically
     //  exit with the most frequently used CR3 to call RDTSC/P.
     //
 
-    GuestCr3 = VmReadN( GUEST_CR3 );
+    Status = VmReadGuestOpcode( Cr3, Registers->Rip, Opcode );
+    if (NT_SUCCESS( Status )) {
 
-    PageCount = ADDRESS_AND_SIZE_TO_SPAN_PAGES( Registers->Rip, 
-                                                RDTSCP_INST_LENGHT );
-    if (PageCount == 2) {
-        //
-        //  TODO: Map two pages with care. Judas thought that too many pages
-        //  may kill us just as effectively as too much drink, or this is
-        //  another sample of "the little things you forget, kill me'.
-        //
-        goto InjectException;
+        if (IS_RDTSC_OPCODE( Opcode )) {
+            VmRdtscEmulate( Local, Registers, Cr3 );
+            return TRUE;
+        }
+
+        if (IS_RDTSCP_OPCODE( Opcode ) ) {
+            VmRdtscpEmulate( Local, Registers, Cr3 );
+            return TRUE;
+        }
     }
 
-    RipPa = MmuGetPhysicalAddress( GuestCr3, (PVOID)Registers->Rip );
-    if (!RipPa.QuadPart) {
-        goto InjectException;
-    }
-
-    RipPage = (PUINT8)MmuMapIoPage( RipPa, FALSE );
-    if (!RipPage) {
-        goto InjectException;
-    }
-
-    //
-    //  Check if offending instruction is RDTSC / RDTSCP.
-    //
-
-    IsRdtsc = (RipPage[BYTE_OFFSET(Registers->Rip)] == 0x0F
-            && RipPage[BYTE_OFFSET(Registers->Rip) + 1] == 0x31);
-
-    if (IsRdtsc) {
-        RdtscEmulate( Local, Registers, GuestCr3, RipPage );
-        goto UnmapPage;
-    }
-
-    IsRdtscp = (RipPage[BYTE_OFFSET(Registers->Rip)] == 0x0F
-                && RipPage[BYTE_OFFSET(Registers->Rip) + 1] == 0x01
-                && RipPage[BYTE_OFFSET(Registers->Rip) + 2] == 0xF9);
-
-    if (IsRdtscp) {
-        RdtscpEmulate( Local, Registers, GuestCr3, RipPage );
-        goto UnmapPage;
-    }
-
-InjectException:
-    VmInjectHardwareException( InterruptInfo );
-
-UnmapPage:
-
-    if (RipPage) {
-        MmuUnmapIoPage( RipPage );
-    }
+    return FALSE;
 }
 
 //
@@ -282,13 +328,19 @@ DsHvmExitHandler(
         case EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI:
         {
             VMX_EXIT_INTERRUPT_INFO InterruptInfo;
+            BOOLEAN ExceptionHandled;
+
             InterruptInfo.AsUint32 = VmRead32( EXIT_INTERRUPTION_INFORMATION );
 
             if (InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION
                 && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector
                     || VECTOR_GENERAL_PROTECTION_EXCEPTION == InterruptInfo.Bits.Vector )) {
 
-                VmHwExceptionHandler( Vcpu->Context, Registers, InterruptInfo );
+                ExceptionHandled = DsHvmExceptionHandler( Vcpu->Context, Registers );
+
+                if (FALSE == ExceptionHandled) {
+                    VmInjectHardwareException( InterruptInfo );
+                }
             }
             else {
                 VmInjectInterruptOrException( InterruptInfo );

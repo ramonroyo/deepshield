@@ -396,16 +396,13 @@ InjectTerminateProcess(
 }
 
 VOID
-RdtscEmulate(
+VmRdtscEmulate(
     _In_ PVCPU_CONTEXT Local,
     _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process,
-    _In_ PUINT8 BaseAddress
+    _In_ UINTN Process
     )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
-
-    UNREFERENCED_PARAMETER( BaseAddress );
 
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
 
@@ -417,17 +414,14 @@ RdtscEmulate(
 }
 
 VOID
-RdtscpEmulate(
+VmRdtscpEmulate(
     _In_ PVCPU_CONTEXT Local,
     _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process,
-    _In_ PUINT8 BaseAddress
+    _In_ UINTN Process
     )
 {
     LARGE_INTEGER Processor = { 0 };
     ULARGE_INTEGER TimeStamp = { 0 };
-
-    UNREFERENCED_PARAMETER( BaseAddress );
 
     Processor.QuadPart = __readmsr(IA32_TSC_AUX);
     TimeStamp.QuadPart = __readmsr(IA32_TSC);
