@@ -27,6 +27,7 @@ typedef struct _MAILBOX {
 } MAILBOX, *PMAILBOX;
 
 typedef enum _MAILBOX_TYPE {
+    MailboxEmpty,
     MailboxTrace,
     MailboxNotification
 } MAILBOX_TYPE;

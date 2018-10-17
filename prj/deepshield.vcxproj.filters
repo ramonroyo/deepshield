@@ -204,9 +204,6 @@
     <ClInclude Include="..\src\power.h">
       <Filter>inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\vmcsinit.h">
-      <Filter>src\vmm</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\dshvm.h">
       <Filter>inc</Filter>
     </ClInclude>

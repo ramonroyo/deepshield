@@ -113,11 +113,14 @@ RtlMailboxWorkerThread(
     PMAILBOX Mailbox = (PMAILBOX) Context;
     PDS_NOTIFICATION_MESSAGE Message;
     MAILBOX_HEADER MailboxHeader;
+    LARGE_INTEGER DueTime;
 
     PAGED_CODE();
 
     WaitObjects[0] = &Mailbox->ShutdownEvent;
     WaitObjects[1] = &Mailbox->QueueSemaphore;
+
+    DueTime.QuadPart = REL_TIMEOUT_IN_MS( 480 );
 
     KeSetPriorityThread( KeGetCurrentThread(), LOW_REALTIME_PRIORITY );
 
@@ -128,19 +131,27 @@ RtlMailboxWorkerThread(
                                            Executive,
                                            KernelMode,
                                            FALSE,
-                                           NULL,
+                                           &DueTime,
                                            NULL );
 
         if (Status == STATUS_WAIT_0) {
             break;
         }
-        else if (Status == STATUS_WAIT_1) {
+        else if (Status == STATUS_WAIT_1 || Status == STATUS_TIMEOUT) {
             Status = RtlRetrieveMailboxData( Mailbox,
                                              &MailboxHeader,
                                              Data,
                                              MAILBOX_BUFFER_SIZE );
 
             if (!NT_SUCCESS( Status )) {
+                if (MailboxHeader.Type == MailboxEmpty) {
+                    //
+                    //  Checking for data periodically will result in finding
+                    //  an empty mailbox most of the times.
+                    //
+                    continue;
+                }
+
                 NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
                               NT_SUCCESS( Status ) );
             }
@@ -282,10 +293,12 @@ RtlPostMailboxTrace(
                                      TraceLenght );
 
         if (NT_SUCCESS( Status )) {
+#ifdef NO_SWAP_CONTEXT_CRASH
             KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
                                 FALSE );
+#endif
         } else {
             RtlRingBufferRead( &Mailbox->RingBuffer,
                                (PCHAR)&MailboxHeader,
@@ -320,10 +333,12 @@ RtlPostMailboxNotification(
         Status = RtlRingBufferWrite( &Mailbox->RingBuffer, Notification, Length );
 
         if (NT_SUCCESS( Status )) {
+#ifdef NO_SWAP_CONTEXT_CRASH
             KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
                                 FALSE );
+#endif
         } else {
             RtlRingBufferRead( &Mailbox->RingBuffer,
                                (PCHAR)&MailboxHeader,
@@ -346,6 +361,8 @@ RtlRetrieveMailboxData(
     NTSTATUS Status;
     SIZE_T BytesRead;
     BOOLEAN Restore = TRUE;
+
+    MailboxHeader->Type = MailboxEmpty;
 
     Status = RtlRingBufferRead( &Mailbox->RingBuffer,
                                 (PCHAR)MailboxHeader,

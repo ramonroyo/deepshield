@@ -162,7 +162,7 @@ RtlRingBufferRead(
 
     *BytesCopied = 0;
 
-    if ( RingBuffer->Head >= RingBuffer->End) {
+    if (RingBuffer->Head >= RingBuffer->End) {
         return STATUS_INTERNAL_ERROR;
     }
 
@@ -172,7 +172,7 @@ RtlRingBufferRead(
 
     if (AvailToRead == 0) {
         KeReleaseSpinLock( &RingBuffer->Lock, OldIrql );
-        return STATUS_SUCCESS;
+        return STATUS_NOT_FOUND;
     }
 
     if (DataSize > AvailToRead ) {

@@ -32,7 +32,7 @@ VOID
 HvmpExitEventLog(
     _In_ PHVM_VCPU  Vcpu,
     _In_ PGP_REGISTERS Registers
-)
+    )
 {
     UINTN index = 0;
 
@@ -57,12 +57,11 @@ HvmpStop(
     _In_ PGP_REGISTERS Registers
 );
 
-
 VOID
 HvmHandleService(
     _In_ PHVM_VCPU  Vcpu,
     _In_ PGP_REGISTERS Registers
-)
+    )
 {
     UINTN service;
 
