@@ -144,26 +144,32 @@ FlushCurrentTb(
     }
 }*/
 
-#define TSC_INS_LENGHT      (3)
-#define LAST_BYTE_IN_PAGE   (PAGE_SIZE - 1)
+#define TSC_INS_LENGHT       (2)
+#define TSCP_INS_LENGHT      (3)
+#define LAST_BYTE_IN_PAGE    (PAGE_SIZE - 1)
 
 #define NUMBER_PAGES_SPANNED(Va, Size) ADDRESS_AND_SIZE_TO_SPAN_PAGES(Va,Size)
 
+typedef struct _HVM_GUEST_INSTRUCTION {
+    UINT8 Opcode[TSCP_INS_LENGHT];
+    UINT8 Length;
+} HVM_GUEST_INSTRUCTION, *PHVM_GUEST_INSTRUCTION;
+
 NTSTATUS
-VmReadGuestOpcode(
+VmReadGuestInstruction(
     _In_ UINTN Cr3,
-    _In_ UINTN InsAddress,
-    _Out_ UINT8 *Opcode
+    _In_ UINTN RemoteVa,
+    _Inout_ PHVM_GUEST_INSTRUCTION Ins
     )
 {
     NTSTATUS Status = STATUS_NO_MEMORY;
     PHYSICAL_ADDRESS CodePa = { 0 };
     PUINT8 CodePage = NULL;
-    UINT32 PageCount = NUMBER_PAGES_SPANNED( InsAddress, TSC_INS_LENGHT );
-    UINT32 ByteOffset = BYTE_OFFSET( InsAddress );
+    UINT32 PageCount = NUMBER_PAGES_SPANNED( RemoteVa, TSCP_INS_LENGHT );
+    UINT32 ByteOffset = BYTE_OFFSET( RemoteVa );
+    UINT8 Length = 0;
 
-
-    CodePa = MmuGetPhysicalAddress( Cr3, (PVOID) InsAddress );
+    CodePa = MmuGetPhysicalAddress( Cr3, (PVOID) RemoteVa );
     if (0 == CodePa.QuadPart) {
         goto RoutineExit;
     }
@@ -173,17 +179,18 @@ VmReadGuestOpcode(
         goto RoutineExit;
     }
 
-    Opcode[0] = CodePage[ByteOffset];
+    Ins->Opcode[Length++] = CodePage[ByteOffset];
 
     if (PageCount == 1) {
-        Opcode[1] = CodePage[ByteOffset + 1];
-        Opcode[2] = CodePage[ByteOffset + 2];
+        Ins->Opcode[Length++] = CodePage[ByteOffset + 1];
+        Ins->Opcode[Length++] = CodePage[ByteOffset + 2];
 
     } else {
 
         if (ByteOffset != LAST_BYTE_IN_PAGE) {
-            Opcode[1] = CodePage[ByteOffset + 1];
+            Ins->Opcode[Length++] = CodePage[ByteOffset + 1];
         }
+
         //
         //  After using the last byte for the current page we must map the
         //  next one to get the remaining byte/s.
@@ -193,7 +200,7 @@ VmReadGuestOpcode(
         CodePage = NULL;
 
         CodePa = 
-            MmuGetPhysicalAddress( Cr3, (PVOID)(InsAddress + TSC_INS_LENGHT) );
+            MmuGetPhysicalAddress( Cr3, (PVOID)(RemoteVa + TSCP_INS_LENGHT) );
 
         if (0 == CodePa.QuadPart) {
             goto RoutineExit;
@@ -208,33 +215,42 @@ VmReadGuestOpcode(
             //
             //  The second byte might come from either page.
             //
-            Opcode[1] = CodePage[0];
+            Ins->Opcode[Length++] = CodePage[0];
         }
 
         //
         //  The third byte always comes from the second page.
         //
-        Opcode[2] = CodePage[(ByteOffset + 2) % PAGE_SIZE];
+        Ins->Opcode[Length++] = CodePage[(ByteOffset + 2) % PAGE_SIZE];
     }
-
-    Status = STATUS_SUCCESS;
 
 RoutineExit:
     if (CodePage) {
         MmuUnmapIoPage( CodePage );
     }
 
+    if (Length >= TSC_INS_LENGHT) {
+
+        //
+        //  Because reading two bytes is enough for RDTSC.
+        //
+        Status = STATUS_SUCCESS;
+        Ins->Length = Length;
+    }
+
     return Status;
 }
 
-#define IS_RDTSC_OPCODE(Op)    \
-    ((Op)[0] == 0x0F &&        \
-     (Op)[1] ==  0x31)
+#define IS_RDTSC_INSTRUCTION(Ins)          \
+    ((Ins).Length >= TSC_INS_LENGHT &&     \
+     (Ins).Opcode[0] == 0x0F &&            \
+     (Ins).Opcode[1] == 0x31)
 
-#define IS_RDTSCP_OPCODE(Op)   \
-    ((Op)[0] == 0x0F &&        \
-     (Op)[1] == 0x01 &&        \
-     (Op)[2] == 0xF9)
+#define IS_RDTSCP_INSTRUCTION(Ins)         \
+    ((Ins).Length == TSCP_INS_LENGHT &&   \
+     (Ins).Opcode[0] == 0x0F &&           \
+     (Ins).Opcode[1] == 0x01 &&           \
+     (Ins).Opcode[2] == 0xF9)
 
 BOOLEAN
 DsHvmExceptionHandler(
@@ -244,7 +260,7 @@ DsHvmExceptionHandler(
 {
     NTSTATUS Status;
     UINTN Cr3 = VmReadN( GUEST_CR3 );
-    UINT8 Opcode[TSC_INS_LENGHT];
+    HVM_GUEST_INSTRUCTION Instruction;
     UINT32 Dpl = 0;
 
     //
@@ -268,15 +284,15 @@ DsHvmExceptionHandler(
     //  exit with the most frequently used CR3 to call RDTSC/P.
     //
 
-    Status = VmReadGuestOpcode( Cr3, Registers->Rip, Opcode );
+    Status = VmReadGuestInstruction( Cr3, Registers->Rip, &Instruction );
     if (NT_SUCCESS( Status )) {
 
-        if (IS_RDTSC_OPCODE( Opcode )) {
+        if (IS_RDTSC_INSTRUCTION( Instruction )) {
             VmRdtscEmulate( Local, Registers, Cr3 );
             return TRUE;
         }
 
-        if (IS_RDTSCP_OPCODE( Opcode ) ) {
+        if (IS_RDTSCP_INSTRUCTION( Instruction ) ) {
             VmRdtscpEmulate( Local, Registers, Cr3 );
             return TRUE;
         }
