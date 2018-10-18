@@ -27,6 +27,7 @@ typedef struct _MAILBOX {
 } MAILBOX, *PMAILBOX;
 
 typedef enum _MAILBOX_TYPE {
+    MailboxEmpty,
     MailboxTrace,
     MailboxNotification
 } MAILBOX_TYPE;
@@ -85,6 +86,11 @@ RtlMailboxInitialize(
 VOID
 RtlMailboxDestroy(
     _Inout_ PMAILBOX Mailbox
+    );
+
+BOOLEAN
+RtlIsMailboxEmpty(
+    _In_ PMAILBOX Mailbox
     );
 
 NTSTATUS

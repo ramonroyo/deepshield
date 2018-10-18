@@ -162,7 +162,7 @@ RtlRingBufferRead(
 
     *BytesCopied = 0;
 
-    if ( RingBuffer->Head >= RingBuffer->End) {
+    if (RingBuffer->Head >= RingBuffer->End) {
         return STATUS_INTERNAL_ERROR;
     }
 
