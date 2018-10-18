@@ -88,6 +88,11 @@ RtlMailboxDestroy(
     _Inout_ PMAILBOX Mailbox
     );
 
+BOOLEAN
+RtlIsMailboxEmpty(
+    _In_ PMAILBOX Mailbox
+    );
+
 NTSTATUS
 RtlPostMailboxTrace(
     _Inout_ PMAILBOX Mailbox,

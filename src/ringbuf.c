@@ -172,7 +172,7 @@ RtlRingBufferRead(
 
     if (AvailToRead == 0) {
         KeReleaseSpinLock( &RingBuffer->Lock, OldIrql );
-        return STATUS_NOT_FOUND;
+        return STATUS_SUCCESS;
     }
 
     if (DataSize > AvailToRead ) {

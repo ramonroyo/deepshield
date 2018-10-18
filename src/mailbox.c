@@ -102,17 +102,65 @@ RtlMailboxStopWorker(
     }
 }
 
+NTSTATUS
+RtlDispatchMailboxData(
+    _Inout_ PMAILBOX Mailbox
+    )
+{
+    NTSTATUS Status;
+    CHAR Data[MAILBOX_BUFFER_SIZE];
+    PDS_NOTIFICATION_MESSAGE Message;
+    MAILBOX_HEADER MailboxHeader;
+
+    Status = RtlRetrieveMailboxData( Mailbox,
+                                     &MailboxHeader,
+                                     Data,
+                                     MAILBOX_BUFFER_SIZE );
+
+    if (!NT_SUCCESS( Status )) {
+        NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
+                      NT_SUCCESS( Status ) );
+        return Status;
+    }
+
+    if (MailboxHeader.Type == MailboxTrace) {
+        //
+        //  The end result of a mailbox trace is just to generate a
+        //  trace event for debugging purposes.
+        //
+
+        if (MailboxHeader.Trace.Area == TRACE_IOA_ROOT) {
+            TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
+                            "%s\n",
+                            Data );
+        }
+    }
+    else if (MailboxHeader.Type == MailboxNotification) {
+        Message = (PDS_NOTIFICATION_MESSAGE) Data;
+
+        Status = DsSendNotificationMessage( gChannel,
+                                            Message->ProcessId,
+                                            Message->ThreadId,
+                                            Message->Type,
+                                            &Message->Action );
+    } else {
+        NT_ASSERT( FALSE );
+        TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
+                     "Unrecognized mailbox data type (Type: %d)\n",
+                     MailboxHeader.Type );
+    }
+
+    return Status;
+}
+
 VOID
 RtlMailboxWorkerThread(
     _In_ PVOID Context
     )
 {
     NTSTATUS Status;
-    CHAR Data[MAILBOX_BUFFER_SIZE];
     PVOID WaitObjects[2];
     PMAILBOX Mailbox = (PMAILBOX) Context;
-    PDS_NOTIFICATION_MESSAGE Message;
-    MAILBOX_HEADER MailboxHeader;
     LARGE_INTEGER DueTime;
 
     PAGED_CODE();
@@ -137,53 +185,29 @@ RtlMailboxWorkerThread(
         if (Status == STATUS_WAIT_0) {
             break;
         }
-        else if (Status == STATUS_WAIT_1 || Status == STATUS_TIMEOUT) {
-            Status = RtlRetrieveMailboxData( Mailbox,
-                                             &MailboxHeader,
-                                             Data,
-                                             MAILBOX_BUFFER_SIZE );
+#ifdef LET_SWAP_CONTEXT
+        else if (Status == STATUS_WAIT_1) {
+            Status = RtlDispatchMailboxData( Mailbox );
 
             if (!NT_SUCCESS( Status )) {
-                if (MailboxHeader.Type == MailboxEmpty) {
-                    //
-                    //  Checking for data periodically will result in finding
-                    //  an empty mailbox most of the times.
-                    //
-                    continue;
-                }
-
-                NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
+                NT_VERIFYMSG( "RtlDispatchMailboxData failed (Mailbox == %p)",
                               NT_SUCCESS( Status ) );
             }
+        }
+#else
+        else if (Status == STATUS_TIMEOUT) {
 
-            if (MailboxHeader.Type == MailboxTrace) {
-                //
-                //  The end result of a mailbox trace is just to generate a
-                //  trace event for debugging purposes.
-                //
+            while (!RtlIsMailboxEmpty( Mailbox )) {
+                Status = RtlDispatchMailboxData( Mailbox );
 
-                if (MailboxHeader.Trace.Area == TRACE_IOA_ROOT) {
-                    TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
-                                 "%s\n",
-                                 Data );
+                if (!NT_SUCCESS( Status )) {
+                    NT_VERIFYMSG( "RtlDispatchMailboxData failed (Mailbox == %p)",
+                                  NT_SUCCESS( Status ) );
                 }
             }
-            else if (MailboxHeader.Type == MailboxNotification) {
-                Message = (PDS_NOTIFICATION_MESSAGE) Data;
-
-                Status = DsSendNotificationMessage( gChannel,
-                                                    Message->ProcessId,
-                                                    Message->ThreadId,
-                                                    Message->Type,
-                                                    &Message->Action );
-            } else {
-                NT_ASSERT( FALSE );
-                TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
-                             "Unrecognized mailbox data type (Type: %d)\n",
-                             MailboxHeader.Type );
-            }
         }
-        else {
+#endif
+        else { 
             NT_VERIFYMSG( "Unexpected wait result in Mailbox thread", FALSE );
         }
     }
@@ -234,6 +258,24 @@ RtlMailboxDestroy(
     RtlRingBufferDestroy( &Mailbox->RingBuffer );
 
     DsFreePoolWithTag( Mailbox->PoolBuffer, 'pMsD' );
+}
+
+BOOLEAN
+RtlIsMailboxEmpty(
+    _In_ PMAILBOX Mailbox
+    )
+{
+    SIZE_T AvailToWrite;
+    SIZE_T AvailToRead;
+
+    RtlRingBufferGetAvailBytes( &Mailbox->RingBuffer, 
+                                &AvailToWrite,
+                                &AvailToRead );
+
+    //
+    //  A record is present only if is contains a header and a body.
+    //
+    return (AvailToRead <= sizeof( MAILBOX_HEADER ));
 }
 
 NTSTATUS
@@ -293,7 +335,7 @@ RtlPostMailboxTrace(
                                      TraceLenght );
 
         if (NT_SUCCESS( Status )) {
-#ifdef NO_SWAP_CONTEXT_CRASH
+#ifdef LET_SWAP_CONTEXT
             KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
@@ -333,7 +375,7 @@ RtlPostMailboxNotification(
         Status = RtlRingBufferWrite( &Mailbox->RingBuffer, Notification, Length );
 
         if (NT_SUCCESS( Status )) {
-#ifdef NO_SWAP_CONTEXT_CRASH
+#ifdef LET_SWAP_CONTEXT
             KeReleaseSemaphore( &Mailbox->QueueSemaphore,
                                 IO_NO_INCREMENT,
                                 1,
