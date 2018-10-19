@@ -264,11 +264,11 @@ DsHvmExceptionHandler(
 {
     NTSTATUS Status;
     UINTN Cr3 = VmReadN( GUEST_CR3 );
-    UINTN HostCr3;
     HVM_GUEST_INSTRUCTION Instruction;
     UINT32 Dpl = 0;
 
 #ifdef OPPORTUNISTIC_HOST_CR3
+    UINTN HostCr3;
     UINTN DirectoryTableBase;
 #endif
 
