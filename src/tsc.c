@@ -324,7 +324,7 @@ TdProcessTscEvent(
     //
     // Create a PID:TID Hash
     //
-    TscHash = (ProcessId << TSC_HASH_BITS_HIGH | ThreadId);
+    TscHash = (ProcessId << TSC_HASH_BITS_HIGH) | ThreadId;
 
     Sibling = TdFindSibling( Head, TscHash, OffensiveAddress );
 

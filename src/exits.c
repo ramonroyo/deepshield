@@ -305,7 +305,7 @@ DsHvmExceptionHandler(
     //  CR3 calling RDTSC/P.
     //
 
-    VmWriteN( HOST_CR3, Cr3 );
+    // VmWriteN( HOST_CR3, Cr3 );
 
     Status = VmReadGuestInstruction( Cr3, Registers->Rip, &Instruction );
     if (NT_SUCCESS( Status )) {
