@@ -10,7 +10,7 @@
 #include "x86.h"
 
 VOID
-ClearSibling(
+TdClearSibling(
     _In_ PTSC_ENTRY Entry
 )
 {
@@ -18,7 +18,7 @@ ClearSibling(
 }
 
 BOOLEAN
-IsFreeSlot(
+TdIsFreeSlot(
     _In_ PTSC_ENTRY Entry
 )
 {
@@ -30,7 +30,7 @@ IsFreeSlot(
 //
 // Get first free slot available, or return oldest hit instead.
 //
-PTSC_ENTRY GetSiblingSlot(
+PTSC_ENTRY TdGetSiblingSlot(
     _In_ PTSC_ENTRY Head
 ) 
 {
@@ -42,7 +42,7 @@ PTSC_ENTRY GetSiblingSlot(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
          Sibling = &Head[i];
 
-        if ( IsFreeSlot(Sibling) ) {
+        if ( TdIsFreeSlot(Sibling) ) {
             return Sibling;
         } else {
             //
@@ -74,11 +74,11 @@ PTSC_ENTRY GetSiblingSlot(
     // to remain alive.
     //
     if ( OrphanOldest ) {
-        ClearSibling(OrphanOldest);
+        TdClearSibling(OrphanOldest);
         return OrphanOldest;
     }
     else {
-        ClearSibling(SiblingOldest);
+        TdClearSibling(SiblingOldest);
         return SiblingOldest;
     }
 }
@@ -90,10 +90,10 @@ PTSC_ENTRY GetSiblingSlot(
 // This function requires to reorder the lists 
 // so lookup will be optimized
 //
-PTSC_ENTRY FindSibling(
+PTSC_ENTRY TdFindSibling(
     _In_ PTSC_ENTRY Head, 
-    _In_ UINTN   Process,
-    _In_ ULONG_PTR  OffensiveAddress
+    _In_ UINTN   TscHash,
+    _In_ UINTN  OffensiveAddress
 ) 
 {
     PTSC_ENTRY Entry = NULL;
@@ -121,7 +121,7 @@ PTSC_ENTRY FindSibling(
         //              000078A000000001 | 0F A2 | cpuid |
         //              000078A000000003 | 0F 31 | rdtsc | ; After
         //
-        if ( Process == Entry->Process &&
+        if ( TscHash == Entry->TscHash &&
              ADDRESSES_ARE_BYTE_SHORT(Entry->Before.Address, OffensiveAddress) ) {
 
             if (( Entry->Before.Address == OffensiveAddress ) ||
@@ -135,7 +135,7 @@ PTSC_ENTRY FindSibling(
     return NULL;
 }
 
-VOID HitIncrement(
+VOID TdHitIncrement(
     _In_ PTSC_HIT       Hit,
     _In_ ULARGE_INTEGER TimeStamp
 )
@@ -148,9 +148,9 @@ VOID HitIncrement(
     Hit->TimeStamp = TimeStamp.QuadPart;
 }
 
-VOID SiblingIncrement(
+VOID TdSiblingIncrement(
     _In_ PTSC_ENTRY     Sibling,
-    _In_ ULONG_PTR      OffensiveAddress,
+    _In_ UINTN      OffensiveAddress,
     _In_ ULARGE_INTEGER TimeStamp
 )
 {
@@ -224,13 +224,13 @@ VOID SiblingIncrement(
 
     }
 
-    HitIncrement(Hit, TimeStamp);
+    TdHitIncrement(Hit, TimeStamp);
 }
 
 //
 // First dummy detection of a timming attack
 //
-BOOLEAN IsTimmingAttack(
+BOOLEAN TdIsTimmingAttack(
     _In_ PTSC_ENTRY     Sibling
 )
 {
@@ -255,7 +255,7 @@ BOOLEAN IsTimmingAttack(
     // Any average up to this should be discarded
     //
     if ( Sibling->Difference > 0x50000 ) {
-        ClearSibling(Sibling);
+        TdClearSibling(Sibling);
         return FALSE;
     }
 
@@ -282,22 +282,22 @@ BOOLEAN IsTimmingAttack(
     // If it is not already a timming attack, then clear the Sibling
     //
     if ( !IsTimmingAttack && IsCountThresholdOk ) {
-        ClearSibling(Sibling);
+        TdClearSibling(Sibling);
     }
 
     return IsTimmingAttack;
 }
 
-PTSC_ENTRY CreateSibling(
+PTSC_ENTRY TdCreateSibling(
     _In_ PTSC_ENTRY     Head,
-    _In_ ULONG_PTR      OffensiveAddress,
-    _In_ UINTN       Process,
+    _In_ UINTN      OffensiveAddress,
+    _In_ UINTN       TscHash,
     _In_ ULARGE_INTEGER TimeStamp
 )
 {
-    PTSC_ENTRY Sibling = GetSiblingSlot(Head);
+    PTSC_ENTRY Sibling = TdGetSiblingSlot(Head);
 
-    Sibling->Process          = Process;
+    Sibling->TscHash          = TscHash;
     Sibling->Before.Address   = OffensiveAddress;
     Sibling->Before.Count     = 1;
     Sibling->Before.TimeStamp = TimeStamp.QuadPart;
@@ -306,28 +306,39 @@ PTSC_ENTRY CreateSibling(
 }
 
 BOOLEAN
-ProcessTscEvent(
+TdProcessTscEvent(
     _In_ PTSC_ENTRY Head,
-    _In_ ULONG_PTR OffensiveAddress,
-    _In_ UINTN Process,
+    _In_ UINTN OffensiveAddress,
     _In_ ULARGE_INTEGER TimeStamp
     )
 {
     DS_NOTIFICATION_MESSAGE Notification;
+    UINTN ProcessId;
+    UINTN ThreadId;
+    UINTN TscHash;
+    PTSC_ENTRY Sibling;
 
-    PTSC_ENTRY Sibling = FindSibling( Head, Process, OffensiveAddress );
+    ProcessId = (UINTN) PsGetCurrentProcessId();
+    ThreadId  = (UINTN) PsGetCurrentThreadId();
+
+    //
+    // Create a PID:TID Hash
+    //
+    TscHash = (ProcessId << TSC_HASH_BITS_HIGH | ThreadId);
+
+    Sibling = TdFindSibling( Head, TscHash, OffensiveAddress );
 
     if ( Sibling ) {
-        SiblingIncrement( Sibling, OffensiveAddress, TimeStamp );
+        TdSiblingIncrement( Sibling, OffensiveAddress, TimeStamp );
 
     } else {
-        Sibling = CreateSibling( Head, OffensiveAddress, Process, TimeStamp );
+        Sibling = TdCreateSibling( Head, OffensiveAddress, TscHash, TimeStamp );
     }
 
     // 
     //  This will be the trigger of a detection.
     //
-    if (IsTimmingAttack( Sibling )) {
+    if (TdIsTimmingAttack( Sibling )) {
         RtlPostMailboxTrace( &gSecureMailbox,
                              TRACE_LEVEL_INFORMATION,
                              TRACE_IOA_ROOT,
@@ -337,14 +348,15 @@ ProcessTscEvent(
         Notification.ControlFlags = 0;
         Notification.MessageType = NotificationMessage;
 
-        Notification.ProcessId = (UINT64)PsGetCurrentProcessId();
-        Notification.ThreadId = (UINT64)PsGetCurrentThreadId();
+        Notification.ProcessId = ProcessId;
+        Notification.ThreadId = ThreadId;
         Notification.Type = TimerAbuse;
 
         RtlPostMailboxNotification( &gSecureMailbox, 
                                     &Notification,
                                     sizeof( DS_NOTIFICATION_MESSAGE ) );
 
+        TdClearSibling( Sibling );
         return TRUE;
     }
 
@@ -398,8 +410,7 @@ InjectTerminateProcess(
 VOID
 VmRdtscEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process
+    _In_ PGP_REGISTERS Registers
     )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
@@ -409,15 +420,14 @@ VmRdtscEmulate(
     Registers->Rdx = TimeStamp.HighPart;
     Registers->Rax = TimeStamp.LowPart;
 
-    ProcessTscEvent( Local->TscHits, Registers->Rip, Process, TimeStamp );
+    TdProcessTscEvent( Local->TscHits, Registers->Rip, TimeStamp );
     InstrRipAdvance( Registers );
 }
 
 VOID
 VmRdtscpEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process
+    _In_ PGP_REGISTERS Registers
     )
 {
     LARGE_INTEGER Processor = { 0 };
@@ -430,7 +440,7 @@ VmRdtscpEmulate(
     Registers->Rax = TimeStamp.LowPart;
     Registers->Rcx = Processor.LowPart;
 
-    ProcessTscEvent( Local->TscHits, Registers->Rip, Process, TimeStamp );
+    TdProcessTscEvent( Local->TscHits, Registers->Rip, TimeStamp );
     InstrRipAdvance( Registers );
 }
 

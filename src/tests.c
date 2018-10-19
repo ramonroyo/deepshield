@@ -60,7 +60,8 @@ TestBasicTimeStampDetection(
 #endif
 
 #define VCPU_CONTEXT_TAG 'CLSD'
-#define TSC_HITS_TAG      'HTSD'
+#define TSC_HITS_TAG     'HTSD'
+
 
 UINT64 RandomInt(
     VOID
@@ -75,12 +76,17 @@ UINT64 RandomInt(
     return TimeStampA.QuadPart * (~TimeStampB.QuadPart);
 }
 
-ULONG_PTR 
-CreateCR3 (
+#define RandomUintN() (UINTN)RandomInt()
+
+UINTN 
+CreateTscHash (
     VOID
     )
 {
-    return (ULONG_PTR)RandomInt() & 0x00000000FFFFFF00;
+    UINTN ProcessId = RandomUintN();
+    UINTN ThreadId = RandomUintN();
+
+    return ((UINTN)ProcessId << TSC_HASH_BITS_HIGH) | ThreadId;
 }
 
 PVCPU_CONTEXT 
@@ -155,8 +161,7 @@ TestReadMsr(
 BOOLEAN
 RdtscEmulateTester(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS     Registers,
-    _In_ UINTN       Process
+    _In_ PGP_REGISTERS     Registers
 )
 {
     ULARGE_INTEGER TimeStamp = { 0 };
@@ -169,7 +174,7 @@ RdtscEmulateTester(
     Registers->Rdx = TimeStamp.HighPart;
     Registers->Rax = TimeStamp.LowPart;
 
-    return ProcessTscEvent(Local->TscHits, Registers->Rip, Process, TimeStamp);
+    return TdProcessTscEvent(Local->TscHits, Registers->Rip, TimeStamp);
 }
 
 #define CONSTANT_TSC 0x600
@@ -194,22 +199,22 @@ AddGlobalTsc(
 VOID 
 AddTimeStampHit(
     _In_     PVCPU_CONTEXT Context, 
-    _In_opt_ UINTN Process, 
+    _In_opt_ UINTN TscHash, 
     _In_     UINTN Address, 
     _In_opt_ UINT64 Delta
 ) {
 
     GP_REGISTERS Registers          = { 0 };
 
-    if ( Process == 0 ) {
-        Process = CreateCR3();
+    if ( TscHash == 0 ) {
+        TscHash = CreateTscHash();
     }
 
     Registers.Rip = Address;
 
     AddGlobalTsc( Delta );
 
-    RdtscEmulateTester( Context, &Registers, Process );
+    RdtscEmulateTester( Context, &Registers );
 
 }
 
@@ -217,22 +222,22 @@ AddTimeStampHit(
 VOID FillWithOrphans(PVCPU_CONTEXT Context) {
     NT_ASSERT(Context != NULL);
 
-    UINTN       Process       = 0;
+    UINTN       TscHash       = 0;
     INT            i             = 0;
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         //
         // Unique CR3 per Sibling
         //
-        Process = CreateCR3();
+        TscHash = CreateCR3();
 
-        AddTimeStampHit(Context, Process, 0x7F0093E0, CONSTANT_TSC);
+        AddTimeStampHit(Context, TscHash, 0x7F0093E0, CONSTANT_TSC);
     }
 }
 */
 
 VOID FillWithSiblings(PVCPU_CONTEXT Context) {
-    UINTN       Process       = 0;
+    UINTN       TscHash       = 0;
     INT            i             = 0;
 
     NT_ASSERT(Context != NULL);
@@ -241,10 +246,10 @@ VOID FillWithSiblings(PVCPU_CONTEXT Context) {
         //
         // Unique CR3 per Sibling
         //
-        Process = CreateCR3();
+        TscHash = CreateTscHash();
 
-        AddTimeStampHit(Context, Process, 0x7F0093E0 | ( i << 16 ), CONSTANT_TSC);
-        AddTimeStampHit(Context, Process, 0x7F0093E6 | ( i << 16 ), CONSTANT_TSC);
+        AddTimeStampHit(Context, TscHash, 0x7F0093E0 | ( i << 16 ), CONSTANT_TSC);
+        AddTimeStampHit(Context, TscHash, 0x7F0093E6 | ( i << 16 ), CONSTANT_TSC);
     }
 }
 
@@ -258,7 +263,7 @@ TestBasicTimeStampDetectionReuse(
 {
     PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
-    UINTN       Process       = 0;
+    UINTN       TscHash       = 0;
 
     INT            i             = 0;
 
@@ -299,19 +304,19 @@ TestBasicTimeStampDetectionReuse(
         }
     }
 
-    Process = CreateCR3();
+    TscHash = CreateTscHash();
 
     //
     // Let's add new entry so we force reuse
     //
-    AddTimeStampHit(Context, Process, 0x07FF6AEE0, 0x600);
+    AddTimeStampHit(Context, TscHash, 0x07FF6AEE0, 0x600);
 
     TscHits = (PTSC_ENTRY) Context->TscHits;
 
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( Entry->Process == Process ) {
+        if ( Entry->TscHash == TscHash ) {
             if ( i != 0 ) {
                 DestroyLocalContext(Context);
                 return TestErrorReuse;
@@ -336,7 +341,7 @@ TestBasicTimeStampDetectionWithSkip(
 {
     PVCPU_CONTEXT Context       = NULL;
     PTSC_ENTRY     TscHits       = NULL;
-    UINTN       Process       = 0;
+    UINTN       TscHash       = 0;
 
     GP_REGISTERS      Registers          = { 0 };
     UINT32         Addition      = 0;
@@ -352,7 +357,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     gCurrentTsc = __rdtsc();
 
-    Process = CreateCR3();
+    TscHash = CreateTscHash();
 
     #define TOTAL_TEST_HITS 256
 
@@ -369,7 +374,7 @@ TestBasicTimeStampDetectionWithSkip(
 
         Registers.Rip = 0x07FF6AEE0;
 
-        RdtscEmulateTester(Context, &Registers, Process);
+        RdtscEmulateTester(Context, &Registers);
 
         // this should be reached each total/30 times
         if ( i > 0 && i % 30 == 0) {
@@ -383,7 +388,7 @@ TestBasicTimeStampDetectionWithSkip(
         AddGlobalTsc(Addition);
 
         Registers.Rip = 0x07FF6AEE6;
-        RdtscEmulateTester(Context, &Registers, Process);
+        RdtscEmulateTester(Context, &Registers);
     }
 
     NT_ASSERT(Context != NULL);
@@ -393,7 +398,7 @@ TestBasicTimeStampDetectionWithSkip(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( IsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingAttack(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -418,7 +423,7 @@ TestRdtscInstructionBoundaries(
     PTSC_ENTRY     TscHits       = NULL;
 
     GP_REGISTERS      Registers            = { 0 };
-    ULONG_PTR      Process         =   0;
+    UINTN      TscHash         =   0;
     INT            i               =   0;
 
 
@@ -428,16 +433,16 @@ TestRdtscInstructionBoundaries(
         return TestErrorNoMemory;
     }
 
-    Process = CreateCR3();
+    TscHash = CreateTscHash();
 
     for ( i = 0; i < 256; i++ ) {
         AddGlobalTsc(300);
         Registers.Rip = 0x07F7FFFFE;
-        RdtscEmulateTester(Context, &Registers, Process);
+        RdtscEmulateTester(Context, &Registers);
 
         AddGlobalTsc(300);
         Registers.Rip = 0x07F800003;
-        RdtscEmulateTester(Context, &Registers, Process);
+        RdtscEmulateTester(Context, &Registers);
     }
 
     NT_ASSERT(Context != NULL);
@@ -447,7 +452,7 @@ TestRdtscInstructionBoundaries(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( IsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingAttack(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -474,7 +479,7 @@ TestBasicTimeStampDetection(
 
     GP_REGISTERS      Registers            = { 0 };
     LARGE_INTEGER  RandomAddress   = { 0 };
-    ULONG_PTR      Process         =   0;
+    UINTN      TscHash         =   0;
     INT            i               =   0;
     
     PAGED_CODE();
@@ -485,7 +490,7 @@ TestBasicTimeStampDetection(
         return TestErrorNoMemory;
     }
 
-    Process = CreateCR3();
+    TscHash = CreateTscHash();
 
     //
     // This test aims to simulate a situation where you have 
@@ -497,18 +502,18 @@ TestBasicTimeStampDetection(
 
             AddGlobalTsc(300);
             Registers.Rip = 0x07FF6AEE0;
-            RdtscEmulateTester(Context, &Registers, Process);
+            RdtscEmulateTester(Context, &Registers);
 
             AddGlobalTsc(300);
             Registers.Rip = 0x07FF6AEE6;
-            RdtscEmulateTester(Context, &Registers, Process);
+            RdtscEmulateTester(Context, &Registers);
         }
 
         RandomAddress.QuadPart = __rdtsc();
         Registers.Rip = (0x7FF70000 | (RandomAddress.LowPart & 0xFFFF));
 
         AddGlobalTsc(RandomAddress.LowPart & 0xFFFF);
-        RdtscEmulateTester(Context, &Registers, CreateCR3());
+        RdtscEmulateTester(Context, &Registers);
     }
 
     NT_ASSERT(Context != NULL);
@@ -518,7 +523,7 @@ TestBasicTimeStampDetection(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( IsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingAttack(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }

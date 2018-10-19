@@ -17,6 +17,9 @@
 
 #define MAX_TSC_HITS 100
 
+#define TSC_HASH_BITS_HIGH sizeof(UINTN) * 4
+
+
 typedef struct _TSC_HIT {
     UINT64 Address;
     UINT64 TimeStamp;
@@ -28,33 +31,30 @@ typedef struct _TSC_ENTRY {
     TSC_HIT  After;
     ULONG    Skips;
     UINT64   Difference;
-    UINTN Process;
+    UINTN    TscHash;
 } TSC_ENTRY, *PTSC_ENTRY;
 
 VOID
 VmRdtscEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process
+    _In_ PGP_REGISTERS Registers
 );
 
 VOID
 VmRdtscpEmulate(
     _In_ PVCPU_CONTEXT Local,
-    _In_ PGP_REGISTERS Registers,
-    _In_ UINTN Process
+    _In_ PGP_REGISTERS Registers
 );
 
 // TODO: export function only for testing purposes
 // #ifdef DEBUG
-BOOLEAN IsTimmingAttack(
+BOOLEAN TdIsTimmingAttack(
     _In_ PTSC_ENTRY     Sibling
 );
 
-BOOLEAN ProcessTscEvent(
+BOOLEAN TdProcessTscEvent(
     _In_ PTSC_ENTRY     Head,
-    _In_ ULONG_PTR      OffensiveAddress,
-    _In_ UINTN       Process,
+    _In_ UINTN          OffensiveAddress,
     _In_ ULARGE_INTEGER TimeStamp
 );
 // #endif

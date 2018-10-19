@@ -285,7 +285,7 @@ DsHvmExceptionHandler(
     if (Cr3 == HostCr3 ) {
 
         if (Registers->Rip == 0x0F && Registers->Rip + 1 == 0x31) {
-            VmRdtscEmulate( Local, Registers, Cr3 );
+            VmRdtscEmulate( Local, Registers );
             return TRUE;
         }
 
@@ -293,7 +293,7 @@ DsHvmExceptionHandler(
             && Registers->Rip + 1 == 0x01 
             && Registers->Rip + 2 == 0xF9 ) {
 
-            VmRdtscpEmulate( Local, Registers, Cr3 );
+            VmRdtscpEmulate( Local, Registers );
             return TRUE;
         }
 
@@ -311,12 +311,12 @@ DsHvmExceptionHandler(
     if (NT_SUCCESS( Status )) {
 
         if (IS_RDTSC_INSTRUCTION( Instruction )) {
-            VmRdtscEmulate( Local, Registers, Cr3 );
+            VmRdtscEmulate( Local, Registers );
             return TRUE;
         }
 
         if (IS_RDTSCP_INSTRUCTION( Instruction ) ) {
-            VmRdtscpEmulate( Local, Registers, Cr3 );
+            VmRdtscpEmulate( Local, Registers );
             return TRUE;
         }
     }
