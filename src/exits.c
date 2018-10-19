@@ -252,7 +252,8 @@ RoutineExit:
      (Ins).Opcode[1] == 0x01 &&           \
      (Ins).Opcode[2] == 0xF9)
 
-#define PsDirectoryTableBase(Process)    (UINTN)((PUINT8)Process + 0x28)
+#define PsDirectoryTableBase(Process)    *(PUINTN)((PUINT8)Process + 0x28)
+
 #define MaskCr3(Cr3) (Cr3 & 0xFFFFFFFFFFFFF000)
 
 BOOLEAN
@@ -266,7 +267,10 @@ DsHvmExceptionHandler(
     UINTN HostCr3;
     HVM_GUEST_INSTRUCTION Instruction;
     UINT32 Dpl = 0;
+
+#ifdef OPPORTUNISTIC_HOST_CR3
     UINTN DirectoryTableBase;
+#endif
 
     //
     //  Skip exceptions originated from kernel mode.
@@ -283,20 +287,24 @@ DsHvmExceptionHandler(
         return FALSE;
     }
 
+#ifdef OPPORTUNISTIC_HOST_CR3
     DirectoryTableBase = PsDirectoryTableBase( PsGetCurrentProcess() );
 
     HostCr3 = __readcr3();
 
     if (MaskCr3( DirectoryTableBase ) == MaskCr3( HostCr3 )) {
 
-        if (Registers->Rip == 0x0F && Registers->Rip + 1 == 0x31) {
+#define GetRipByte(Registers, Index) *((PUINT8)Registers->Rip + Index)
+
+        if ( GetRipByte(Registers, 0) == 0x0F && 
+             GetRipByte(Registers, 1) == 0x31) {
             VmRdtscEmulate( Local, Registers );
             return TRUE;
         }
 
-        if (Registers->Rip == 0x0F 
-            && Registers->Rip + 1 == 0x01 
-            && Registers->Rip + 2 == 0xF9 ) {
+        if (   GetRipByte(Registers, 0) == 0x0F 
+            && GetRipByte(Registers, 1) == 0x01 
+            && GetRipByte(Registers, 2) == 0xF9 ) {
 
             VmRdtscpEmulate( Local, Registers );
             return TRUE;
@@ -311,6 +319,7 @@ DsHvmExceptionHandler(
     //
 
     VmWriteN( HOST_CR3, DirectoryTableBase );
+#endif
 
     Status = VmReadGuestInstruction( Cr3, Registers->Rip, &Instruction );
     if (NT_SUCCESS( Status )) {
