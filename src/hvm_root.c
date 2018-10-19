@@ -76,7 +76,7 @@ HvmVcpuCommonExitsHandler(
 #endif
 
         //
-        //  Virtualization instructions
+        //  Virtualization instructions.
         //
         case EXIT_REASON_VMXON:
         case EXIT_REASON_VMXOFF:
@@ -92,10 +92,12 @@ HvmVcpuCommonExitsHandler(
         {
             VmInjectUdException();
 
+            //
+            // [RR] TODO: Describe why this is necessary.
+            //
             Registers->Rflags.Bits.rf = 1;
-            VmWriteN( GUEST_RFLAGS, Registers->Rflags.AsUintN );
 
-            InstrRipAdvance( Registers );
+            VmWriteN( GUEST_RFLAGS, Registers->Rflags.AsUintN );
             return TRUE;
         }
 
