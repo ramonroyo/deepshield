@@ -260,6 +260,7 @@ DsHvmExceptionHandler(
 {
     NTSTATUS Status;
     UINTN Cr3 = VmReadN( GUEST_CR3 );
+    UINTN HostCr3;
     HVM_GUEST_INSTRUCTION Instruction;
     UINT32 Dpl = 0;
 
@@ -278,11 +279,33 @@ DsHvmExceptionHandler(
         return FALSE;
     }
 
+    Cr3 &= 0xFFFFFFFFFFFFF000;
+    HostCr3 = __readcr3();
+
+    if (Cr3 == HostCr3 ) {
+
+        if (Registers->Rip == 0x0F && Registers->Rip + 1 == 0x31) {
+            VmRdtscEmulate( Local, Registers, Cr3 );
+            return TRUE;
+        }
+
+        if (Registers->Rip == 0x0F 
+            && Registers->Rip + 1 == 0x01 
+            && Registers->Rip + 2 == 0xF9 ) {
+
+            VmRdtscpEmulate( Local, Registers, Cr3 );
+            return TRUE;
+        }
+
+        return FALSE;
+    }
+
     //
-    //  TODO: the process CR3 for kernel has the whole address space mapped,
-    //  so it might be convenient to change the host CR3 to opportunistically
-    //  exit with the most frequently used CR3 to call RDTSC/P.
+    //  Change the next host CR3 to opportunistically exit with the same
+    //  CR3 calling RDTSC/P.
     //
+
+    VmWriteN( HOST_CR3, Cr3 );
 
     Status = VmReadGuestInstruction( Cr3, Registers->Rip, &Instruction );
     if (NT_SUCCESS( Status )) {
