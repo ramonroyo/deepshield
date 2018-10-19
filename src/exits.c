@@ -252,6 +252,9 @@ RoutineExit:
      (Ins).Opcode[1] == 0x01 &&           \
      (Ins).Opcode[2] == 0xF9)
 
+#define PsDirectoryTableBase(Process)    (UINTN)((PUINT8)Process + 0x28)
+#define MaskCr3(Cr3) (Cr3 & 0xFFFFFFFFFFFFF000)
+
 BOOLEAN
 DsHvmExceptionHandler(
     _In_ PVOID Local,
@@ -263,6 +266,7 @@ DsHvmExceptionHandler(
     UINTN HostCr3;
     HVM_GUEST_INSTRUCTION Instruction;
     UINT32 Dpl = 0;
+    UINTN DirectoryTableBase;
 
     //
     //  Skip exceptions originated from kernel mode.
@@ -279,10 +283,11 @@ DsHvmExceptionHandler(
         return FALSE;
     }
 
-    Cr3 &= 0xFFFFFFFFFFFFF000;
+    DirectoryTableBase = PsDirectoryTableBase( PsGetCurrentProcess() );
+
     HostCr3 = __readcr3();
 
-    if (Cr3 == HostCr3 ) {
+    if (MaskCr3( DirectoryTableBase ) == MaskCr3( HostCr3 )) {
 
         if (Registers->Rip == 0x0F && Registers->Rip + 1 == 0x31) {
             VmRdtscEmulate( Local, Registers );
@@ -305,7 +310,7 @@ DsHvmExceptionHandler(
     //  CR3 calling RDTSC/P.
     //
 
-    // VmWriteN( HOST_CR3, Cr3 );
+    VmWriteN( HOST_CR3, DirectoryTableBase );
 
     Status = VmReadGuestInstruction( Cr3, Registers->Rip, &Instruction );
     if (NT_SUCCESS( Status )) {
