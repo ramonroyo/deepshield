@@ -3,6 +3,17 @@
 
 #include "x86.h"
 
+#define BITARRAY_BYTE(n)    ((n) >> 3)
+#define BITARRAY_MASK(n)    (1 << ((n) & 7))
+
+#define BITARRAY_SET(a, n)  \
+	(a[BITARRAY_BYTE(n)] |= BITARRAY_MASK(n))
+
+#define BITARRAY_CLR(a, n)  \
+	(a[BITARRAY_BYTE(n)] &= ~BITARRAY_MASK(n))
+
+#define LOW32(v)  ((UINT32)(v))
+
 VOID
 VmcsSetGuestField(
     VOID
@@ -32,7 +43,7 @@ VmSetPrivilegedTimeStamp(
     );
 
 VOID
-VmcsSetGuestNoMsrExits(
+VmcsSetGuestMsrExitPolicy(
     _In_ PUCHAR MsrBitmap
     );
 

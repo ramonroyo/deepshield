@@ -1,8 +1,6 @@
-#include "wdk7.h"
+#include "dsdef.h"
 #include "hvm.h"
 #include "instr.h"
-#include "vmx.h"
-#include "smp.h"
 
 PHVM_VCPU ROOT_MODE_API
 HvmGetCurrentVcpu(
@@ -39,6 +37,41 @@ HvmGetVcpuHostState(
     return &Vcpu->HostState;
 }
 
+BOOLEAN
+HvmMsrHandlerRegistered(
+    _In_ PGP_REGISTERS Registers
+    )
+{
+    //
+    //  TODO: implement MSR handler registration and lookup.
+    //
+    if (LOW32( Registers->Rcx ) == IA32_FS_BASE) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+BOOLEAN
+HvmHandleMsrFsBase( 
+    _In_ PGP_REGISTERS Registers
+    )
+{
+    UINT64 Value;
+    Value = (((UINT64) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
+
+#ifdef FIXED_MAILBOX_SYNCH
+    RtlPostMailboxTrace( &gSecureMailbox,
+                        TRACE_LEVEL_INFORMATION,
+                        TRACE_MSR_EXIT_ROOT,
+                        "Writing FS_BASE MSR (ProcessId = %p, Value = %I64X)\n",
+                        PsGetCurrentProcessId(),
+                        Value );
+#endif
+
+    return FALSE;
+}
+
 BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
     _In_ UINT32 ExitReason,
@@ -46,6 +79,8 @@ HvmVcpuCommonExitsHandler(
     _In_ PGP_REGISTERS Registers
     )
 {
+    BOOLEAN ExitHandled = FALSE;
+
     UNREFERENCED_PARAMETER(Vcpu);
 
     switch (ExitReason)
@@ -103,14 +138,21 @@ HvmVcpuCommonExitsHandler(
 
         case EXIT_REASON_MSR_READ:
         {
-            InstrMsrReadEmulate(Registers);
+            InstrMsrReadEmulate( Registers );
             InstrRipAdvance( Registers );
             return TRUE;
         }
         case EXIT_REASON_MSR_WRITE:
         {
-            InstrMsrWriteEmulate( Registers );
-            InstrRipAdvance( Registers );
+            if (HvmMsrHandlerRegistered( Registers )) {
+                ExitHandled = HvmHandleMsrFsBase( Registers );
+            }
+
+            if (!ExitHandled) {
+                InstrMsrWriteEmulate( Registers );
+                InstrRipAdvance( Registers );
+            }
+
             return TRUE;
         }
     }

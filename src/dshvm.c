@@ -34,7 +34,7 @@ DsHvmSetupVmcs(
     PHVM_CONTEXT HvmContext = (PHVM_CONTEXT)HvmGetHvmContextByVcpu( Vcpu );
 
     VmSetPrivilegedTimeStamp();
-    VmcsSetGuestNoMsrExits( HvmContext->MsrBitmap );
+    VmcsSetGuestMsrExitPolicy( HvmContext->MsrBitmap );
 }
 
 NTSTATUS

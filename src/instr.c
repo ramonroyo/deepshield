@@ -4,9 +4,7 @@
 #include "x86.h"
 #include "mmu.h"
 #include "vmcsinit.h"
-
-#define LOW32(X)  ((UINT32) ((UINT64)(X))       )
-#define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
+#include "instr.h"
 
 PUINTN
 LookupGp(

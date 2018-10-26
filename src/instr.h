@@ -4,6 +4,9 @@
 #include "vmx.h"
 #include "hvm.h"
 
+#define LOW32(X)  ((UINT32) ((UINT64)(X))       )
+#define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
+
 PUINTN
 LookupGp(
     _In_ PGP_REGISTERS Registers,

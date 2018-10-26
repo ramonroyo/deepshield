@@ -296,13 +296,13 @@ DsHvmExceptionHandler(
 
 #define GetRipByte(Registers, Index) *((PUINT8)Registers->Rip + Index)
 
-        if ( GetRipByte(Registers, 0) == 0x0F && 
+        if (GetRipByte(Registers, 0) == 0x0F && 
              GetRipByte(Registers, 1) == 0x31) {
             VmRdtscEmulate( Local, Registers );
             return TRUE;
         }
 
-        if (   GetRipByte(Registers, 0) == 0x0F 
+        if (GetRipByte(Registers, 0) == 0x0F 
             && GetRipByte(Registers, 1) == 0x01 
             && GetRipByte(Registers, 2) == 0xF9 ) {
 
@@ -343,7 +343,7 @@ DsHvmExceptionHandler(
 //  intents and purposes, even if you enter at PASSIVE_LEVEL, you are 
 //  technically at HIGH_LEVEL, as interrupts are disabled. So you should be
 //  calling almost zero Windows APIs, except if they are documented to run
-//  at HIGH_LEVEL
+//  at HIGH_LEVEL.
 //
 VOID 
 DsHvmExitHandler(

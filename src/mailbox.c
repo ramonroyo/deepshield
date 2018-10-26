@@ -168,7 +168,7 @@ RtlMailboxWorkerThread(
     WaitObjects[0] = &Mailbox->ShutdownEvent;
     WaitObjects[1] = &Mailbox->QueueSemaphore;
 
-    DueTime.QuadPart = REL_TIMEOUT_IN_MS( 480 );
+    DueTime.QuadPart = REL_TIMEOUT_IN_MS( 360 );
 
     KeSetPriorityThread( KeGetCurrentThread(), LOW_REALTIME_PRIORITY );
 

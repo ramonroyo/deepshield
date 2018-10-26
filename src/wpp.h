@@ -71,6 +71,7 @@ extern "C" {
 // end_wpp
 
 #define TRACE_IOA_ROOT         0x00000080
+#define TRACE_MSR_EXIT_ROOT    0x00000800
 
 #else
 
@@ -103,6 +104,7 @@ extern "C" {
 #define TRACE_NOTIFICATION       0x00000100
 #define TRACE_CHANNEL            0x00000200
 #define TRACE_MAILBOX            0x00000400
+#define TRACE_MSR_EXIT_ROOT      0x00000800     
 
 VOID
 TraceEvents(

@@ -9,27 +9,6 @@ AsmHvmpExitHandler(
     VOID
     );
 
-#define LOW32(v)  ((UINT32)(v))
-
-typedef struct _SEGMENT_SELECTOR {
-    UINT16 Selector;
-    UINTN Base;
-    UINT32 Limit;
-    UINT32 Attr;
-} SEGMENT_SELECTOR, *PSEGMENT_SELECTOR;
-
-typedef struct _SEGMENT_CTX
- {
-    SEGMENT_SELECTOR Cs;
-    SEGMENT_SELECTOR Ss;
-    SEGMENT_SELECTOR Ds;
-    SEGMENT_SELECTOR Es;
-    SEGMENT_SELECTOR Fs;
-    SEGMENT_SELECTOR Gs;
-    SEGMENT_SELECTOR Tr;
-    SEGMENT_SELECTOR Ldtr;
-} SEGMENT_CTX;
-
 #define VM_LOAD_SEGMENT(s, SEG_NAME)                   \
 {                                                      \
     VmWrite16( SEG_NAME##_SELECTOR, (s).Selector );    \
@@ -287,18 +266,71 @@ VmSetPrivilegedTimeStamp(
                                | (1 << VECTOR_GENERAL_PROTECTION_EXCEPTION) );
 }
 
+NTSTATUS
+VmSetMsrBitsConfig(
+    _Inout_ PUINT8 MsrBitmap,
+    _In_ UINT32 MsrId,
+    _In_ MSR_ACCESS Access,
+    _In_ BOOLEAN Set
+    )
+{
+    UINT32 BitNumber;
+    MSR_ACCESS AccessIdx;
+    PUINT8 BitArray;
+
+    for (AccessIdx = WRITE_ACCESS; AccessIdx <= READ_ACCESS; ++AccessIdx ) {
+
+        if (AccessIdx & Access) {
+            
+            if (MsrId <= MSR_LOW_LAST) {
+
+                BitNumber = MsrId;
+                BitArray = (READ_ACCESS == AccessIdx) ?
+                         &MsrBitmap[MSR_READ_LOW_OFFSET] :
+                         &MsrBitmap[MSR_WRITE_LOW_OFFSET];
+
+            } else if (MSR_HIGH_FIRST <= MsrId && MsrId <= MSR_HIGH_LAST) {
+
+                BitNumber = MsrId - MSR_HIGH_FIRST;
+                BitArray = (READ_ACCESS == AccessIdx) ?
+                         &MsrBitmap[MSR_READ_HIGH_OFFSET] :
+                         &MsrBitmap[MSR_WRITE_HIGH_OFFSET];
+
+            } else {
+                NT_ASSERT( FALSE );
+                return STATUS_NOT_FOUND;
+            }
+
+            if (Set) {
+                BITARRAY_SET( BitArray, BitNumber );
+            } else {
+                BITARRAY_CLR( BitArray, BitNumber );
+            }
+        }
+    }
+    return STATUS_SUCCESS;
+}
+
 VOID
-VmcsSetGuestNoMsrExits(
+VmcsSetGuestMsrExitPolicy(
     _In_ PUCHAR MsrBitmap
     )
 {
+    NTSTATUS Status;
     VMX_PROC_PRIMARY_CTLS ProcControls;
     PHYSICAL_ADDRESS MsrBitmapHpa;
+
+    //
+    //  Set MsrBitmap exiting for IA32_FS_BASE.
+    //
+
+    Status = VmSetMsrBitsConfig( MsrBitmap, IA32_FS_BASE, WRITE_ACCESS, TRUE );
+    NT_ASSERT( STATUS_SUCCESS == Status );
 
     MsrBitmapHpa = MmuGetPhysicalAddress( 0, MsrBitmap );
     VmWrite64( MSR_BITMAP_ADDRESS, MsrBitmapHpa.QuadPart );
 
     ProcControls.AsUint32 = VmRead32( VM_EXEC_CONTROLS_PROC_PRIMARY );
     ProcControls.Bits.UseMsrBitmap = 1;
-    VmWrite32 ( VM_EXEC_CONTROLS_PROC_PRIMARY, ProcControls.AsUint32 );
+    VmWrite32( VM_EXEC_CONTROLS_PROC_PRIMARY, ProcControls.AsUint32 );
 }
