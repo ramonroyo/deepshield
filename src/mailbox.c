@@ -108,14 +108,10 @@ RtlDispatchMailboxData(
     )
 {
     NTSTATUS Status;
-    CHAR Data[MAILBOX_BUFFER_SIZE];
     PDS_NOTIFICATION_MESSAGE Message;
-    MAILBOX_HEADER MailboxHeader;
+    MAILBOX_RECORD MailboxEntry;
 
-    Status = RtlRetrieveMailboxData( Mailbox,
-                                     &MailboxHeader,
-                                     Data,
-                                     MAILBOX_BUFFER_SIZE );
+    Status = RtlRetrieveMailboxData( Mailbox, &MailboxEntry );
 
     if (!NT_SUCCESS( Status )) {
         NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
@@ -123,20 +119,28 @@ RtlDispatchMailboxData(
         return Status;
     }
 
-    if (MailboxHeader.Type == MailboxTrace) {
+    if (MailboxEntry.Header.Type == MailboxTrace) {
         //
         //  The end result of a mailbox trace is just to generate a
         //  trace event for debugging purposes.
         //
 
-        if (MailboxHeader.Trace.Area == TRACE_IOA_ROOT) {
-            TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
-                            "%s\n",
-                            Data );
+        switch( MailboxEntry.Header.Trace.Area ) {
+            case TRACE_IOA_ROOT:
+                TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
+                             "%s\n",
+                             (PCHAR)MailboxEntry.Data );
+                break;
+            
+            case TRACE_MSR_ROOT:
+                TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MSR,
+                             "%s\n",
+                             (PCHAR)MailboxEntry.Data );
+                break;
         }
     }
-    else if (MailboxHeader.Type == MailboxNotification) {
-        Message = (PDS_NOTIFICATION_MESSAGE) Data;
+    else if (MailboxEntry.Header.Type == MailboxNotification) {
+        Message = (PDS_NOTIFICATION_MESSAGE) MailboxEntry.Data;
 
         Status = DsSendNotificationMessage( gChannel,
                                             Message->ProcessId,
@@ -147,7 +151,7 @@ RtlDispatchMailboxData(
         NT_ASSERT( FALSE );
         TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
                      "Unrecognized mailbox data type (Type: %d)\n",
-                     MailboxHeader.Type );
+                     MailboxEntry.Header.Type );
     }
 
     return Status;
@@ -275,7 +279,7 @@ RtlIsMailboxEmpty(
     //
     //  A record is present only if is contains a header and a body.
     //
-    return (AvailToRead <= sizeof( MAILBOX_HEADER ));
+    return (AvailToRead < sizeof( MAILBOX_RECORD ));
 }
 
 NTSTATUS
@@ -288,21 +292,19 @@ RtlPostMailboxTrace(
     )
 {
     NTSTATUS Status = STATUS_INVALID_PARAMETER;
-    CHAR TraceBuffer[MAILBOX_BUFFER_SIZE];
+    MAILBOX_RECORD Entry;
     va_list ArgumentList;
-    MAILBOX_HEADER MailboxHeader;
     SIZE_T TraceLenght = 0;
-    SIZE_T BytesRead;
 
     if (TraceMessage) {
         va_start( ArgumentList, TraceMessage );
 
-        Status = RtlStringCbVPrintfA( TraceBuffer,
-                                      sizeof( TraceBuffer ),
+        Status = RtlStringCbVPrintfA( (PCHAR)Entry.Data,
+                                      sizeof( Entry.Data ),
                                       TraceMessage,
                                       ArgumentList );
         if (NT_SUCCESS( Status )) {
-            Status = RtlStringCbLengthA( TraceBuffer,
+            Status = RtlStringCbLengthA( (PCHAR)Entry.Data,
                                          MAILBOX_BUFFER_SIZE,
                                          (size_t*)&TraceLenght );
         } else {
@@ -320,33 +322,22 @@ RtlPostMailboxTrace(
         return Status;
     }
 
-    MailboxHeader.Type = MailboxTrace;
-    MailboxHeader.Size = TraceLenght;
-    MailboxHeader.Trace.Level = Level;
-    MailboxHeader.Trace.Area = Area;
+    Entry.Header.Type = MailboxTrace;
+    Entry.Header.Size = TraceLenght;
+    Entry.Header.Trace.Level = Level;
+    Entry.Header.Trace.Area = Area;
 
     Status = RtlRingBufferWrite( &Mailbox->RingBuffer,
-                                 (PCHAR)&MailboxHeader,
-                                 sizeof( MAILBOX_HEADER ) );
+                                 (PCHAR)&Entry.Header,
+                                 sizeof( MAILBOX_RECORD ) );
 
     if (NT_SUCCESS( Status )) {
-        Status = RtlRingBufferWrite( &Mailbox->RingBuffer, 
-                                     TraceBuffer,
-                                     TraceLenght );
-
-        if (NT_SUCCESS( Status )) {
 #ifdef LET_SWAP_CONTEXT
-            KeReleaseSemaphore( &Mailbox->QueueSemaphore,
-                                IO_NO_INCREMENT,
-                                1,
-                                FALSE );
+        KeReleaseSemaphore( &Mailbox->QueueSemaphore,
+                            IO_NO_INCREMENT,
+                            1,
+                            FALSE );
 #endif
-        } else {
-            RtlRingBufferRead( &Mailbox->RingBuffer,
-                               (PCHAR)&MailboxHeader,
-                               sizeof( MAILBOX_HEADER ),
-                               &BytesRead );
-        }
     }
 
     return Status;
@@ -359,34 +350,36 @@ RtlPostMailboxNotification(
     _In_ SIZE_T Length
     )
 {
-    NTSTATUS Status;
-    MAILBOX_HEADER MailboxHeader;
-    SIZE_T BytesRead;
+    NTSTATUS Status = STATUS_BUFFER_OVERFLOW;
+    MAILBOX_RECORD Entry;
 
-    MailboxHeader.Type = MailboxNotification;
-    MailboxHeader.Size = Length;
-    MailboxHeader.Notification.Reserved = 0;
+    Entry.Header.Type = MailboxNotification;
+    Entry.Header.Size = Length;
+    Entry.Header.Notification.Reserved = 0;
+
+    NT_ASSERT( Length <= sizeof( Entry.Data ) );
+
+    if (Length > sizeof( Entry.Data ) ) {
+        TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
+                     "Data was too large to fit into the mailbox notificatgion (Status: %!STATUS!)\n",
+                     Status );
+
+        return Status;
+    }
+
+    RtlCopyMemory( Entry.Data, Notification, Length );
 
     Status = RtlRingBufferWrite( &Mailbox->RingBuffer,
-                                 (PCHAR)&MailboxHeader,
-                                 sizeof( MAILBOX_HEADER ) );
+                                 (PCHAR)&Entry.Header,
+                                 sizeof( MAILBOX_RECORD ) );
 
     if (NT_SUCCESS( Status )) {
-        Status = RtlRingBufferWrite( &Mailbox->RingBuffer, Notification, Length );
-
-        if (NT_SUCCESS( Status )) {
 #ifdef LET_SWAP_CONTEXT
-            KeReleaseSemaphore( &Mailbox->QueueSemaphore,
-                                IO_NO_INCREMENT,
-                                1,
-                                FALSE );
+        KeReleaseSemaphore( &Mailbox->QueueSemaphore,
+                            IO_NO_INCREMENT,
+                            1,
+                            FALSE );
 #endif
-        } else {
-            RtlRingBufferRead( &Mailbox->RingBuffer,
-                               (PCHAR)&MailboxHeader,
-                               sizeof( MAILBOX_HEADER ),
-                               &BytesRead );
-        }
     }
 
     return Status;
@@ -395,40 +388,19 @@ RtlPostMailboxNotification(
 NTSTATUS
 RtlRetrieveMailboxData(
     _Inout_ PMAILBOX Mailbox,
-    _Inout_ PMAILBOX_HEADER MailboxHeader,
-    _Out_writes_bytes_( DataSize ) PCHAR Data,
-    _In_ SIZE_T DataSize
+    _Inout_ PMAILBOX_RECORD MailboxEntry
     )
 {
     NTSTATUS Status;
     SIZE_T BytesRead;
-    BOOLEAN Restore = TRUE;
 
-    MailboxHeader->Type = MailboxEmpty;
+    MailboxEntry->Header.Type = MailboxEmpty;
 
     Status = RtlRingBufferRead( &Mailbox->RingBuffer,
-                                (PCHAR)MailboxHeader,
-                                sizeof( MAILBOX_HEADER ),
+                                (PCHAR) MailboxEntry,
+                                sizeof( MAILBOX_RECORD ),
                                 &BytesRead );
 
-    if (NT_SUCCESS( Status )) {
-
-        if (DataSize >= MailboxHeader->Size) {
-            Status = RtlRingBufferRead( &Mailbox->RingBuffer,
-                                        (PCHAR)Data,
-                                        MailboxHeader->Size,
-                                        &BytesRead );
-            if (NT_SUCCESS( Status )) {
-                Restore = FALSE;
-            }
-        }
-
-        if (Restore) {
-            RtlRingBufferWrite( &Mailbox->RingBuffer,
-                                (PCHAR)MailboxHeader,
-                                sizeof( MAILBOX_HEADER ) );
-        }
-    }
-
+    NT_ASSERT( NT_SUCCESS( Status ) );
     return Status;
 }

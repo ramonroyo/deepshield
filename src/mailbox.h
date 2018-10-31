@@ -62,6 +62,11 @@ typedef struct _MAILBOX_HEADER {
 
 } MAILBOX_HEADER, *PMAILBOX_HEADER;
 
+typedef struct _MAILBOX_RECORD {
+    MAILBOX_HEADER Header;
+    UCHAR Data[MAILBOX_BUFFER_SIZE];
+} MAILBOX_RECORD, *PMAILBOX_RECORD;
+
 NTSTATUS
 RtlMailboxStartWorker(
     _Inout_ PMAILBOX Mailbox
@@ -112,9 +117,7 @@ RtlPostMailboxNotification(
 NTSTATUS
 RtlRetrieveMailboxData(
     _Inout_ PMAILBOX Mailbox,
-    _Inout_ PMAILBOX_HEADER MailboxHeader,
-    _Out_writes_bytes_( DataSize ) PCHAR Data,
-    _In_ SIZE_T DataSize
+    _Inout_ PMAILBOX_RECORD MailboxEntry
     );
 
 #endif

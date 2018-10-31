@@ -321,9 +321,30 @@ VmcsSetGuestMsrExitPolicy(
     PHYSICAL_ADDRESS MsrBitmapHpa;
 
     //
+    //  There are two methods to update the contents of the FS_BASE and GS_BASE
+    //  hidden descriptor fields. The first is available exclusively to CPL = 0
+    //  where the register fields are mapped to MSRs. Privileged software can
+    //  load a 64-bit base address in canonical form into FS_BASE or GS_BASE
+    //  using a single WRMSR instruction. The second method of updating the FS
+    //  and GS base register fields is available to software running at any
+    //  privilege level when supported by the implementation and enabled by
+    //  setting CR4[FSGSBASE]. The WRFSBASE and WRGSBASE instructions copy the
+    //  contents of a GPR to the FS_BASE and GS_BASE fields respectively. Note
+    //  that WRFSBASE and WRGSBASE are only supported in 64-bit mode.
+    //
+    //  A couple of major benefits are expected from the FSGSBASE instruction
+    //  set introduced from Ivy Bridge:
+    //  
+    //    1) Performance improvements in context switches by skipping MSR
+    //       writes for FS and GS base.
+    //
+    //    2) UMS availability. UMS efficiently allows user-mode processes to
+    //       switch between multiple “user” threads, hence FSGSBASE is enforced
+    //       to switch the TEB without involving a kernel transition that would
+    //       defy the whole point.
+    //
     //  Set MsrBitmap exiting for IA32_FS_BASE.
     //
-
     Status = VmSetMsrBitsConfig( MsrBitmap, IA32_FS_BASE, WRITE_ACCESS, TRUE );
     NT_ASSERT( STATUS_SUCCESS == Status );
 

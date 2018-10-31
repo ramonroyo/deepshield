@@ -42,6 +42,9 @@ extern "C" {
         WPP_DEFINE_BIT(TRACE_WMI)                 \
         WPP_DEFINE_BIT(TRACE_DEVICE)              \
         WPP_DEFINE_BIT(TRACE_IOA)                 \
+        WPP_DEFINE_BIT(TRACE_IOA_RSVD)            \
+        WPP_DEFINE_BIT(TRACE_MSR)                 \
+        WPP_DEFINE_BIT(TRACE_MSR_RSVD)            \
         WPP_DEFINE_BIT(TRACE_NOTIFICATION)        \
         WPP_DEFINE_BIT(TRACE_CHANNEL)             \
         WPP_DEFINE_BIT(TRACE_MAILBOX)             \
@@ -71,7 +74,7 @@ extern "C" {
 // end_wpp
 
 #define TRACE_IOA_ROOT         0x00000080
-#define TRACE_MSR_EXIT_ROOT    0x00000800
+#define TRACE_MSR_ROOT         0x00000200
 
 #else
 
@@ -101,10 +104,12 @@ extern "C" {
 #define TRACE_DEVICE             0x00000020
 #define TRACE_IOA                0x00000040
 #define TRACE_IOA_ROOT           0x00000080
-#define TRACE_NOTIFICATION       0x00000100
-#define TRACE_CHANNEL            0x00000200
-#define TRACE_MAILBOX            0x00000400
-#define TRACE_MSR_EXIT_ROOT      0x00000800     
+#define TRACE_MSR                0x00000100
+#define TRACE_MSR_ROOT           0x00000200
+#define TRACE_NOTIFICATION       0x00000400
+#define TRACE_CHANNEL            0x00000800
+#define TRACE_MAILBOX            0x00001000
+
 
 VOID
 TraceEvents(

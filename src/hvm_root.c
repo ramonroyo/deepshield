@@ -60,14 +60,20 @@ HvmHandleMsrFsBase(
     UINT64 Value;
     Value = (((UINT64) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
 
-#ifdef FIXED_MAILBOX_SYNCH
+    //
+    //  On 32-bit mode the FS segment register points to TEB and the KPCR, but
+    //  on 64-bit mode it is the GS register that points to the TEB. However
+    //  when running Wow64 apps the FS register continues to point to the 32-bit
+    //  version of the TEB.
+    //
+
     RtlPostMailboxTrace( &gSecureMailbox,
-                        TRACE_LEVEL_INFORMATION,
-                        TRACE_MSR_EXIT_ROOT,
-                        "Writing FS_BASE MSR (ProcessId = %p, Value = %I64X)\n",
+                        TRACE_LEVEL_VERBOSE,
+                        TRACE_MSR_ROOT,
+                        "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = %I64X)\n",
                         PsGetCurrentProcessId(),
+                        PsGetCurrentThreadId(),
                         Value );
-#endif
 
     return FALSE;
 }
