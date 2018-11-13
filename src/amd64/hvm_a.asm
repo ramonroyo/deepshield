@@ -27,7 +27,7 @@ R13_SAVE EQU 00068H
 R14_SAVE EQU 00070H
 R15_SAVE EQU 00078H
 
-; Offset definition for XMM.
+; Offset definitions for XMM.
 XMM0_SAVE  EQU 00080H
 XMM1_SAVE  EQU 00090H
 XMM2_SAVE  EQU 000A0H
@@ -44,6 +44,9 @@ XMM12_SAVE EQU 00140H
 XMM13_SAVE EQU 00150H
 XMM14_SAVE EQU 00160H
 XMM15_SAVE EQU 00170H
+
+; Offset definition for MXCSR.
+MXCSR_SAVE EQU 00180H
 
 ; Saves CPU registers to the guest area
 CPU_SAVE_REGS MACRO
@@ -91,6 +94,9 @@ CPU_SAVE_REGS MACRO
     movdqa XMM13_SAVE[rbx], xmm13
     movdqa XMM14_SAVE[rbx], xmm14
     movdqa XMM15_SAVE[rbx], xmm15
+
+    ; save XMM floating state
+    stmxcsr MXCSR_SAVE[rbx]
 ENDM
 
 
@@ -114,6 +120,9 @@ CPU_RESTORE_REGS MACRO
     movdqa  xmm13, XMM13_SAVE[rbx] 
     movdqa  xmm14, XMM14_SAVE[rbx] 
     movdqa  xmm15, XMM15_SAVE[rbx]
+
+    ; restore MXCSR
+    ldmxcsr MXCSR_SAVE[rbx]
     
     ; restore all GP except rcx
     mov rax, RAX_SAVE[rbx]

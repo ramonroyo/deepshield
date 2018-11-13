@@ -10,6 +10,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _In_
 #define _In_z_
 #define _In_opt_
+#define _Inout_opt_
 #define _Out_
 #define _Out_opt_
 #define _Deref_out_
@@ -24,6 +25,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _IRQL_requires_same_
 #define _IRQL_requires_max_(i)
 #define _Function_class_( c )
+#define _Post_invalid_
 
 #define MdlMappingNoExecute     0x40000000
 #define NTDDI_WIN8              0x06020000

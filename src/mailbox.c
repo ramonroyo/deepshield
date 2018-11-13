@@ -361,7 +361,7 @@ RtlPostMailboxNotification(
 
     if (Length > sizeof( Entry.Data ) ) {
         TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
-                     "Data was too large to fit into the mailbox notificatgion (Status: %!STATUS!)\n",
+                     "Data was too large to fit into the mailbox notification (Status: %!STATUS!)\n",
                      Status );
 
         return Status;

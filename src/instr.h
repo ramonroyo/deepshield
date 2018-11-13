@@ -8,7 +8,7 @@
 #define HIGH32(X) ((UINT32)(((UINT64)(X)) >> 32))
 
 PUINTN
-LookupGp(
+LookupGpr(
     _In_ PGP_REGISTERS Registers,
     _In_ UINT32     gpr
 );

@@ -48,6 +48,7 @@ extern "C" {
         WPP_DEFINE_BIT(TRACE_NOTIFICATION)        \
         WPP_DEFINE_BIT(TRACE_CHANNEL)             \
         WPP_DEFINE_BIT(TRACE_MAILBOX)             \
+        WPP_DEFINE_BIT(TRACE_PROCESS)             \
         )
 
 #define WPP_LEVEL_FLAGS_LOGGER(lvl,flags) WPP_LEVEL_LOGGER(flags)
@@ -109,6 +110,7 @@ extern "C" {
 #define TRACE_NOTIFICATION       0x00000400
 #define TRACE_CHANNEL            0x00000800
 #define TRACE_MAILBOX            0x00001000
+#define TRACE_PROCESS            0x00002000
 
 
 VOID

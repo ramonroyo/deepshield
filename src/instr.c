@@ -7,7 +7,7 @@
 #include "instr.h"
 
 PUINTN
-LookupGp(
+LookupGpr(
     _In_ PGP_REGISTERS Registers,
     _In_ UINT32 gpr
 )
@@ -180,9 +180,10 @@ InstrCr4Emulate(
     )
 {
     CR4_REGISTER Cr4;
-    PUINTN Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
+    PUINTN Gp = LookupGpr( Registers, Qualification.CrAccess.MoveGp );
     INT32 AccessType = Qualification.CrAccess.AccessType;
     UINTN OperandTsd;
+    UINTN QuantumTsd;
 
     if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
 
@@ -199,9 +200,9 @@ InstrCr4Emulate(
         //  TSD bit as it might be not visible (shadow bit 0).
         //
         Cr4.AsUintN = VmMakeCompliantCr4( VmGetGuestVisibleCr4( Cr4.AsUintN ));
-        Cr4.AsUintN |= CR4_TSD;
+        QuantumTsd = VmReadN( GUEST_CR4 ) & CR4_TSD;
 
-        VmWriteN( GUEST_CR4, Cr4.AsUintN );
+        VmWriteN( GUEST_CR4, Cr4.AsUintN | QuantumTsd );
 
 #ifndef DISABLE_OSXSAVE_TRACKING
 
@@ -238,7 +239,7 @@ InstrCr3Emulate(
     PUINTN Gp;
     UINT32 AccessType = Qualification.CrAccess.AccessType;
    
-    Gp = LookupGp( Registers, Qualification.CrAccess.MoveGp );
+    Gp = LookupGpr( Registers, Qualification.CrAccess.MoveGp );
 
     if (CR_ACCESS_TYPE_MOV_TO_CR == AccessType) {
         VmWriteN( GUEST_CR3, *Gp );
@@ -260,7 +261,7 @@ InstrDrEmulate(
 
     data.u.raw = exitQualification;
 
-    gpr = LookupGp(Registers, (UINT8)data.u.f.gpr);
+    gpr = LookupGpr(Registers, (UINT8)data.u.f.gpr);
 
     if (data.u.f.accessType == DR_ACCESS_TYPE_MOV_FROM_DR)
     {

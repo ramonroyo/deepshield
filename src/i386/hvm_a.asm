@@ -22,7 +22,7 @@ EBP_SAVE EQU 00014H
 ESI_SAVE EQU 00018H
 EDI_SAVE EQU 0001CH
 
-; Offset definition for XMM.
+; Offset definitions for XMM.
 XMM0_SAVE  EQU 00020H
 XMM1_SAVE  EQU 00030H
 XMM2_SAVE  EQU 00040H
@@ -31,6 +31,9 @@ XMM4_SAVE  EQU 00060H
 XMM5_SAVE  EQU 00070H
 XMM6_SAVE  EQU 00080H
 XMM7_SAVE  EQU 00090H
+
+; Offset definition for MXCSR.
+MXCSR_SAVE  EQU 000A0H
 
 ; Saves all general purpose registers to the stack
 CPU_SAVE_REGS MACRO
@@ -62,6 +65,9 @@ CPU_SAVE_REGS MACRO
     movdqa XMM5_SAVE[ebx], xmm5
     movdqa XMM6_SAVE[ebx], xmm6
     movdqa XMM7_SAVE[ebx], xmm7
+
+    ; save XMM floating state
+    stmxcsr MXCSR_SAVE[ebx]
 ENDM
 
 ; Loads all general purpose registers from the stack
@@ -75,6 +81,9 @@ CPU_RESTORE_REGS MACRO
     movdqa  xmm5, XMM5_SAVE[ebx]
     movdqa  xmm6, XMM6_SAVE[ebx]
     movdqa  xmm7, XMM7_SAVE[ebx]
+
+	; restore MXCSR
+    ldmxcsr MXCSR_SAVE[ebx]
 
     ; restore all GP except rcx
     mov eax, EAX_SAVE[ebx]

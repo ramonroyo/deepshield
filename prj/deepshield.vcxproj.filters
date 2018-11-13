@@ -130,6 +130,9 @@
     <ClCompile Include="..\src\dshvm.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\process.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -205,6 +208,9 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\dshvm.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\process.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

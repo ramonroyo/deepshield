@@ -33,6 +33,7 @@ typedef struct DECLSPEC_ALIGN(16) _GP_REGISTERS
     M128A XmmRegisters[8];
 #endif
 
+    UINT32 MxCsr;
     UINTN Rip;
     FLAGS_REGISTER Rflags;
 

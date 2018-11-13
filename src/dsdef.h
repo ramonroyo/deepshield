@@ -11,6 +11,8 @@
 #include "mailbox.h"
 #include "channel.h"
 #include "power.h"
+#include "process.h"
+#include "vmcsinit.h"
 #include "shield.h"
 #include "policy.h"
 #include "ioctl.h"
@@ -19,7 +21,6 @@
 #include "smp.h"
 #include "os.h"
 #include "vmx.h"
-#include "vmcsinit.h"
 
 #pragma warning(disable:4201)   // nameless struct/union
 
@@ -49,6 +50,8 @@ extern MAILBOX gSecureMailbox;
 #define DSH_GFL_SHIELD_SUSPENDED    0x00000004
 #define DSH_GFL_CHANNEL_SETUP       0x00000008
 #define DSH_GFL_POWER_REGISTERED    0x00000010
+#define DSH_GFL_PROCMON_STARTED     0x00000020
+
 
 #define DSH_VMX_ABSENT(v)    \
     ((BOOLEAN)(((PDS_VMX_FEATURE)(v))->Bits.AsUint32 != 0))

@@ -284,6 +284,7 @@
     <ClCompile Include="..\src\os.c" />
     <ClCompile Include="..\src\policy.c" />
     <ClCompile Include="..\src\power.c" />
+    <ClCompile Include="..\src\process.c" />
     <ClCompile Include="..\src\ringbuf.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
@@ -314,6 +315,7 @@
     <ClInclude Include="..\src\os.h" />
     <ClInclude Include="..\src\policy.h" />
     <ClInclude Include="..\src\power.h" />
+    <ClInclude Include="..\src\process.h" />
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />
     <ClInclude Include="..\src\ringbuf.h" />

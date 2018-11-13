@@ -52,12 +52,65 @@ HvmMsrHandlerRegistered(
     return FALSE;
 }
 
+#define TRUST_LEVEL_NONE           (0x00000001)
+#define TRUST_LEVEL_EXEMPTED       (0x00000002)
+#define TRUST_LEVEL_FORCEFUL       (0x00010000)
+#define TRUST_LEVEL_MASSIVE        (TRUST_LEVEL_FORCEFUL | TRUST_LEVEL_EXEMPTED)
+
+UINT32
+DsGetRequestorTrustLevel(
+    VOID
+    )
+{
+    PETHREAD CurrentThread;
+    PEPROCESS CurrentProcess;
+
+    CurrentProcess = IoGetCurrentProcess();
+    CurrentThread = KeGetCurrentThread();
+
+    // SeLocateProcessImageName, PsGetProcessImageFileName
+    // PsReferenceProcessFilePointer + IoQueryFileDosDeviceName. ObQueryNameString 
+
+    return TRUST_LEVEL_MASSIVE;
+}
+
+VOID
+HvmSetNextQuantumTsd(
+    BOOLEAN EnableTsd
+    )
+{
+    CR4_REGISTER Cr4;
+    UINTN ExpiredTsd;
+
+    Cr4.AsUintN = __readcr4();
+    ExpiredTsd = Cr4.AsUintN & CR4_TSD;
+
+    if ((EnableTsd && ExpiredTsd) || (!EnableTsd && !ExpiredTsd)) {
+        return;
+    }
+
+    Cr4.AsUintN = VmMakeCompliantCr4( VmGetGuestVisibleCr4( Cr4.AsUintN ) );
+    Cr4.AsUintN ^= CR4_TSD;
+
+    RtlPostMailboxTrace( &gSecureMailbox,
+                         TRACE_LEVEL_INFORMATION,
+                         TRACE_MSR_ROOT,
+                         "New CR4 set (Cid = %4d.%4d, Cr4 = %I64X)\n",
+                         PsGetCurrentProcessId(),
+                         PsGetCurrentThreadId(),
+                         Cr4.AsUintN );
+
+    VmWriteN( GUEST_CR4, Cr4.AsUintN );
+}
+
 BOOLEAN
 HvmHandleMsrFsBase( 
     _In_ PGP_REGISTERS Registers
     )
 {
+    BOOLEAN EnableTsd;
     UINT64 Value;
+
     Value = (((UINT64) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
 
     //
@@ -68,12 +121,15 @@ HvmHandleMsrFsBase(
     //
 
     RtlPostMailboxTrace( &gSecureMailbox,
-                        TRACE_LEVEL_VERBOSE,
-                        TRACE_MSR_ROOT,
-                        "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = %I64X)\n",
-                        PsGetCurrentProcessId(),
-                        PsGetCurrentThreadId(),
-                        Value );
+                         TRACE_LEVEL_VERBOSE,
+                         TRACE_MSR_ROOT,
+                         "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = %I64X)\n",
+                         PsGetCurrentProcessId(),
+                         PsGetCurrentThreadId(),
+                         Value );
+
+    EnableTsd = !FlagOn( DsGetRequestorTrustLevel(), TRUST_LEVEL_EXEMPTED );
+    HvmSetNextQuantumTsd( EnableTsd );
 
     return FALSE;
 }

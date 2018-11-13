@@ -52,7 +52,7 @@ DsCltGetShieldState(
 
     StatusData = (PSHIELD_STATUS_DATA)Irp->AssociatedIrp.SystemBuffer;
     Irp->IoStatus.Information = sizeof( SHIELD_STATUS_DATA );
-    
+
     if (DsIsShieldRunning()) {
         StatusData->Mode = ShieldRunning;
     }
@@ -79,7 +79,7 @@ DsCtlShieldControl(
     InputLength = IrpStack->Parameters.DeviceIoControl.InputBufferLength;
     OutputLength = IrpStack->Parameters.DeviceIoControl.OutputBufferLength;
 
-    if ( DSH_VMX_ABSENT( &gVmxFeature ) ) {
+    if (DSH_VMX_ABSENT( &gVmxFeature ) ) {
         return STATUS_NOT_SUPPORTED;
     }
 

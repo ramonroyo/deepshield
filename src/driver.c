@@ -193,6 +193,14 @@ DriverEntry(
         SetFlag( gStateFlags, DSH_GFL_POWER_REGISTERED );
     }
 
+    Status = PmInitializeProcessMonitor( DeviceObject );
+
+    if ( !NT_SUCCESS( Status ) ) {
+        goto RoutineExit;
+    }
+
+    SetFlag( gStateFlags, DSH_GFL_PROCMON_STARTED );
+
     Status = DsInitializeShield();
 
     if (!NT_SUCCESS( Status )) {
@@ -210,6 +218,12 @@ RoutineExit:
 
             ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
             DsFinalizeShield();
+        }
+
+        if (FlagOn( gStateFlags, DSH_GFL_PROCMON_STARTED ) ) {
+
+            ClearFlag( gStateFlags, DSH_GFL_PROCMON_STARTED );
+            PmFinalizeProcessMonitor();
         }
 
         if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {
@@ -257,6 +271,12 @@ DriverUnload(
 
         ClearFlag( gStateFlags, DSH_GFL_SHIELD_INITIALIZED );
         DsFinalizeShield();
+    }
+
+    if (FlagOn( gStateFlags, DSH_GFL_PROCMON_STARTED ) ) {
+
+        ClearFlag( gStateFlags, DSH_GFL_PROCMON_STARTED );
+        PmFinalizeProcessMonitor();
     }
 
     if (FlagOn( gStateFlags, DSH_GFL_POWER_REGISTERED )) {

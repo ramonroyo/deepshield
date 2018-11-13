@@ -29,6 +29,7 @@ SOURCES = channel.c \
           mem.c \
           mmu.c \
           power.c \
+          process.c \
           os.c \
           policy.c \
           ringbuf.c \

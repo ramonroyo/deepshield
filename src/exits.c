@@ -247,9 +247,9 @@ RoutineExit:
      (Ins).Opcode[1] == 0x31)
 
 #define IS_RDTSCP_INSTRUCTION(Ins)         \
-    ((Ins).Length == TSCP_INS_LENGHT &&   \
-     (Ins).Opcode[0] == 0x0F &&           \
-     (Ins).Opcode[1] == 0x01 &&           \
+    ((Ins).Length == TSCP_INS_LENGHT &&    \
+     (Ins).Opcode[0] == 0x0F &&            \
+     (Ins).Opcode[1] == 0x01 &&            \
      (Ins).Opcode[2] == 0xF9)
 
 #define PsDirectoryTableBase(Process)    *(PUINTN)((PUINT8)Process + 0x28)
