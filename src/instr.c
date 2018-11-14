@@ -223,8 +223,6 @@ InstrCr4Emulate(
         VmWriteN( CR4_READ_SHADOW,
                   (VmReadN( CR4_READ_SHADOW ) & ~CR4_TSD) | OperandTsd );
     }
-
-
     else if (CR_ACCESS_TYPE_MOV_FROM_CR == AccessType ) {
         *Gp = VmReadN( GUEST_CR4 );
     }

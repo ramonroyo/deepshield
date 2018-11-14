@@ -82,14 +82,14 @@ HvmSetNextQuantumTsd(
     CR4_REGISTER Cr4;
     UINTN ExpiredTsd;
 
-    Cr4.AsUintN = __readcr4();
+    Cr4.AsUintN = VmReadN( GUEST_CR4 );
     ExpiredTsd = Cr4.AsUintN & CR4_TSD;
 
     if ((EnableTsd && ExpiredTsd) || (!EnableTsd && !ExpiredTsd)) {
         return;
     }
 
-    Cr4.AsUintN = VmMakeCompliantCr4( VmGetGuestVisibleCr4( Cr4.AsUintN ) );
+    Cr4.AsUintN = VmMakeCompliantCr4( Cr4.AsUintN );
     Cr4.AsUintN ^= CR4_TSD;
 
     RtlPostMailboxTrace( &gSecureMailbox,
