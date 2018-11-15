@@ -398,7 +398,7 @@ TestBasicTimeStampDetectionWithSkip(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -452,7 +452,7 @@ TestRdtscInstructionBoundaries(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -523,7 +523,7 @@ TestBasicTimeStampDetection(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingAttack(Entry) ) {
+        if ( TdIsTimmingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }

@@ -21,7 +21,10 @@
 
 
 typedef struct _TSC_HIT {
-    UINT64 Address;
+    //
+    // [SG] REVIEW: Are we able to change Address to UINTN?
+    //
+    UINTN Address;
     UINT64 TimeStamp;
     UINT64 Count;
 } TSC_HIT, *PTSC_HIT;
@@ -48,7 +51,7 @@ VmRdtscpEmulate(
 
 // TODO: export function only for testing purposes
 // #ifdef DEBUG
-BOOLEAN TdIsTimmingAttack(
+BOOLEAN TdIsTimmingCandidate(
     _In_ PTSC_ENTRY     Sibling
 );
 

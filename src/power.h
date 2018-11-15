@@ -1,5 +1,5 @@
-#ifndef _POWER_
-#define _POWER_
+#ifndef _POWER_H_
+#define _POWER_H_
 
 #include <ntifs.h>
 #include "wdk7.h"

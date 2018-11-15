@@ -21,6 +21,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _When_(r, c)
 #define _In_reads_bytes_(s)
 #define _Out_writes_bytes_(s)
+#define _Out_writes_bytes_opt_(s)
 #define _Out_writes_bytes_to_(s, b)
 #define _Out_writes_bytes_to_opt_(s, b)
 #define _IRQL_requires_same_

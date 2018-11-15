@@ -76,7 +76,7 @@ RtlRingBufferWrite(
 
     NT_ASSERT( Data && (0 != DataSize) );
 
-    if ( RingBuffer->Tail >= RingBuffer->End) {
+    if (RingBuffer->Tail >= RingBuffer->End) {
         return STATUS_INTERNAL_ERROR;
     }
 

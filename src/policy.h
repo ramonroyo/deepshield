@@ -8,8 +8,8 @@ Module Name:
 
 --*/
 
-#ifndef _POLICY_
-#define _POLICY_
+#ifndef _POLICY_H_
+#define _POLICY_H_
 
 #include <ntifs.h>
 #include "wdk7.h"

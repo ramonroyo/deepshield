@@ -145,7 +145,7 @@ HvmHandleMsrWriteFsBase(
                          PsGetCurrentThreadId(),
                          Value );
 
-    EnableTsd = !FlagOn( DsGetRequestorTrustLevel(), TRUST_LEVEL_EXEMPTED );
+    EnableTsd = !FlagOn( PmGetClientTrustLevel(), TRUST_LEVEL_EXEMPTED );
     HvmTrimTsdForQuantum( EnableTsd );
 
     return TRUE;

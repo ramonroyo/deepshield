@@ -133,9 +133,15 @@
     <ClCompile Include="..\src\process.c">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\mitigation.c">
+    <ClCompile Include="..\src\spinlock.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\idxlist.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mitigation.c">
+      <Filter>src</Filter>
+    </ClCompile>    
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -214,6 +220,12 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\process.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\spinlock.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\idxlist.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

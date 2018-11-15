@@ -36,6 +36,7 @@ typedef struct _DS_MESSAGE_HEADER {
 
 typedef enum _DS_NOTIFICATION_TYPE {
     TimerAbuse = 1,
+    TimerFalsePositive = 2,
     RestrictedAccess,
     MaxType,
 } DS_NOTIFICATION_TYPE, *PDS_NOTIFICATION_TYPE;

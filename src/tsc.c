@@ -9,30 +9,100 @@
 #include "mem.h"
 #include "x86.h"
 
+
+#define SIBLING_DISTANCE_LIMIT     0xFF
+#define IS_ORPHAN_SIBLING( Sibling )    \
+    (((Sibling)->After.Address == 0) || ((Sibling)->Before.Address == 0))
+
+
+#define MASK_VA_LSB(address) (address & 0xFFFFFFFFFFFFFF00)
+#define ARE_VAS_WITHIN_SIBLING_RANGE(source, target) \
+    (abs((int)(source - target)) < SIBLING_DISTANCE_LIMIT)
+
+NTSTATUS
+TdMessageNotify(
+    _In_ DS_NOTIFICATION_TYPE Type,
+    _In_ UINTN ProcessId,
+    _In_ UINTN ThreadId
+    )
+{
+    DS_NOTIFICATION_MESSAGE Notification;
+
+    Notification.ControlFlags = 0;
+    Notification.MessageType = NotificationMessage;
+
+    Notification.ProcessId = ProcessId;
+    Notification.ThreadId = ThreadId;
+    Notification.Type = Type;
+
+    return RtlPostMailboxNotification( &gSecureMailbox, 
+                                       &Notification,
+                                       sizeof( DS_NOTIFICATION_MESSAGE ) );
+}
+
+VOID
+TdTimmingFalsePositiveNotify(
+    _In_ UINTN ProcessId,
+    _In_ UINTN ThreadId
+    )
+{
+    NTSTATUS Status;
+
+    Status = TdMessageNotify( TimerFalsePositive, ProcessId, ThreadId );
+
+    if (!NT_SUCCESS( Status ) ) {
+        RtlPostMailboxTrace( &gSecureMailbox,
+                             TRACE_LEVEL_WARNING,
+                             TRACE_IOA_ROOT,
+                             "Unable to notify timming attack (ProcessId = %p, ThreadId = %p)\n",
+                             ProcessId, 
+                             ThreadId );
+    }
+}
+
+VOID
+TdTimmingAttackNotify(
+    _In_ UINTN ProcessId, 
+    _In_ UINTN ThreadId
+) 
+{
+    NTSTATUS Status;
+
+    Status = TdMessageNotify( TimerAbuse, ProcessId, ThreadId );
+
+    if (!NT_SUCCESS( Status )) {
+        RtlPostMailboxTrace( &gSecureMailbox,
+                             TRACE_LEVEL_WARNING,
+                             TRACE_IOA_ROOT,
+                             "Unable to notify timming attack (ProcessId = %p, ThreadId = %p)\n",
+                             ProcessId, 
+                             ThreadId );
+    }
+}
+
 VOID
 TdClearSibling(
-    _In_ PTSC_ENTRY Entry
-)
+    _Out_ PTSC_ENTRY Entry
+    )
 {
-    memset(Entry, 0, sizeof(TSC_ENTRY));
+    RtlZeroMemory( Entry, sizeof( TSC_ENTRY ) );
 }
 
 BOOLEAN
 TdIsFreeSlot(
     _In_ PTSC_ENTRY Entry
-)
+    )
 {
     return Entry->Before.Address == 0;
 }
 
-#define IS_SIBLING(Sibling) (Sibling->After.Address != 0) && (Sibling->Before.Address != 0)
-
 //
 // Get first free slot available, or return oldest hit instead.
 //
-PTSC_ENTRY TdGetSiblingSlot(
+PTSC_ENTRY
+TdGetSiblingSlot(
     _In_ PTSC_ENTRY Head
-) 
+    )
 {
     PTSC_ENTRY Sibling = NULL;
     PTSC_ENTRY OrphanOldest = NULL;
@@ -42,13 +112,14 @@ PTSC_ENTRY TdGetSiblingSlot(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
          Sibling = &Head[i];
 
-        if ( TdIsFreeSlot(Sibling) ) {
+        if (TdIsFreeSlot( Sibling) ) {
             return Sibling;
+
         } else {
             //
             // Initialize with the first non-free slot available
             //
-            if ( IS_SIBLING(Sibling) ) {
+            if (!IS_ORPHAN_SIBLING( Sibling ) ) {
                 if ( SiblingOldest == NULL ) { SiblingOldest = Sibling; }
 
                 if ( Sibling->Before.TimeStamp < SiblingOldest->Before.TimeStamp ) {
@@ -74,17 +145,14 @@ PTSC_ENTRY TdGetSiblingSlot(
     // to remain alive.
     //
     if ( OrphanOldest ) {
-        TdClearSibling(OrphanOldest);
+        TdClearSibling( OrphanOldest );
         return OrphanOldest;
     }
     else {
-        TdClearSibling(SiblingOldest);
+        TdClearSibling( SiblingOldest );
         return SiblingOldest;
     }
 }
-
-#define ADDRESS_CLEAR_LAST_BYTE(address) (address & 0xFFFFFFFFFFFFFF00)
-#define ADDRESSES_ARE_BYTE_SHORT(source, target) abs(source - target) < 0xFF
 
 //
 // This function requires to reorder the lists 
@@ -122,7 +190,7 @@ PTSC_ENTRY TdFindSibling(
         //              000078A000000003 | 0F 31 | rdtsc | ; After
         //
         if ( TscHash == Entry->TscHash &&
-             ADDRESSES_ARE_BYTE_SHORT(Entry->Before.Address, OffensiveAddress) ) {
+             ARE_VAS_WITHIN_SIBLING_RANGE(Entry->Before.Address, OffensiveAddress) ) {
 
             if (( Entry->Before.Address == OffensiveAddress ) ||
                 ( Entry->After.Address  == OffensiveAddress ) ||
@@ -148,7 +216,7 @@ VOID TdHitIncrement(
     Hit->TimeStamp = TimeStamp.QuadPart;
 }
 
-VOID TdSiblingIncrement(
+VOID TdUpdateSibling(
     _In_ PTSC_ENTRY     Sibling,
     _In_ UINTN      OffensiveAddress,
     _In_ ULARGE_INTEGER TimeStamp
@@ -162,18 +230,26 @@ VOID TdSiblingIncrement(
         Hit = &Sibling->After;
     } else {
         //
-        // This means that we reached a potential "After" candidate
+        // This means that we reached a potential "After" candidate.
         //
 
-        NT_ASSERT( ADDRESSES_ARE_BYTE_SHORT(Sibling->Before.Address, OffensiveAddress) );
+        NT_ASSERT( ARE_VAS_WITHIN_SIBLING_RANGE(Sibling->Before.Address, OffensiveAddress) );
 
         if ( Sibling->After.Address == 0 ) {
 
             //
-            // Assign detected address
+            // Assign detected address.
             //
-            Sibling->After.Address   = OffensiveAddress;
-            Hit = &Sibling->After;
+            if (Sibling->Before.Address > OffensiveAddress) {
+                Sibling->After = Sibling->Before;
+                Sibling->Before.Address = OffensiveAddress;
+                Sibling->Before.Count = 0;
+                Sibling->Before.TimeStamp = 0;
+                Hit = &Sibling->Before;
+            } else {
+                Sibling->After.Address = OffensiveAddress;
+                Hit = &Sibling->After;
+            }
 
         }
         else {
@@ -198,13 +274,13 @@ VOID TdSiblingIncrement(
         //
         // We got his brother, let's update difference average
         // 
-        UINT64 Difference = abs(TimeStamp.QuadPart - Sibling->Before.TimeStamp);
+        UINT64 Difference = abs((int)(TimeStamp.QuadPart - Sibling->Before.TimeStamp) );
 
         if ( Sibling->Difference == 0 ) {
             Sibling->Difference = Difference;
         } else {
 
-            UINT64 CurrentDifference   = abs(Difference - Sibling->Difference);
+            UINT64 CurrentDifference   = abs((int)(Difference - Sibling->Difference));
             UINT64 DifferenceThreshold = ( Sibling->Difference * 3 / 2 );
 
             if (( Difference > Sibling->Difference ) &&
@@ -227,65 +303,68 @@ VOID TdSiblingIncrement(
     TdHitIncrement(Hit, TimeStamp);
 }
 
-//
-// First dummy detection of a timming attack
-//
-BOOLEAN TdIsTimmingAttack(
-    _In_ PTSC_ENTRY     Sibling
-)
+VOID 
+TdDiscontinueSiblingAssesment(
+    _Out_ PTSC_ENTRY Sibling
+    )
 {
-    BOOLEAN IsSibling          = FALSE;
+    HvmTrimTsdForQuantum( FALSE );
+    TdClearSibling( Sibling );
+}
+
+//
+// First dummy detection of a timming attack.
+//
+BOOLEAN
+TdIsTimmingCandidate(
+    _In_ PTSC_ENTRY Sibling
+    )
+{
     BOOLEAN IsSyncThresholdOk  = FALSE; 
     BOOLEAN IsSkipsThresholdOk = FALSE; 
     BOOLEAN IsCountThresholdOk = FALSE; 
-    BOOLEAN IsTimmingAttack    = FALSE; 
+    BOOLEAN IsTimmingCandidate = FALSE; 
 
-    if ( Sibling->Difference == 0 ) { return FALSE; }
+    if (Sibling->Difference == 0) { return FALSE; }
 
-    IsSibling = Sibling->Before.Address && Sibling->After.Address;
+    if (IS_ORPHAN_SIBLING( Sibling ) ) { return FALSE; }
 
     //
-    // Fast filter for empty entries
+    //  Any average up to this should be discarded.
     //
-    if ( !IsSibling ) {
+    if (Sibling->Difference > 0x50000) {
+        TdDiscontinueSiblingAssesment( Sibling );
         return FALSE;
     }
 
     //
-    // Any average up to this should be discarded
-    //
-    if ( Sibling->Difference > 0x50000 ) {
-        TdClearSibling(Sibling);
-        return FALSE;
-    }
-
-    //
-    // Count threshold ensures that we, at least, went over 255 retries
+    // Count threshold ensures that we, at least, went over 255 retries.
     //
     IsCountThresholdOk = Sibling->Before.Count > 255;
 
     //
-    // Difference threshold synchronizes the number of sibling addresses we fetched
+    // Difference threshold synchronizes the number of sibling addresses we fetched.
     //
-    IsSyncThresholdOk  = abs(Sibling->Before.Count - Sibling->After.Count) < 2;
+    IsSyncThresholdOk = abs((int)(Sibling->Before.Count - Sibling->After.Count)) < 2;
 
     //
-    // Skips threshold ensures that we didn't had more than 5% of fetches flushed
+    // Skips threshold ensures that we didn't had more than 5% of fetches flushed.
     //
     IsSkipsThresholdOk = Sibling->Skips < max((Sibling->Before.Count / 20), 1);
 
-    IsTimmingAttack = ( IsSyncThresholdOk &&
-             IsSkipsThresholdOk &&
-             IsCountThresholdOk );
+    IsTimmingCandidate = ( IsSyncThresholdOk &&
+                           IsSkipsThresholdOk &&
+                           IsCountThresholdOk );
 
     //
-    // If it is not already a timming attack, then clear the Sibling
+    //  If it is not already a timming candidate then discontinue the assesment
+    //  for the Sibling.
     //
-    if ( !IsTimmingAttack && IsCountThresholdOk ) {
-        TdClearSibling(Sibling);
+    if (!IsTimmingCandidate && IsCountThresholdOk) {
+        TdDiscontinueSiblingAssesment( Sibling );
     }
 
-    return IsTimmingAttack;
+    return IsTimmingCandidate;
 }
 
 PTSC_ENTRY TdCreateSibling(
@@ -293,7 +372,7 @@ PTSC_ENTRY TdCreateSibling(
     _In_ UINTN      OffensiveAddress,
     _In_ UINTN       TscHash,
     _In_ ULARGE_INTEGER TimeStamp
-)
+    )
 {
     PTSC_ENTRY Sibling = TdGetSiblingSlot(Head);
 
@@ -305,6 +384,154 @@ PTSC_ENTRY TdCreateSibling(
     return Sibling;
 }
 
+//
+// [SG] TODO: Move to mmu.c.
+//
+VOID 
+TdUnmapAddress(
+    _In_ PUINTN Address
+)
+{
+    MmuUnmapIoPage(PAGE_ALIGN( Address ));
+}
+
+//
+// [SG] TODO: Move to mmu.c.
+//
+PUINTN
+TdMapAddress(
+    _In_ UINTN Cr3,
+    _In_ UINTN Address
+)
+{
+    PHYSICAL_ADDRESS CodePa = { 0 };
+    PUINT8 CodePage = NULL;
+    PUINT8 Page = PAGE_ALIGN( Address );
+
+    CodePa = MmuGetPhysicalAddress( Cr3, Page );
+
+    if (0 == CodePa.QuadPart) {
+        //
+        // [SG] TODO: Send "can't map" trace.
+        //
+        return NULL;
+    }
+
+    CodePage = (PUINT8)MmuMapIoPage( CodePa, FALSE );
+
+    if ( NULL == CodePage ) {
+        //
+        // [SG] TODO: Send "can't map" trace.
+        //
+        return NULL;
+    }
+
+    return (PUINTN)((UINTN)CodePage + BYTE_OFFSET( Address ));
+}
+
+//
+// [SG] TODO: Add x86 support (TdAreMemoryOffsetsWithin64 + TdAreMemoryReferencesWithinRange).
+//
+BOOLEAN
+TdAreMemoryReferencesWithinRange(
+    _In_ PUINT8 Address,
+    _In_ UINTN  Size
+)
+{
+    UNREFERENCED_PARAMETER( Size );
+    UNREFERENCED_PARAMETER( Address );
+
+    //
+    // UNIMPLEMENTED: This should be addressed using udis86 dissassembler.
+    //
+
+    return FALSE;
+}
+
+
+BOOLEAN 
+TdCopySiblingMemory(
+    _In_    PTSC_ENTRY Sibling,
+    _Inout_ PUINT8 Code,
+    _Out_   PUINTN SiblingDistance
+    )
+{
+    PUINTN StartAddress = NULL;
+    PUINTN EndAddress = NULL;
+    BOOLEAN Result;
+    BOOLEAN IsSamePage;
+    UINTN Distance = 0;
+
+    //
+    // [SG] TODO: At this point reading from VMCS doesn't incur on performance
+    //            but it would be better to save it along with the TSC entry.
+    //
+    UINTN Cr3 = VmReadN( GUEST_CR3 );
+
+    IsSamePage = PAGE_ALIGN( Sibling->Before.Address ) == 
+                 PAGE_ALIGN( Sibling->After.Address );
+
+    Distance = Sibling->After.Address - Sibling->Before.Address;
+
+    NT_ASSERT( Distance < SIBLING_DISTANCE_LIMIT );
+
+    StartAddress = TdMapAddress( Cr3, Sibling->Before.Address );
+
+    if (NULL == StartAddress ) {
+        Result = FALSE;
+        goto RoutineExit;
+    }
+
+    if (FALSE == IsSamePage) {
+
+        EndAddress = TdMapAddress( Cr3, Sibling->After.Address );
+
+        if ( NULL == EndAddress ) {
+            Result = FALSE;
+            goto RoutineExit;
+        }
+
+        RtlCopyMemory( Code, StartAddress, Distance - BYTE_OFFSET( EndAddress ) );
+        RtlCopyMemory( Code, PAGE_ALIGN( EndAddress ), BYTE_OFFSET( EndAddress ) );
+
+    } else {
+        RtlCopyMemory( Code, StartAddress, Distance );
+    }
+
+    Result = TRUE;
+    *SiblingDistance = Distance;
+
+RoutineExit:
+
+    if (StartAddress) {
+        TdUnmapAddress( StartAddress );
+    }
+
+    if (FALSE == IsSamePage && EndAddress) {
+        TdUnmapAddress( EndAddress );
+    }
+
+    return Result;
+}
+
+BOOLEAN 
+TdIsTimmingAttack(
+    _In_ PTSC_ENTRY Sibling
+    )
+{
+    UINT8 Code[ SIBLING_DISTANCE_LIMIT ] = { 0 };
+
+    UINTN Distance;
+
+    if ( TdCopySiblingMemory( Sibling,
+                              (PUINT8) &Code,
+                              &Distance )) {
+        return TdAreMemoryReferencesWithinRange( Code, Distance + 1 );
+    }
+
+    return FALSE;
+}
+
 BOOLEAN
 TdProcessTscEvent(
     _In_ PTSC_ENTRY Head,
@@ -312,55 +539,72 @@ TdProcessTscEvent(
     _In_ ULARGE_INTEGER TimeStamp
     )
 {
-    DS_NOTIFICATION_MESSAGE Notification;
     UINTN ProcessId;
     UINTN ThreadId;
     UINTN TscHash;
     PTSC_ENTRY Sibling;
+    BOOLEAN IsTimmingAttack = FALSE;
 
     ProcessId = (UINTN) PsGetCurrentProcessId();
     ThreadId  = (UINTN) PsGetCurrentThreadId();
 
     //
-    // Create a PID:TID Hash
+    //  Build the PID:TID Hash.
     //
     TscHash = (ProcessId << TSC_HASH_BITS_HIGH) | ThreadId;
 
     Sibling = TdFindSibling( Head, TscHash, OffensiveAddress );
 
-    if ( Sibling ) {
-        TdSiblingIncrement( Sibling, OffensiveAddress, TimeStamp );
+    if (Sibling) {
+        TdUpdateSibling( Sibling, OffensiveAddress, TimeStamp );
 
     } else {
-        Sibling = TdCreateSibling( Head, OffensiveAddress, TscHash, TimeStamp );
+        Sibling = TdCreateSibling( Head, 
+                                   OffensiveAddress,
+                                   TscHash,
+                                   TimeStamp );
     }
 
+    if (!TdIsTimmingCandidate( Sibling ) ) {
+        return FALSE;
+    }
+
+    IsTimmingAttack = TdIsTimmingAttack( Sibling );
+    
     // 
     //  This will be the trigger of a detection.
     //
-    if (TdIsTimmingAttack( Sibling )) {
+    if (IsTimmingAttack) {
+        //
+        // [SG] TODO: Refactor to TraceRootInformation.
+        //
         RtlPostMailboxTrace( &gSecureMailbox,
                              TRACE_LEVEL_INFORMATION,
                              TRACE_IOA_ROOT,
                              "Timing Attack Found (ProcessId = %p)\n",
-                             PsGetCurrentProcessId() );
+                             ProcessId );
 
-        Notification.ControlFlags = 0;
-        Notification.MessageType = NotificationMessage;
+        TdTimmingAttackNotify( ProcessId, ThreadId );
 
-        Notification.ProcessId = ProcessId;
-        Notification.ThreadId = ThreadId;
-        Notification.Type = TimerAbuse;
+    } else {
 
-        RtlPostMailboxNotification( &gSecureMailbox, 
-                                    &Notification,
-                                    sizeof( DS_NOTIFICATION_MESSAGE ) );
+        //
+        //  Prevent subsequent exists for the remaining time slice.
+        //
+        HvmTrimTsdForQuantum( FALSE );
 
+        RtlPostMailboxTrace( &gSecureMailbox,
+                             TRACE_LEVEL_INFORMATION,
+                             TRACE_IOA_ROOT,
+                             "Timing Candidate Excluded (ProcessId = %p, ThreadId = %p)\n",
+                             ProcessId,
+                             ThreadId );
+
+        TdTimmingFalsePositiveNotify( ProcessId, ThreadId );
         TdClearSibling( Sibling );
-        return TRUE;
     }
 
-    return FALSE;
+    return IsTimmingAttack;
 }
 
 VOID

@@ -4,11 +4,12 @@
 #include <ntifs.h>
 #include <ntstrsafe.h>
 #include <stdarg.h>
-#include <ioctl.h>
 #include "wdk7.h"
 #include "wpp.h"
 #include "ringbuf.h"
 #include "mailbox.h"
+#include "spinlock.h"
+#include "idxlist.h"
 #include "channel.h"
 #include "power.h"
 #include "process.h"
@@ -116,8 +117,6 @@ typedef struct _DS_VMX_FEATURE {
 
     VMX_STATE VmState;
 } DS_VMX_FEATURE, *PDS_VMX_FEATURE;
-
-#if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
 
 typedef enum _SYSTEM_INFORMATION_CLASS {
     SystemBasicInformation = 0,
@@ -301,6 +300,8 @@ typedef enum _SYSTEM_INFORMATION_CLASS {
     MaxSystemInfoClass = 177,
 } SYSTEM_INFORMATION_CLASS;
 
+#if (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
+
 #define CODEINTEGRITY_OPTION_HVCI_KMCI_ENABLED              0x0400
 #define CODEINTEGRITY_OPTION_HVCI_KMCI_AUDITMODE_ENABLED    0x0800
 #define CODEINTEGRITY_OPTION_HVCI_KMCI_STRICTMODE_ENABLED   0x1000
@@ -311,6 +312,18 @@ typedef struct _SYSTEM_CODEINTEGRITY_INFORMATION {
     ULONG  CodeIntegrityOptions;
 } SYSTEM_CODEINTEGRITY_INFORMATION, *PSYSTEM_CODEINTEGRITY_INFORMATION;
 
+#endif // (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
+
+extern NTSYSAPI
+NTSTATUS
+ZwQueryInformationProcess(
+    _In_ HANDLE ProcessHandle,
+    _In_ PROCESSINFOCLASS ProcessInformationClass,
+    _Out_ PVOID ProcessInformation,
+    _In_ ULONG ProcessInformationLength,
+    _Out_opt_ PULONG ReturnLength
+    );
+
 extern NTSYSAPI
 NTSTATUS
 NTAPI
@@ -320,8 +333,6 @@ ZwQuerySystemInformation(
     _In_ ULONG SystemInformationLength,
     _Out_opt_ PULONG ReturnLength
 );
-#endif // (NTDDI_VERSION >= NTDDI_VISTA) && defined(_WIN64)
-
 
 #define TIMEOUT_TO_SEC              ((LONGLONG) 1 * 10 * 1000 * 1000)
 #define TIMEOUT_TO_MS               ((LONGLONG) 1 * 10 * 1000)

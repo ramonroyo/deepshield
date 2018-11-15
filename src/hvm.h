@@ -221,6 +221,11 @@ HvmGetVcpuContextByVcpu(
     _In_ PHVM_VCPU Vcpu
     );
 
+VOID
+HvmTrimTsdForQuantum(
+    BOOLEAN EnableTsd
+    );
+
 BOOLEAN ROOT_MODE_API
 HvmVcpuCommonExitsHandler(
     _In_ UINT32     exitReason,

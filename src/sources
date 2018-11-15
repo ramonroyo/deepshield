@@ -5,13 +5,29 @@ TARGETPATH = ..\bin\WDK7
 
 _NT_TARGET_VERSION=$(_NT_TARGET_VERSION_WINXP)
 
-TARGETLIBS = $(DDK_LIB_PATH)\wdmsec.lib $(DDK_LIB_PATH)\wdm.lib $(DDK_LIB_PATH)\rtlver.lib
+!IF "$(_BUILDARCH)" == "x86"
+CAPSTONE_LIB_PATH=..\bin\Win32
+!ELSE
+CAPSTONE_LIB_PATH=..\bin\x64
+!ENDIF
+
+!IF !$(FREEBUILD)
+CAPSTONE_LIB_PATH=$(CAPSTONE_LIB_PATH)\debug
+!ELSE
+CAPSTONE_LIB_PATH=$(CAPSTONE_LIB_PATH)\release
+!ENDIF
+
+TARGETLIBS = $(DDK_LIB_PATH)\wdmsec.lib \
+             $(DDK_LIB_PATH)\wdm.lib \
+             $(DDK_LIB_PATH)\rtlver.lib \
+             $(DDK_LIB_PATH)\ntstrsafe.lib
+
 LINKER_FLAGS=$(LINKER_FLAGS) /MAP /MAPINFO:EXPORTS /INTEGRITYCHECK
-C_DEFINES = $(C_DEFINES) -DWDK7 -DPOOL_NX_OPTIN=1 -DWPP_EVENT_TRACING
+C_DEFINES = $(C_DEFINES) -DWDK7 -DPOOL_NX_OPTIN=1 -DWPP_EVENT_TRACING -D_KERNEL_MODE
 
 RUN_WPP=$(SOURCES) -km -func:TraceEvents(LEVEL,FLAGS,MSG,...)
 
-INCLUDES = ..\inc
+INCLUDES = ..\inc;
 
 SOURCES = channel.c \
           context.c \
@@ -23,6 +39,7 @@ SOURCES = channel.c \
           hvm_exits.c \
           hvm_launch.c \
           hvm_root.c \
+          idxlist.c \
           instr.c \
           ioctl.c \
           mailbox.c \
@@ -36,6 +53,7 @@ SOURCES = channel.c \
           ringbuf.c \
           shield.c \
           smp.c \
+          spinlock.c \
           sync.c \
           tests.c \
           tsc.c \

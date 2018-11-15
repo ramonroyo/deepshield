@@ -232,19 +232,19 @@ MmuAllocateMappingMdl(
     MappingMdl = IoAllocateMdl( SlotSpace, PAGE_SIZE, FALSE, FALSE, NULL );
 
     if (NULL == MappingMdl ) {
-		return NULL;
-	}
+        return NULL;
+    }
 
-	try {
-		//
+    try {
+        //
         //  Makes resident and lock the physical page.
         //
-		MmProbeAndLockPages( MappingMdl, KernelMode, IoWriteAccess );
+        MmProbeAndLockPages( MappingMdl, KernelMode, IoWriteAccess );
 
-	} except( EXCEPTION_EXECUTE_HANDLER ) {
+    } except( EXCEPTION_EXECUTE_HANDLER ) {
 
-		IoFreeMdl( MappingMdl );
-	}
+        IoFreeMdl( MappingMdl );
+    }
 
     return MappingMdl;
 }

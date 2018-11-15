@@ -109,12 +109,13 @@ RtlDispatchMailboxData(
 {
     NTSTATUS Status;
     PDS_NOTIFICATION_MESSAGE Message;
+    PDS_PROCESS_ENTRY ProcessEntry;
     MAILBOX_RECORD MailboxEntry;
 
     Status = RtlRetrieveMailboxData( Mailbox, &MailboxEntry );
 
     if (!NT_SUCCESS( Status )) {
-        NT_VERIFYMSG( "RtlRetrieveMailboxData can't fail with a fixed data size",
+        NT_VERIFYMSG( "RtlRetrieveMailboxData failed with a fixed data size",
                       NT_SUCCESS( Status ) );
         return Status;
     }
@@ -127,26 +128,81 @@ RtlDispatchMailboxData(
 
         switch( MailboxEntry.Header.Trace.Area ) {
             case TRACE_IOA_ROOT:
-                TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
-                             "%s\n",
-                             (PCHAR)MailboxEntry.Data );
+
+                switch( MailboxEntry.Header.Trace.Level ) {
+                    case TRACE_LEVEL_VERBOSE:
+                        TraceEvents( TRACE_LEVEL_VERBOSE, TRACE_IOA,
+                                     "%s\n",
+                                     (PCHAR)MailboxEntry.Data );
+                        break;
+
+                    case TRACE_LEVEL_INFORMATION:
+                        TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_IOA,
+                                     "%s\n",
+                                     (PCHAR) MailboxEntry.Data );
+                        break;
+
+                    default:
+                        TraceEvents( TRACE_LEVEL_WARNING, TRACE_IOA,
+                                     "%s\n",
+                                     (PCHAR) MailboxEntry.Data );
+                        break;
+                }
                 break;
             
             case TRACE_MSR_ROOT:
-                TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MSR,
-                             "%s\n",
-                             (PCHAR)MailboxEntry.Data );
+
+                switch ( MailboxEntry.Header.Trace.Level ) {
+                    case TRACE_LEVEL_VERBOSE:
+                        TraceEvents( TRACE_LEVEL_VERBOSE, TRACE_MSR,
+                                     "%s\n",
+                                     (PCHAR) MailboxEntry.Data );
+                        break;
+
+                    case TRACE_LEVEL_INFORMATION:
+                        TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MSR,
+                                     "%s\n",
+                                     (PCHAR) MailboxEntry.Data );
+                        break;
+
+                    default:
+                        TraceEvents( TRACE_LEVEL_WARNING, TRACE_MSR,
+                                     "%s\n",
+                                     (PCHAR) MailboxEntry.Data );
+                        break;
+                }
                 break;
         }
     }
     else if (MailboxEntry.Header.Type == MailboxNotification) {
         Message = (PDS_NOTIFICATION_MESSAGE) MailboxEntry.Data;
 
-        Status = DsSendNotificationMessage( gChannel,
-                                            Message->ProcessId,
-                                            Message->ThreadId,
-                                            Message->Type,
-                                            &Message->Action );
+        if (TimerFalsePositive == Message->Type) {
+
+            ProcessEntry = PmLookupProcessEntryById( 
+                (HANDLE)((PLARGE_INTEGER)&Message->ProcessId)->LowPart );
+
+            if (ProcessEntry) {
+                Status = PmExcludeThread( &ProcessEntry->ThreadList, 
+                                          Message->ThreadId );
+
+                if (!NT_SUCCESS( Status )) {
+                    TraceEvents( TRACE_LEVEL_WARNING, TRACE_MAILBOX,
+                                 "PmExcludeThread failed (ProcessId: %p ThreadId: %016I64x)\n",
+                                 ProcessEntry->ProcessId,
+                                 Message->ThreadId );
+                }
+            }
+        }
+        else {
+            NT_ASSERT( TimerAbuse == Message->Type );
+
+            Status = DsSendNotificationMessage( gChannel,
+                                                Message->ProcessId,
+                                                Message->ThreadId,
+                                                Message->Type,
+                                                &Message->Action );
+        }
     } else {
         NT_ASSERT( FALSE );
         TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
@@ -192,22 +248,12 @@ RtlMailboxWorkerThread(
 #ifdef LET_SWAP_CONTEXT
         else if (Status == STATUS_WAIT_1) {
             Status = RtlDispatchMailboxData( Mailbox );
-
-            if (!NT_SUCCESS( Status )) {
-                NT_VERIFYMSG( "RtlDispatchMailboxData failed (Mailbox == %p)",
-                              NT_SUCCESS( Status ) );
-            }
         }
 #else
         else if (Status == STATUS_TIMEOUT) {
 
             while (!RtlIsMailboxEmpty( Mailbox )) {
                 Status = RtlDispatchMailboxData( Mailbox );
-
-                if (!NT_SUCCESS( Status )) {
-                    NT_VERIFYMSG( "RtlDispatchMailboxData failed (Mailbox == %p)",
-                                  NT_SUCCESS( Status ) );
-                }
             }
         }
 #endif
@@ -219,7 +265,6 @@ RtlMailboxWorkerThread(
     TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_MAILBOX,
                  "Mailbox worker thread is about to terminate\n" );
     PsTerminateSystemThread( STATUS_SUCCESS );
-
 }
 
 NTSTATUS
@@ -315,10 +360,8 @@ RtlPostMailboxTrace(
     }
 
     if (!NT_SUCCESS( Status )) {
-        TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
-                     "Unexpected result formatting mailbox trace (Status: %!STATUS!)\n",
-                     Status );
 
+        NT_ASSERT( FALSE );
         return Status;
     }
 
@@ -350,7 +393,7 @@ RtlPostMailboxNotification(
     _In_ SIZE_T Length
     )
 {
-    NTSTATUS Status = STATUS_BUFFER_OVERFLOW;
+    NTSTATUS Status;
     MAILBOX_RECORD Entry;
 
     Entry.Header.Type = MailboxNotification;
@@ -360,11 +403,8 @@ RtlPostMailboxNotification(
     NT_ASSERT( Length <= sizeof( Entry.Data ) );
 
     if (Length > sizeof( Entry.Data ) ) {
-        TraceEvents( TRACE_LEVEL_ERROR, TRACE_MAILBOX,
-                     "Data was too large to fit into the mailbox notification (Status: %!STATUS!)\n",
-                     Status );
-
-        return Status;
+        DbgPrint( "Data was too large to fit into the mailbox notification\n" );
+        return STATUS_BUFFER_OVERFLOW;
     }
 
     RtlCopyMemory( Entry.Data, Notification, Length );

@@ -82,7 +82,7 @@ CPU_RESTORE_REGS MACRO
     movdqa  xmm6, XMM6_SAVE[ebx]
     movdqa  xmm7, XMM7_SAVE[ebx]
 
-	; restore MXCSR
+    ; restore MXCSR
     ldmxcsr MXCSR_SAVE[ebx]
 
     ; restore all GP except rcx
