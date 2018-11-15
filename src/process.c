@@ -417,6 +417,119 @@ RoutineExit:
     return Status;
 }
 
+NTSTATUS
+PmQueryTokenInformation(
+    _In_ HANDLE TokenHandle,
+    _In_ TOKEN_INFORMATION_CLASS TokenInformationClass,
+    _Out_ PVOID *TokenInformation
+    )
+{
+    NTSTATUS Status = STATUS_NO_MEMORY;
+    PVOID Buffer = NULL;
+    ULONG ReturnLength = 0;
+
+
+    Status = ZwQueryInformationToken( TokenHandle,
+                                      TokenInformationClass,
+                                      NULL,
+                                      0, 
+                                      &ReturnLength );
+
+    if (STATUS_BUFFER_TOO_SMALL != Status) {
+        return Status;
+    }
+
+    Buffer = ExAllocatePoolWithTag( PagedPool, ReturnLength, 'iTsD' );
+
+    if (Buffer) {
+        Status = ZwQueryInformationToken( TokenHandle,
+                                          TokenInformationClass,
+                                          Buffer,
+                                          ReturnLength,
+                                          &ReturnLength );
+
+        if (NT_SUCCESS( Status ) ) {
+            *TokenInformation = Buffer;
+        }
+        else {
+            ExFreePoolWithTag( Buffer, 'iTsD' );
+        }
+    }
+
+    return Status;
+}
+
+VOID
+PmFreeTokenInformation(
+    _In_ PVOID TokenInformation
+    )
+{
+    ExFreePoolWithTag( TokenInformation, 'iTsD' );
+}
+
+NTSTATUS 
+PmGetTokenMandarotyLevel(
+    _In_ HANDLE TokenHandle,
+    _Out_opt_ PMANDATORY_LEVEL MandatoryLevel,
+    _Out_opt_ PWSTR *MandatoryString
+    )
+{
+    NTSTATUS Status;
+    PTOKEN_MANDATORY_LABEL MandatoryLabel = NULL;
+    UINT32 IntegrityLevel;
+
+    Status = PmQueryTokenInformation( TokenHandle,
+                                      TokenIntegrityLevel,
+                                      &MandatoryLabel );
+
+    if (!NT_SUCCESS( Status )) {
+       return Status;
+    }
+
+    IntegrityLevel = *RtlSubAuthoritySid( MandatoryLabel->Label.Sid,
+        (ULONG)(*RtlSubAuthorityCountSid( MandatoryLabel->Label.Sid ) - 1) );
+
+    PmFreeTokenInformation( MandatoryLabel );
+
+    switch ( IntegrityLevel ) {
+
+        case SECURITY_MANDATORY_UNTRUSTED_RID:
+            *MandatoryLevel = MandatoryLevelUntrusted;
+            *MandatoryString = L"UntrustedLevel";
+            break;
+
+        case SECURITY_MANDATORY_LOW_RID:
+            *MandatoryLevel = MandatoryLevelLow;
+            *MandatoryString = L"LowLevel";
+            break;
+
+        case SECURITY_MANDATORY_MEDIUM_RID:
+            *MandatoryLevel = MandatoryLevelMedium;
+            *MandatoryString = L"MediumLevel";
+            break;
+
+        case SECURITY_MANDATORY_HIGH_RID:
+            *MandatoryLevel = MandatoryLevelHigh;
+            *MandatoryString = L"HighLevel";
+            break;
+
+        case SECURITY_MANDATORY_SYSTEM_RID:
+            *MandatoryLevel = MandatoryLevelSystem;
+            *MandatoryString = L"SystemLevel";
+            break;
+
+        case SECURITY_MANDATORY_PROTECTED_PROCESS_RID:
+            *MandatoryLevel = MandatoryLevelSecureProcess;
+            *MandatoryString = L"ProtectedLevel";
+            break;
+
+        default:
+            return STATUS_UNSUCCESSFUL;
+    }
+
+    return Status;
+}
+
 RTL_GENERIC_COMPARE_RESULTS
 PmCompareNode(
     _In_ PRTL_AVL_TABLE Table,
@@ -482,7 +595,6 @@ PmInitializeProcessTable(
                                   PmAllocateNode,
                                   PmFreeNode,
                                   NULL );
-
     return Table;
 }
 
@@ -498,6 +610,33 @@ PmClearProcessTable(
         Entry = RtlGetElementGenericTableAvl( Table, 0 );
         RtlDeleteElementGenericTableAvl( Table, Entry );
     }
+}
+
+NTSTATUS
+PmEnumerateEntryProcessTable(
+    _In_ PRTL_AVL_TABLE Table,
+    _In_ PDS_PROCESS_ENUMERATE_CALLBACK EnumerationRoutine,
+    _In_ UINT32 Flags,
+    _Out_writes_bytes_to_opt_( BufferSize, *BytesReturned ) PVOID ProcessList,
+    _In_ UINT32 BufferSize,
+    _Out_opt_ PUINT32 BytesReturned
+    )
+{
+    PVOID Entry;
+    NTSTATUS Status = STATUS_SUCCESS;
+
+    for (Entry = RtlEnumerateGenericTableAvl( Table, TRUE );
+         Entry != NULL;
+         Entry = RtlEnumerateGenericTableAvl( Table, FALSE ) ) {
+
+        Status = EnumerationRoutine( Entry,
+                                     Flags,
+                                     ProcessList,
+                                     BufferSize,
+                                     BytesReturned );
+    }
+
+    return Status;
 }
 
 VOID
@@ -522,11 +661,16 @@ PmAddProcessEntry(
     NT_ASSERT( Table );
     NT_ASSERT( ProcessEntry );
 
+    //
+    //  FIX: path is lost since the copied string pointer is stale.
+    //
+
     InsertedEntry = RtlInsertElementGenericTableAvl( 
-                                        Table,
-                                        ProcessEntry,
-                                        sizeof( DS_PROCESS_ENTRY ),
-                                        &NewElement );
+                        Table,
+                        ProcessEntry,
+                        sizeof( DS_PROCESS_ENTRY ),
+                        &NewElement );
+
     if (NULL != InsertedEntry) {
         if (NewElement == TRUE ) {
             TraceEvents( TRACE_LEVEL_INFORMATION, TRACE_PROCESS,
@@ -581,6 +725,58 @@ PmRemoveProcessEntry(
         Status = STATUS_SUCCESS;
     }
 
+    return Status;
+}
+
+NTSTATUS
+PmGetExemptedProcessListCallback(
+    _In_ PDS_PROCESS_ENTRY ProcessEntry,
+    _In_ UINT32 Flags,
+    _Out_writes_bytes_to_opt_( BufferSize, *BytesReturned ) PVOID ProcessList,
+    _In_ UINT32 BufferSize,
+    _Out_opt_ PUINT32 BytesReturned
+    )
+{
+    NTSTATUS Status = STATUS_SUCCESS;
+    PUINT32 ProcessIdList = ProcessList;
+    UINT32 ProcessCount = 0;
+
+    UNREFERENCED_PARAMETER( Flags );
+
+    if (FlagOn( ProcessEntry->TrustLevel, TRUST_LEVEL_EXEMPTED )) {
+
+        if ((ProcessCount + 1) * sizeof( UINT32 ) <= BufferSize) {
+            ProcessIdList[ProcessCount ] = PtrToUlong( ProcessEntry->ProcessId );
+
+        } else {
+            Status = STATUS_BUFFER_TOO_SMALL;
+        }
+
+        ProcessCount++;
+    }
+
+    if (ARGUMENT_PRESENT( BytesReturned )) {
+        *BytesReturned = ProcessCount * sizeof( UINT32 );
+    }
+
+    return Status;
+}
+
+NTSTATUS
+PmGetExemptedProcessList(
+    _In_ PRTL_AVL_TABLE Table,
+    _Out_writes_bytes_to_opt_( BufferSize, *BytesReturned ) PVOID ProcessList,
+    _In_ UINT32 BufferSize,
+    _Out_opt_ PUINT32 BytesReturned
+    )
+{
+    NTSTATUS Status;
+    Status = PmEnumerateEntryProcessTable( Table,
+                                           PmGetExemptedProcessListCallback,
+                                           0,
+                                           ProcessList,
+                                           BufferSize,
+                                           BytesReturned );
     return Status;
 }
 
@@ -650,10 +846,9 @@ DsProcessNotifyCallback(
         RtlFreeUnicodeString( &Sid );
 
         //
-        //  Query the cached info that was initiallu provided by the helper
-        //  service.
+        //  Query the rules that were provided by the helper service.
         //
-        //  TODO: PmGetTrustLevel();
+        //  TODO: PmEvaluateRules();
         //
 
         KeAcquireInStackQueuedSpinLock( &gProcessTreeLock, &LockHandle );

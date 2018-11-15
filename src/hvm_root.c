@@ -52,11 +52,6 @@ HvmMsrHandlerRegistered(
     return FALSE;
 }
 
-#define TRUST_LEVEL_NONE           (0x00000001)
-#define TRUST_LEVEL_EXEMPTED       (0x00000002)
-#define TRUST_LEVEL_FORCEFUL       (0x00010000)
-#define TRUST_LEVEL_MASSIVE        (TRUST_LEVEL_FORCEFUL | TRUST_LEVEL_EXEMPTED)
-
 UINT32
 DsGetRequestorTrustLevel(
     VOID

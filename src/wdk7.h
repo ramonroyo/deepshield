@@ -22,6 +22,7 @@ typedef INT_PTR INTN, *PINTN;
 #define _In_reads_bytes_(s)
 #define _Out_writes_bytes_(s)
 #define _Out_writes_bytes_to_(s, b)
+#define _Out_writes_bytes_to_opt_(s, b)
 #define _IRQL_requires_same_
 #define _IRQL_requires_max_(i)
 #define _Function_class_( c )
