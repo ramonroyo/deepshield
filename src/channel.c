@@ -393,7 +393,9 @@ DsSendNotificationMessage(
     )
 {
     NTSTATUS Status;
+    NTSTATUS WaitStatus;
     PDS_NOTIFICATION_MESSAGE Message;
+    LARGE_INTEGER DueTime;
     PDS_BUCKET_CLIENT Bucket;
     PKEVENT *PairEvent;
     ULONG BucketIndex;
@@ -425,6 +427,8 @@ DsSendNotificationMessage(
         Bucket = &Channel->Buckets[BucketIndex];
         PairEvent = Channel->ServerBuckets[BucketIndex].PairEvent;
 
+        DueTime.QuadPart = REL_TIMEOUT_IN_MS( 3000 );
+
         Message = (PDS_NOTIFICATION_MESSAGE)Bucket->Data;
 
         Message->UniqueId = InterlockedIncrement64( &UniqueId );
@@ -440,14 +444,25 @@ DsSendNotificationMessage(
         KeSetEvent( PairEvent[HighEvent], IO_NO_INCREMENT, FALSE );
 
         if (KeGetCurrentIrql() == PASSIVE_LEVEL) {
-            KeWaitForSingleObject( PairEvent[LowEvent],
-                                   Executive,
-                                   KernelMode,
-                                   FALSE,
-                                   NULL);
+            WaitStatus = KeWaitForSingleObject( PairEvent[LowEvent],
+                                                Executive,
+                                                KernelMode,
+                                                FALSE,
+                                                NULL);
 
-            if (ARGUMENT_PRESENT( Action )) {
-                *Action = Message->Action;
+            if (STATUS_SUCCESS == WaitStatus) {
+                if (ARGUMENT_PRESENT( Action )) {
+                    *Action = Message->Action;
+                }
+            } else {
+                TraceEvents( TRACE_LEVEL_WARNING,
+                             TRACE_NOTIFICATION,
+                             "Notification message timed out\tBucketIndex: %d\tUniqueId: %016I64x\tProcessId: %016I64x\tThreadId: %016I64x\tType: %d\n",
+                             BucketIndex,
+                             Message->UniqueId,
+                             ProcessId,
+                             ThreadId,
+                             Type );
             }
         }
         else {

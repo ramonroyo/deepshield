@@ -281,6 +281,7 @@
     <ClCompile Include="..\src\dshvm.c" />
     <ClCompile Include="..\src\ioctl.c" />
     <ClCompile Include="..\src\mailbox.c" />
+    <ClCompile Include="..\src\mitigation.c" />
     <ClCompile Include="..\src\os.c" />
     <ClCompile Include="..\src\policy.c" />
     <ClCompile Include="..\src\power.c" />
