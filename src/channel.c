@@ -267,8 +267,9 @@ DsDestroyChannel(
     ULONG Idx;
     DS_TERMINATE_MESSAGE Message;
     LARGE_INTEGER DueTime;
+    KWAIT_BLOCK WaitBlockArray[ DS_MAX_BUCKETS ];
+    PKEVENT AckEvents[ DS_MAX_BUCKETS ];
     PKEVENT DieEvent;
-    PKEVENT AckEvent;
 
     PAGED_CODE();
 
@@ -297,13 +298,17 @@ DsDestroyChannel(
         DieEvent = Channel->ServerBuckets[Idx].PairEvent[HighEvent];
         KeSetEvent( DieEvent, IO_NO_INCREMENT, FALSE );
 
-        AckEvent = Channel->ServerBuckets[Idx].PairEvent[LowEvent];
-        KeWaitForSingleObject( AckEvent,
-                               Executive,
-                               KernelMode,
-                               FALSE,
-                               &DueTime );
+        AckEvents[Idx] = Channel->ServerBuckets[Idx].PairEvent[LowEvent];
     }
+    
+    KeWaitForMultipleObjects( Channel->BucketCount,
+                              &AckEvents[0],
+                              WaitAll,
+                              Executive,
+                              KernelMode,
+                              FALSE,
+                              &DueTime,
+                              &WaitBlockArray[0] );
 
     for (Idx = 0; Idx < Channel->BucketCount; Idx++) {
         DsCleanupBucketEvents( &Channel->Buckets[Idx],

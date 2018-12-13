@@ -19,7 +19,7 @@ typedef enum _DS_MESSAGE_TYPE {
 
 typedef enum _DS_TERMINATE_REASON {
     TeardownReason = 1,
-    StopShieldReason,
+    NoOpenDeviceReason,
     UnloadDriverReason,
     InitErrorReason,
     MaxReason,
