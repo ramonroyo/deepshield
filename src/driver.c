@@ -54,6 +54,9 @@ DsInitializeVmxFeature(
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text(INIT, DriverEntry)
+#pragma alloc_text(PAGE, DriverUnload)
+#pragma alloc_text(PAGE, DriverDeviceCreateClose)
+#pragma alloc_text(PAGE, DriverDeviceControl)
 #pragma alloc_text(PAGE, DsAllocateUnicodeString)
 #pragma alloc_text(PAGE, DsFreeUnicodeString)
 #pragma alloc_text(PAGE, DsCloneUnicodeString)
@@ -260,6 +263,8 @@ DriverUnload(
     _In_ PDRIVER_OBJECT DriverObject
     )
  {
+    PAGED_CODE();
+
     if (DsIsShieldRunning()) {
         NT_ASSERT( FlagOn( gStateFlags, DSH_GFL_SHIELD_STARTED ));
 
@@ -329,7 +334,40 @@ Return Value:
 
 --*/
 {
+    PIO_STACK_LOCATION IrpStack;
+    static LONG OpenDeviceCount = 0;
+
+    PAGED_CODE();
     UNREFERENCED_PARAMETER( DeviceObject );
+
+    IrpStack = IoGetCurrentIrpStackLocation( Irp );
+
+    switch ( IrpStack->MajorFunction )
+    {
+        case IRP_MJ_CREATE:
+
+            InterlockedIncrement( &OpenDeviceCount );
+            break;
+
+        case IRP_MJ_CLOSE:
+
+            if (0 == InterlockedDecrement( &OpenDeviceCount )) {
+
+                if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
+                    ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+
+                    //
+                    //  Wait for ongoing channel references.
+                    //
+                    ExWaitForRundownProtectionRelease( &gChannelRundown );
+                    ExRundownCompleted( &gChannelRundown );
+
+                    DsDestroyChannel( gChannel, NoOpenDeviceReason );
+                }
+            }
+
+            break;
+    }
 
     Irp->IoStatus.Status = STATUS_SUCCESS;
     Irp->IoStatus.Information = 0;
@@ -347,6 +385,7 @@ DriverDeviceControl(
     NTSTATUS Status = STATUS_SUCCESS;
     PIO_STACK_LOCATION IrpStack;
 
+    PAGED_CODE();
     UNREFERENCED_PARAMETER( DeviceObject );
 
     IrpStack = IoGetCurrentIrpStackLocation( Irp );

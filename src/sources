@@ -27,6 +27,7 @@ SOURCES = channel.c \
           ioctl.c \
           mailbox.c \
           mem.c \
+          mitigation.c \
           mmu.c \
           power.c \
           process.c \

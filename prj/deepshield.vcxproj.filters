@@ -133,6 +133,9 @@
     <ClCompile Include="..\src\process.c">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\mitigation.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">

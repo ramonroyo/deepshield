@@ -15,6 +15,9 @@
 #define IA32_TSC                0x10
 #define IA32_APIC_BASE          0x1B
 #define IA32_TSC_ADJUST         0x3B
+#define IA32_SPEC_CTRL          0x48
+#define IA32_PRED_CMD           0x49
+#define IA32_ARCH_CAPABILITIES  0x10A
 #define IA32_SYSENTER_CS        0x174
 #define IA32_SYSENTER_ESP       0x175
 #define IA32_SYSENTER_EIP       0x176
@@ -54,6 +57,11 @@ typedef enum _IA32_CONTROL_REGISTERS {
     IA32_CTRL_CR8,
     IA32_CTRL_COUNT
 } IA32_CONTROL_REGISTERS;
+
+#define SPEC_CTRL_FEATURE_SET_IBRS      (1 << 0)
+#define SPEC_CTRL_FEATURE_SET_STIBP     (1 << 1)
+#define SPEC_CTRL_FEATURE_SET_SSBD      (1 << 2)
+#define PRED_CMD_FEATURE_SET_IBPB       (1 << 0)
 
 #define UNSUPPORTED_CR IA32_CTRL_COUNT
 
@@ -112,6 +120,12 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CPUID_LEAF_7H_0H_EBX_INVPCID        (1UL << 10)
 #define CPUID_LEAF_7H_0H_EBX_RTM            (1UL << 11)
 #define CPUID_LEAF_7H_0H_EBX_SMAP_BIT       (1UL << 20)
+#define CPUID_LEAF_7H_0H_EDX_IBRS           (1UL << 26)
+#define CPUID_LEAF_7H_0H_EDX_IBPB           (1UL << 26)
+#define CPUID_LEAF_7H_0H_EDX_STIBP          (1UL << 27)
+#define CPUID_LEAF_7H_0H_EDX_L1D_FLUSH      (1UL << 28)
+#define CPUID_LEAF_7H_0H_EDX_ARCH_CAPS      (1UL << 29)
+#define CPUID_LEAF_7H_0H_EDX_SSBD           (1UL << 31)
 
 #define CPUID_BASIC_INFORMATION                   0x0
 #define CPUID_FEATURE_INFORMATION                 0x1
@@ -131,6 +145,22 @@ typedef struct _CPU_INFO {
 #define CPUID_VALUE_EBX(c) ((UINT32)((c).Data[1]))
 #define CPUID_VALUE_ECX(c) ((UINT32)((c).Data[2]))
 #define CPUID_VALUE_EDX(c) ((UINT32)((c).Data[3]))
+
+//
+//  MSR Structure for IA32_ARCH_CAPABILITIES - Index 0x10A
+//
+typedef union _MSR_ARCH_CAPS {
+    struct {
+        UINT64 NoRogueDataCacheLoad : 1;
+        UINT64 IbrsAll : 1;
+        UINT64 RsbaSupport : 1;
+        UINT64 SkipL1FlushVmEntry : 1;
+        UINT64 NoSpeculativeStoreBypass : 1;
+        UINT64 Rsvd5To63 : 59;
+        } Bits;
+
+    UINT64 AsUint64;
+} MSR_ARCH_CAPS, *PMSR_ARCH_CAPS;
 
 typedef union _FLAGS_REGISTER
 {
