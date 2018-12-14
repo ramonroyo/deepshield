@@ -263,6 +263,8 @@ DriverUnload(
     _In_ PDRIVER_OBJECT DriverObject
     )
  {
+    PDS_CHANNEL DeletingChannel;
+
     PAGED_CODE();
 
     if (DsIsShieldRunning()) {
@@ -291,12 +293,20 @@ DriverUnload(
     }
 
     if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
-        ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
 
-        ExWaitForRundownProtectionRelease( &gChannelRundown );
-        ExRundownCompleted( &gChannelRundown );
+        DeletingChannel = InterlockedExchangePointer( &gChannel, NULL );
 
-        DsDestroyChannel( gChannel, UnloadDriverReason );
+        if (DeletingChannel) {
+            //
+            //  Close the gate and wait for any ongoing channel reference.
+            //
+            ExWaitForRundownProtectionRelease( &gChannelRundown );
+            ExRundownCompleted( &gChannelRundown );
+
+            ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+
+            DsDestroyChannel( DeletingChannel, UnloadDriverReason );
+        }
     }
 
     IoDeleteSymbolicLink( (PUNICODE_STRING) &DsDosDeviceName );
@@ -334,6 +344,7 @@ Return Value:
 
 --*/
 {
+    PDS_CHANNEL DeletingChannel;
     PIO_STACK_LOCATION IrpStack;
     static LONG OpenDeviceCount = 0;
 
@@ -351,10 +362,15 @@ Return Value:
 
         case IRP_MJ_CLOSE:
 
-            if (0 == InterlockedDecrement( &OpenDeviceCount )) {
+            if (0 == InterlockedDecrement( &OpenDeviceCount )
+                && FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
 
-                if (FlagOn( gStateFlags, DSH_GFL_CHANNEL_SETUP )) {
-                    ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+                DeletingChannel = InterlockedExchangePointer( &gChannel, NULL );
+
+                //
+                //  The race winner performs the channel destruction.
+                // 
+                if (DeletingChannel) {
 
                     //
                     //  Wait for ongoing channel references.
@@ -362,7 +378,9 @@ Return Value:
                     ExWaitForRundownProtectionRelease( &gChannelRundown );
                     ExRundownCompleted( &gChannelRundown );
 
-                    DsDestroyChannel( gChannel, NoOpenDeviceReason );
+                    ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+
+                    DsDestroyChannel( DeletingChannel, NoOpenDeviceReason );
                 }
             }
 

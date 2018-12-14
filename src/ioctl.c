@@ -204,6 +204,7 @@ DsCtlShieldChannelTeardown(
 {
     NTSTATUS Status = STATUS_SUCCESS;
     PSHIELD_CHANNEL_ID ChannelId;
+    PDS_CHANNEL DeletingChannel;
     ULONG InputLength;
     ULONG OutputLength;
 
@@ -226,16 +227,19 @@ DsCtlShieldChannelTeardown(
         return STATUS_INVALID_PARAMETER;
     }
 
-    ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
+    DeletingChannel = InterlockedExchangePointer( &gChannel, NULL );
 
-    //
-    //  Close the gate and wait for any ongoing channel reference.
-    //
+    if (DeletingChannel) {
+        //
+        //  Close the gate and wait for any ongoing channel reference.
+        //
+        ExWaitForRundownProtectionRelease( &gChannelRundown );
+        ExRundownCompleted( &gChannelRundown );
 
-    ExWaitForRundownProtectionRelease( &gChannelRundown );
-    ExRundownCompleted( &gChannelRundown );
+        ClearFlag( gStateFlags, DSH_GFL_CHANNEL_SETUP );
 
-    DsDestroyChannel( gChannel, TeardownReason );
+        DsDestroyChannel( DeletingChannel, TeardownReason );
+    }
 
     Irp->IoStatus.Information = 0;
     return Status;
