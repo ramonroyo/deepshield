@@ -106,6 +106,7 @@ typedef enum _IA32_CONTROL_REGISTERS {
 #define CR4_PCE          (1ULL << 8)
 #define CR4_OSFXSR       (1ULL << 9)
 #define CR4_OSXMM        (1ULL << 10)
+#define CR4_LA57         (1ULL << 12)
 #define CR4_VMXE         (1ULL << 13)
 #define CR4_SMXE         (1ULL << 14)
 #define CR4_PCIDE        (1ULL << 17)
@@ -256,7 +257,7 @@ typedef union _CR4_REGISTER
         UINT32 osfxsr     : 1;  // 9 - OS Support for FXSAVE/FXRSTOR
         UINT32 osxmmexcpt : 1;  // 10 - OS Support for Unmasked SIMD Exceptions
         UINT32 umip       : 1;  // 11 - User mode instruction prevention
-        UINT32 _reserved0 : 1;  // 12
+        UINT32 la57       : 1;  // 12 - 5-level paging Enabled
         UINT32 Vmxe       : 1;  // 13 - Virtual Machine Extensions Enabled
         UINT32 smxe       : 1;  // 14 - SMX-Enable Bit
         UINT32 _reserved1 : 1;  // 15

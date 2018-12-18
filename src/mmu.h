@@ -13,8 +13,6 @@
 #define MAX_MAPPING_SLOTS 4
 #define MAX_CPU 64
 
-#define CR4_PAE_ENABLED 0x20
-
 #define PAGE_MASK (~(PAGE_SIZE - 1))
 #define PAGE_ALIGN(va) ((PVOID)((ULONG_PTR)(va) & ~(PAGE_SIZE - 1)))
 
@@ -28,29 +26,41 @@
 
 #if defined(_WIN64)
 
-#define VA_BITS    48
+#define VA_BITS       48
+#define VA_BITS_LA57  57
+
+#define PZI_BITS    9
 #define PXI_BITS    9
 #define PPI_BITS    9
 #define PDI_BITS    9
 #define PTI_BITS    9
 
+#ifndef PZI_MASK
+#define PZI_MASK      ((1 << PZI_BITS) - 1)
+#endif
+
 #ifndef PXI_MASK
-#define PXI_MASK    ((1 << PXI_BITS) - 1)
+#define PXI_MASK      ((1 << PXI_BITS) - 1)
 #endif
 
 #ifndef PPI_MASK
-#define PPI_MASK    ((1 << PPI_BITS) - 1)
+#define PPI_MASK      ((1 << PPI_BITS) - 1)
 #endif
 
 #ifndef PDI_MASK
-#define PDI_MASK    ((1 << PDI_BITS) - 1)
+#define PDI_MASK      ((1 << PDI_BITS) - 1)
 #endif
 
 #ifndef PTI_MASK
-#define PTI_MASK    ((1 << PTI_BITS) - 1)
+#define PTI_MASK      ((1 << PTI_BITS) - 1)
 #endif
 
-#define VA_MASK     ((1ULL << VA_BITS) - 1)
+#define VA_MASK       ((1ULL << VA_BITS) - 1)
+#define VA_MASK_LA57  ((1ULL << VA_BITS_LA57) - 1)
+
+#ifndef PZI_SHIFT
+#define PZI_SHIFT 48
+#endif
 
 #ifndef PXI_SHIFT
 #define PXI_SHIFT 39
@@ -76,6 +86,7 @@
 //  Define the macros for those paging level supported in MmuAddressToPti
 //  routine.
 //
+#define MmuGetPzeIndex(va) ((((UINT64)(va)) >> PZI_SHIFT) & PZI_MASK)
 #define MmuGetPxeIndex(va) ((((UINT64)(va)) >> PXI_SHIFT) & PXI_MASK)
 #define MmuGetPpeIndex(va) ((((UINT64)(va)) >> PPI_SHIFT) & PPI_MASK)
 #define MmuGetPdeIndex(va) ((((UINT64)(va)) >> PDI_SHIFT) & PDI_MASK)
@@ -86,7 +97,7 @@
 typedef struct _MMU_MAPPING
 {
     volatile LONG MapInUse;          //!< State of the mapping.
-    PVOID BaseVa;                  //!< Virtual Address of the mapping where we can map memory.
+    PVOID BaseVa;                    //!< Virtual Address of the mapping where we can map memory.
     PVOID PointerPte;                //!< Address of the PTE to be able to map on demand.
     PMDL BaseMdl;
     UINT64 OriginalPte;
@@ -100,9 +111,10 @@ typedef struct _MMU_PERCPU
 typedef struct _MMU
 {
 #ifdef _WIN64
-    UINT64 SelfMapPxeIndex;
+    UINT64 SelfMapPmlIndex;
     UINT64 LowerBound;
     UINT64 UpperBound;
+    BOOLEAN La57Enabled;
 #else
     BOOLEAN PaeEnabled;
     UINT32 PxeShift;

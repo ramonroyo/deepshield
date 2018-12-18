@@ -1,4 +1,4 @@
-#include "dsdef.h"
+﻿#include "dsdef.h"
 #include "mmu.h"
 #include "smp.h"
 #include "mem.h"
@@ -19,18 +19,23 @@ UINT64 ZeroPte = 0ULL;
 
 _Success_(return)
 BOOLEAN
-MmuGetSelfMapPxeIndex(
-    _Out_ PUINT64 SelfMapPxeIndex
+MmuGetSelfMapPmlIndex(
+    _Out_ PUINT64 SelfMapPmlIndex
     )
 {
     PHYSICAL_ADDRESS Cr3;
     Cr3.QuadPart = __readcr3() & 0xFFFFFFFFFFFFF000;
 
     //
-    //  The PML4 page is always mapped in the self referenced PXE index.
+    //  The PML page is always mapped in the self referenced PML index.
     //
-    *SelfMapPxeIndex = MmuGetPxeIndex( MmGetVirtualForPhysical( Cr3 ) );
-    NT_ASSERT( *SelfMapPxeIndex >= 16 );
+    if (gMmu.La57Enabled) {
+        *SelfMapPmlIndex = MmuGetPzeIndex( MmGetVirtualForPhysical( Cr3 ) );
+    }
+    else {
+        *SelfMapPmlIndex = MmuGetPxeIndex( MmGetVirtualForPhysical( Cr3 ) );
+        NT_ASSERT( *SelfMapPmlIndex >= 16 );
+    }
 
     return TRUE;
 }
@@ -318,6 +323,22 @@ MmuDeleteMapping(
     MmuFreeMappingMdl( Mapping->BaseMdl );
 }
 
+#if defined (_WIN64)
+BOOLEAN
+MmuIsLa57Enabled(
+    VOID
+    )
+{
+    ULONG_PTR cr4 = __readcr4();
+
+    if (cr4 & CR4_LA57) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+#endif
+
 #if !defined (_WIN64)
 BOOLEAN
 MmuIsPaeEnabled(
@@ -326,7 +347,7 @@ MmuIsPaeEnabled(
 {
     ULONG_PTR cr4 = __readcr4();
 
-    if (cr4 & CR4_PAE_ENABLED) {
+    if (cr4 & CR4_PAE) {
         return TRUE;
     }
 
@@ -340,25 +361,42 @@ MmuInitializeMmuGlobals(
     VOID
     )
 {
-    //
-    //  Locate the PTE entries in memory.
-    //
-    if (!MmuGetSelfMapPxeIndex( &gMmu.SelfMapPxeIndex )) {
+    gMmu.La57Enabled = MmuIsLa57Enabled();
+
+    if (!MmuGetSelfMapPmlIndex( &gMmu.SelfMapPmlIndex )) {
         return STATUS_UNSUCCESSFUL;
     }
 
-    gMmu.LowerBound = gMmu.SelfMapPxeIndex << PXI_SHIFT | 0xFFFFULL << VA_BITS;
+    if (gMmu.La57Enabled) {
+        //
+        //  TODO: get the correct bound for 5 level paging.
+        //
+        gMmu.LowerBound = gMmu.SelfMapPmlIndex << PZI_SHIFT | 0xFEULL << VA_BITS_LA57;
+
+        //
+        //  The limit is 256TB (512*512*512*512*4096) away.
+        //
+        gMmu.UpperBound = (gMmu.LowerBound + 0x1000000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+    }
+    else {
+
+        //
+        //  Locate the PTE entries in memory.
+        //
+
+        gMmu.LowerBound = gMmu.SelfMapPmlIndex << PXI_SHIFT | 0xFFFFULL << VA_BITS;
 
 #if DBG && (NTDDI_VERSION >= NTDDI_VISTA)
-    NT_ASSERT( gMmu.LowerBound == (UINT64)MmuGetPteBase() );
+        NT_ASSERT( gMmu.LowerBound == (UINT64)MmuGetPteBase() );
 #endif
     
-    //
-    //  The limit is 512GB (512*512*512*4096) away.
-    //
-    gMmu.UpperBound = (gMmu.LowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
-    gMmu.PteBase = (UINTN)MmuAddressToPte( 0 );
+        //
+        //  The limit is 512GB (512*512*512*4096) away.
+        //
+        gMmu.UpperBound = (gMmu.LowerBound + 0x8000000000 - 1) & 0xFFFFFFFFFFFFFFF8;
+    }
 
+    gMmu.PteBase = (UINTN)MmuAddressToPte( 0 );
     return STATUS_SUCCESS;
 }
 #else
