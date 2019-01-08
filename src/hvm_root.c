@@ -124,6 +124,8 @@ HvmHandleMsrWriteFsBase(
 
 #if defined (_WIN64)
     Value = (((UINTN) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
+#else
+    UNREFERENCED_PARAMETER( Registers );
 #endif
 
     VmWriteN( GUEST_FS_BASE, Value );
