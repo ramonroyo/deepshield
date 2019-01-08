@@ -348,6 +348,9 @@ VmcsSetGuestMsrExitPolicy(
     Status = VmSetMsrBitsConfig( MsrBitmap, IA32_FS_BASE, WRITE_ACCESS, TRUE );
     NT_ASSERT( STATUS_SUCCESS == Status );
 
+    Status = VmSetMsrBitsConfig( MsrBitmap, IA32_FS_BASE, READ_ACCESS, TRUE );
+    NT_ASSERT( STATUS_SUCCESS == Status );
+
     MsrBitmapHpa = MmuGetPhysicalAddress( 0, MsrBitmap );
     VmWrite64( MSR_BITMAP_ADDRESS, MsrBitmapHpa.QuadPart );
 

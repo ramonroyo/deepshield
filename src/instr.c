@@ -50,7 +50,7 @@ InstrXsetbvEmulate(
         //  ECX must be zero since only XCR0 is supported.
         //
 
-        VmInjectGpException(0);
+        VmInjectGpException( 0 );
         return FALSE;
     }
 
@@ -129,9 +129,7 @@ InstrCpuidEmulate(
 {
     INT32 CpuRegs[4] = { 0 };
 
-    __cpuidex( (INT32*)CpuRegs,
-               (INT32)Registers->Rax & 0xFFFFFFFF,
-               (INT32)Registers->Rcx & 0xFFFFFFFF );
+    __cpuidex( (INT32*)CpuRegs, (INT32)Registers->Rax, (INT32)Registers->Rcx );
 
     Registers->Rax = (UINTN)CpuRegs[0];
     Registers->Rbx = (UINTN)CpuRegs[1];
@@ -144,12 +142,12 @@ InstrMsrReadEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINT64 value;
+    UINT64 Value;
 
-    value = __readmsr(LOW32(Registers->Rcx));
+    Value = __readmsr( LOW32( Registers->Rcx ) );
 
-    Registers->Rax = (UINTN) LOW32(value);
-    Registers->Rdx = (UINTN) HIGH32(value);
+    Registers->Rax = (UINTN) LOW32( Value );
+    Registers->Rdx = (UINTN) HIGH32( Value );
 }
 
 VOID
@@ -157,11 +155,11 @@ InstrMsrWriteEmulate(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINT64 value;
+    UINT64 Value;
 
-    value = (((UINT64)LOW32(Registers->Rdx)) << 32) | LOW32(Registers->Rax);
+    Value = (((UINT64)LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
 
-    __writemsr( LOW32(Registers->Rcx), value );
+    __writemsr( LOW32( Registers->Rcx ), Value );
 }
 
 VOID

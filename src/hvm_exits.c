@@ -34,22 +34,15 @@ HvmpExitEventLog(
     _In_ PGP_REGISTERS Registers
     )
 {
-    UINTN index = 0;
+    UINTN Index = 0;
 
-    //
-    // Calculate new index
-    //
-    index = Vcpu->LoggedEvents.numberOfEvents % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
-    
-    //
-    // Log exit data
-    //
-    HvmpExitEventLogVmcsInfo(&Vcpu->LoggedEvents.queue[index].info);
+    Index = Vcpu->LoggedEvents.Count % MAX_NUMBER_OF_LOGGED_EXIT_EVENTS;
 
-    Vcpu->LoggedEvents.queue[index].Registers = *Registers;
-    Vcpu->LoggedEvents.numberOfEvents++;
+    HvmpExitEventLogVmcsInfo( &Vcpu->LoggedEvents.Queue[Index].info);
+
+    Vcpu->LoggedEvents.Queue[Index].Registers = *Registers;
+    Vcpu->LoggedEvents.Count++;
 }
-
 
 extern VOID
 HvmpStop(
@@ -108,7 +101,7 @@ HvmpExitHandler(
     InfoBasic.AsUint32 = VmRead32( EXIT_REASON );
 
     //
-    //  Complete guest registers.
+    //  Complete missing guest registers.
     //
 
     Registers->Rsp = VmReadN( GUEST_RSP );

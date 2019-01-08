@@ -564,17 +564,31 @@ DsCheckVmxFirmwareState(
     )
 {
     UINT64 RequiredFeature = IA32_FC_LOCK | IA32_FC_ENABLE_VMXON_OUTSMX;
+    UINT64 FeatureControl;
 
-    //
-    //  Strictly we need IA32_FC_ENABLE_VMXON_OUTSMX. If the
-    //  IA32_FC_LOCK bit isn't set, we're free to write to the MSR.
-    //  System BIOS uses this bit to provide a setup option for BIOS to disable
-    //  support for VMX.
-    //
+    FeatureControl = __readmsr( IA32_FEATURE_CONTROL );
 
     if ((__readmsr( IA32_FEATURE_CONTROL ) & RequiredFeature)
                                           != RequiredFeature) {
-        return FALSE;
+        //
+        //  Strictly we need IA32_FC_ENABLE_VMXON_OUTSMX. Thus if the
+        //  IA32_FC_LOCK bit isn't set, we're free to write to the MSR.
+        //
+        if ((FeatureControl & IA32_FC_LOCK) == 0) {
+
+            //
+            //  HP & Mac workaround. Enable the bits so that we can launch
+            //  VMXON.
+            //
+            __writemsr( IA32_FEATURE_CONTROL, FeatureControl | RequiredFeature );
+
+        } else {
+            //
+            //  System BIOS uses IA32_FC_LOCK bit to provide a setup option
+            //  for BIOS to disable support for VMX.
+            //
+            return FALSE;
+        }
     }
 
     return TRUE;

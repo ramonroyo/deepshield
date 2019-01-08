@@ -70,7 +70,7 @@ DsGetRequestorTrustLevel(
 }
 
 VOID
-HvmSetNextQuantumTsd(
+HvmTrimTsdForQuantum(
     BOOLEAN EnableTsd
     )
 {
@@ -90,7 +90,7 @@ HvmSetNextQuantumTsd(
     RtlPostMailboxTrace( &gSecureMailbox,
                          TRACE_LEVEL_INFORMATION,
                          TRACE_MSR_ROOT,
-                         "New CR4 set (Cid = %4d.%4d, Cr4 = %I64X)\n",
+                         "New CR4 set (Cid = %4d.%4d, Cr4 = 0x%I64X)\n",
                          PsGetCurrentProcessId(),
                          PsGetCurrentThreadId(),
                          Cr4.AsUintN );
@@ -99,14 +99,34 @@ HvmSetNextQuantumTsd(
 }
 
 BOOLEAN
-HvmHandleMsrFsBase( 
+HvmHandleMsrReadFsBase(
+    _In_ PGP_REGISTERS Registers
+    )
+{
+    UINT64 Value = VmReadN( GUEST_FS_BASE );
+    
+    //
+    //  There is nothing more deceptive than an obvious fix.
+    //
+    Registers->Rax = (UINTN) LOW32( Value );
+    Registers->Rdx = (UINTN) HIGH32( Value );
+
+    return TRUE;
+}
+
+BOOLEAN
+HvmHandleMsrWriteFsBase( 
     _In_ PGP_REGISTERS Registers
     )
 {
     BOOLEAN EnableTsd;
-    UINT64 Value;
+    UINTN Value = 0;
 
-    Value = (((UINT64) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
+#if defined (_WIN64)
+    Value = (((UINTN) LOW32( Registers->Rdx )) << 32) | LOW32( Registers->Rax );
+#endif
+
+    VmWriteN( GUEST_FS_BASE, Value );
 
     //
     //  On 32-bit mode the FS segment register points to TEB and the KPCR, but
@@ -118,15 +138,15 @@ HvmHandleMsrFsBase(
     RtlPostMailboxTrace( &gSecureMailbox,
                          TRACE_LEVEL_VERBOSE,
                          TRACE_MSR_ROOT,
-                         "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = %I64X)\n",
+                         "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = 0x%I64X)\n",
                          PsGetCurrentProcessId(),
                          PsGetCurrentThreadId(),
                          Value );
 
     EnableTsd = !FlagOn( DsGetRequestorTrustLevel(), TRUST_LEVEL_EXEMPTED );
-    HvmSetNextQuantumTsd( EnableTsd );
+    HvmTrimTsdForQuantum( EnableTsd );
 
-    return FALSE;
+    return TRUE;
 }
 
 BOOLEAN ROOT_MODE_API
@@ -195,21 +215,28 @@ HvmVcpuCommonExitsHandler(
 
         case EXIT_REASON_MSR_READ:
         {
-            InstrMsrReadEmulate( Registers );
+            if (HvmMsrHandlerRegistered( Registers )) {
+                ExitHandled = HvmHandleMsrReadFsBase( Registers );
+            }
+
+            if (!ExitHandled) {
+                InstrMsrReadEmulate( Registers );
+            }
+
             InstrRipAdvance( Registers );
             return TRUE;
         }
         case EXIT_REASON_MSR_WRITE:
         {
             if (HvmMsrHandlerRegistered( Registers )) {
-                ExitHandled = HvmHandleMsrFsBase( Registers );
+                ExitHandled = HvmHandleMsrWriteFsBase( Registers );
             }
 
             if (!ExitHandled) {
                 InstrMsrWriteEmulate( Registers );
-                InstrRipAdvance( Registers );
             }
 
+            InstrRipAdvance( Registers );
             return TRUE;
         }
     }
