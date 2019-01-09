@@ -20,6 +20,11 @@ static IA32_CONTROL_REGISTERS LookupCr[] = {
     IA32_CTRL_CR8
 };
 
+#define HW_EXCEPTION_UD_OR_GP(_i_)                                   \
+    (INTERRUPT_HARDWARE_EXCEPTION == (_i_).Bits.InterruptType        \
+    &&  ((_i_).Bits.Vector == VECTOR_INVALID_OPCODE_EXCEPTION        \
+      || (_i_).Bits.Vector == VECTOR_GENERAL_PROTECTION_EXCEPTION))
+
 VOID
 CrAccessHandler(
     _In_ PHVM_VCPU Vcpu,
@@ -67,11 +72,33 @@ CpuidEmulate(
     Function = (Registers->Rax & 0xFFFFFFFF);
     SubLeaf = (Registers->Rcx & 0xFFFFFFFF);
 
+    if (Function == CPUID_VMM_VENDOR_SIGNATURE) {
+        //
+        //  Return our maximum hypervisor leaf number and the vendor ID
+        //  signature.
+        //
+
+        Registers->Rbx = (UINT32)'Byte';
+        Registers->Rcx = (UINT32)'Heed';
+        Registers->Rdx = (UINT32)'Lynx';
+        Registers->Rax = 0x40000001;
+
+        return;
+    }
+
+    if (Function == CPUID_VMM_INTERFACE_SIGNATURE) {
+        //
+        //  Return the value representing our vendor interface identifier.
+        //
+
+        Registers->Rax = '1#xL';
+        return;
+    }
+
     InstrCpuidEmulate( Registers );
 
 #ifdef REMOVE_TSX_SUPPORT
-    if (Function == CPUID_EXTENDED_FEATURE_FLAGS 
-        && (SubLeaf == 0)) {
+    if (Function == CPUID_EXTENDED_FEATURE_FLAGS && (SubLeaf == 0)) {
 
         //
         //  Disable Transactional Synchronization Extensions.
@@ -79,6 +106,15 @@ CpuidEmulate(
         Registers->Rbx &= ~CPUID_LEAF_7H_0H_EBX_RTM;
     }
 #endif
+
+    if (Function == CPUID_FEATURE_INFORMATION) {
+        //
+        //  This bit has been reserved by Intel & AMD for use by hypervisors
+        //  to indicate their presence.
+        //
+
+        Registers->Rcx |= CPUID_LEAF_1H_ECX_HYPERVISOR_BIT;
+    }
 
     InstrRipAdvance( Registers );
 }
@@ -352,6 +388,9 @@ DsHvmExitHandler(
     _In_ PGP_REGISTERS Registers
     )
 {
+    VMX_EXIT_INTERRUPT_INFO InterruptInfo;
+    BOOLEAN ExceptionHandled;
+
     //
     //  I thought at first that you had done something clever, but I see that
     //  there was nothing in it, after all.
@@ -380,16 +419,11 @@ DsHvmExitHandler(
 
         case EXIT_REASON_SOFTWARE_INTERRUPT_EXCEPTION_NMI:
         {
-            VMX_EXIT_INTERRUPT_INFO InterruptInfo;
-            BOOLEAN ExceptionHandled;
-
             InterruptInfo.AsUint32 = VmRead32( EXIT_INTERRUPTION_INFORMATION );
+            if (HW_EXCEPTION_UD_OR_GP ( InterruptInfo )) {
 
-            if (InterruptInfo.Bits.InterruptType == INTERRUPT_HARDWARE_EXCEPTION
-                && (VECTOR_INVALID_OPCODE_EXCEPTION == InterruptInfo.Bits.Vector
-                    || VECTOR_GENERAL_PROTECTION_EXCEPTION == InterruptInfo.Bits.Vector )) {
-
-                ExceptionHandled = DsHvmExceptionHandler( Vcpu->Context, Registers );
+                ExceptionHandled = DsHvmExceptionHandler( Vcpu->Context,
+                                                          Registers );
 
                 if (FALSE == ExceptionHandled) {
                     VmInjectHardwareException( InterruptInfo );

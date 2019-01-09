@@ -256,9 +256,9 @@ HvmpRestoreHostState(
     //  TODO: restore FULL state: CR0, CR4, fsBase, tr, sysenterCs ?
     //
 
-    AsmWriteDs( Vcpu->HostState.Fs.AsUint16);
-    AsmWriteEs( Vcpu->HostState.Es.AsUint16);
-    AsmWriteFs( Vcpu->HostState.Fs.AsUint16);
+    AsmWriteDs( Vcpu->HostState.Ds.AsUint16 );
+    AsmWriteEs( Vcpu->HostState.Es.AsUint16 );
+    AsmWriteFs( Vcpu->HostState.Fs.AsUint16 );
 
 #ifndef _WIN64
     AsmWriteSs( Vcpu->HostState.Ss.AsUint16);
@@ -267,6 +267,13 @@ HvmpRestoreHostState(
 
     AsmWriteGdtr( &Vcpu->HostState.Gdt );
     __lidt( &Vcpu->HostState.Idt );
+
+#ifdef _WIN64
+    __writemsr( IA32_FS_BASE, VmReadN( GUEST_FS_BASE ) );
+    __writemsr( IA32_GS_BASE, VmReadN( GUEST_GS_BASE ) );
+#endif
+
+    __writecr0( VmReadN( GUEST_CR0 ) );
 
     //
     //  Disable TSD monitoring.

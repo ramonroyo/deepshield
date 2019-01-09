@@ -77,7 +77,7 @@ VmxpVerifyFeatureControl(
 
     __cpuid( &CpuInfo, CPUID_FEATURE_INFORMATION );
 
-    if ( 0 == (CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_VMX) ) {
+    if (0 == (CPUID_VALUE_ECX( CpuInfo ) & CPUID_LEAF_1H_ECX_VMX)) {
         return STATUS_VMX_NOT_SUPPORTED;
     }
 
