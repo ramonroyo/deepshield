@@ -31,9 +31,21 @@ MmuGetSelfMapPmlIndex(
     //
     if (gMmu.La57Enabled) {
         *SelfMapPmlIndex = MmuGetPzeIndex( MmGetVirtualForPhysical( Cr3 ) );
+        //
+        //  The address space is extented to 128PB and divided evently between
+        //  the user mode and kernel mode address space.
+        //
+        NT_ASSERT( *SelfMapPmlIndex >= 256 );
     }
     else {
         *SelfMapPmlIndex = MmuGetPxeIndex( MmGetVirtualForPhysical( Cr3 ) );
+
+        //
+        //  The first x64 Windows releases used only 16TB of address space
+        //  divided evenly: 8TB for the user mode address space and 8TB for
+        //  the kernel mode. Since Windows 8.1 this was increased to use the
+        //  entire 256TB allowed by the CPU.
+        //
         NT_ASSERT( *SelfMapPmlIndex >= 16 );
     }
 
@@ -197,7 +209,13 @@ MmuGetPteBase(
         //
         //  Get the base subtracting the partial PTE for the probe address.
         //
-        PartialPte = ((((UINT64) ProbeVa & VA_MASK) >> PTI_SHIFT) << PTE_SHIFT);
+        if (gMmu.La57Enabled) {
+            PartialPte = ((((UINT64) ProbeVa & VA_MASK_LA57) >> PTI_SHIFT) << PTE_SHIFT);
+        }
+        else {
+            PartialPte = ((((UINT64) ProbeVa & VA_MASK) >> PTI_SHIFT) << PTE_SHIFT);
+        }
+
         PteBase = PointerPte - PartialPte;
     }
 
