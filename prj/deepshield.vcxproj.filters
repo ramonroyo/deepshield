@@ -141,7 +141,7 @@
     </ClCompile>
     <ClCompile Include="..\src\mitigation.c">
       <Filter>src</Filter>
-    </ClCompile>    
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\x86.h">
@@ -226,6 +226,9 @@
       <Filter>inc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\idxlist.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\udis86.h">
       <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>

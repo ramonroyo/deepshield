@@ -8,6 +8,7 @@
 #include "smp.h"
 #include "mem.h"
 #include "x86.h"
+#include "udis86.h"
 
 
 #define SIBLING_DISTANCE_LIMIT     0xFF
@@ -444,6 +445,21 @@ TdAreMemoryReferencesWithinRange(
     //
     // UNIMPLEMENTED: This should be addressed using udis86 dissassembler.
     //
+    ud_t Udis;
+
+    ud_init( &Udis );
+    ud_set_input_buffer( &Udis, Address, Size );
+    ud_set_mode( &Udis, 64 );
+    ud_set_syntax( &Udis, UD_SYN_INTEL );
+
+    while (ud_disassemble( &Udis )) {
+        
+        if ( Udis.operand[0].type == UD_OP_MEM || 
+             Udis.operand[1].type == UD_OP_MEM || 
+             Udis.operand[2].type == UD_OP_MEM ) {
+            return TRUE;
+        }
+    }
 
     return FALSE;
 }
