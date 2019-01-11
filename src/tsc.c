@@ -430,27 +430,25 @@ TdMapAddress(
     return (PUINTN)((UINTN)CodePage + BYTE_OFFSET( Address ));
 }
 
-//
-// [SG] TODO: Add x86 support (TdAreMemoryOffsetsWithin64 + TdAreMemoryReferencesWithinRange).
-//
 BOOLEAN
 TdAreMemoryReferencesWithinRange(
     _In_ PUINT8 Address,
     _In_ UINTN  Size
 )
 {
-    UNREFERENCED_PARAMETER( Size );
-    UNREFERENCED_PARAMETER( Address );
-
-    //
-    // UNIMPLEMENTED: This should be addressed using udis86 dissassembler.
-    //
     ud_t Udis;
 
     ud_init( &Udis );
     ud_set_input_buffer( &Udis, Address, Size );
+
+#ifdef _WIN64
     ud_set_mode( &Udis, 64 );
+#else
+    ud_set_mode( &Udis, 32 );
+#endif
+
     ud_set_syntax( &Udis, UD_SYN_INTEL );
+
 
     while (ud_disassemble( &Udis )) {
         
