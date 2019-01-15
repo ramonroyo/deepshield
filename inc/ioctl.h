@@ -63,6 +63,78 @@ typedef struct _SHIELD_CHANNEL_ID {
     ULONG ChannelId;
 } SHIELD_CHANNEL_ID, *PSHIELD_CHANNEL_ID;
 
+#define IOCTL_SHIELD_ADD_PROCESS_RULE      \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A110, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
+#define IOCTL_SHIELD_QUERY_PROCESS_RULE    \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A111, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
+#define IOCTL_SHIELD_REMOVE_PROCESS_RULE   \
+    CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A112, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
+
+typedef enum _SHIELD_RULE_TYPE {
+    RuleTypeTrust = 1,
+    RuleTypeRestrict
+} SHIELD_RULE_TYPE, *PSHIELD_RULE_TYPE;
+
+#define SHIELD_RULE_FLAGS UINT32
+
+#define SHILED_RULEFL_IMAGE_NAME        0x00000001
+#define SHILED_RULEFL_IMAGE_HASH        0x00000002
+#define SHILED_RULEFL_IMAGE_PATH        0x00000004
+#define SHILED_RULEFL_CERT_PUBLISHER    0x00000008
+#define SHILED_RULEFL_CERT_HASH         0x00000010
+
+typedef enum _SHIELD_HASH_FUNCTION {
+    HashFunctionBlake2b = 1,
+    HashFunctionSha256
+} SHIELD_HASH_FUNCTION, *PSHIELD_HASH_FUNCTION;
+
+typedef struct _SHIELD_CERTIFICATE_PUBLISHER {
+    WCHAR FullName[128];
+} SHIELD_CERTIFICATE_PUBLISHER, *PSHIELD_CERTIFICATE_PUBLISHER;
+
+typedef struct _SHIELD_CERTIFICATE_HASH {
+    //
+    //  Affects all software signed with a particular signing certificate.
+    //
+    CHAR HashString[32];
+} SHIELD_CERTIFICATE_HASH, *PSHIELD_CERTIFICATE_HASH;
+
+typedef struct _SHIELD_PROCESS_RULE {
+    SHIELD_RULE_TYPE Type;
+    SHIELD_RULE_FLAGS Flags;
+
+    //
+    //  Specifies the hash function used to calculate hash strings.
+    //
+    SHIELD_HASH_FUNCTION HashFunction;
+
+    //
+    //  A rule for a binary's fingerprint or image name will override a
+    //  decision for a certificate or path.
+    //
+    CHAR ImageHashString[64];
+
+    //
+    //  Binaries can be trusted / restricted by their leaf certificate too.
+    //  The certificate hash overrides a certificate publisher.
+    //
+    SHIELD_CERTIFICATE_PUBLISHER CertPublisher;
+    SHIELD_CERTIFICATE_HASH CertHash;
+
+    //
+    //  Path-based rules are the last rules to be evaluated.
+    //
+    UINT32 PathLength;
+    WCHAR ImagePath[260];
+
+    //
+    //  If a rule for a binary's image collides with a rule for binary's
+    //  fingerprint the most restrictive decision prevails.
+    //
+    UINT32 ImageLength;
+    PWCHAR ImageName[260];  //TODO: remove this restriction.
+} SHIELD_PROCESS_RULE, *PSHIELD_PROCESS_RULE;
+
 #define IOCTL_SHIELD_GET_VMFEATURE \
     CTL_CODE( IOCTL_SHIELD_TYPE, 0x0A201, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS  )
 

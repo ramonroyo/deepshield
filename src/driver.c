@@ -418,6 +418,25 @@ DriverDeviceControl(
             Status = DsCltGetShieldState( Irp, IrpStack );
             break;
         }
+
+        case IOCTL_SHIELD_ADD_PROCESS_RULE:
+        {
+            //Status = DsCtlShieldAddRule( Irp, IrpStack );
+            break;
+        }
+
+        case IOCTL_SHIELD_QUERY_PROCESS_RULE:
+        {
+            //Status = DsCtlShieldQueryRule( Irp, IrpStack );
+            break;
+        }
+
+        case IOCTL_SHIELD_REMOVE_PROCESS_RULE:
+        {
+            //Status = DsCtlShieldRemoveRule( Irp, IrpStack );
+            break;
+        }
+
         case IOCTL_SHIELD_CONTROL:
         {
             Status = DsCtlShieldControl( Irp, IrpStack );
