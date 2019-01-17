@@ -282,6 +282,7 @@
     <ClCompile Include="..\src\power.c" />
     <ClCompile Include="..\src\process.c" />
     <ClCompile Include="..\src\ringbuf.c" />
+    <ClCompile Include="..\src\skiplist.c" />
     <ClCompile Include="..\src\shield.c" />
     <ClCompile Include="..\src\exits.c" />
     <ClCompile Include="..\src\hvm_config.c" />
@@ -314,6 +315,7 @@
     <ClInclude Include="..\src\policy.h" />
     <ClInclude Include="..\src\power.h" />
     <ClInclude Include="..\src\process.h" />
+    <ClInclude Include="..\src\skiplist.h" />
     <ClInclude Include="..\src\spinlock.h" />
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />

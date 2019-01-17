@@ -184,7 +184,8 @@ RtlDispatchMailboxData(
 
             if (ProcessEntry) {
                 Status = PmExcludeThread( &ProcessEntry->ThreadList, 
-                                          Message->ThreadId );
+                                          Message->ThreadId,
+                                          TRUST_REASON_FALSE_POSITIVE );
 
                 if (!NT_SUCCESS( Status )) {
                     TraceEvents( TRACE_LEVEL_WARNING, TRACE_MAILBOX,

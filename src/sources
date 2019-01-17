@@ -52,6 +52,7 @@ SOURCES = channel.c \
           policy.c \
           ringbuf.c \
           shield.c \
+		  skiplist.c \
           smp.c \
           spinlock.c \
           sync.c \

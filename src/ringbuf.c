@@ -14,8 +14,7 @@ Environment:
 
 --*/
 
-#include <ntifs.h>
-#include "ringbuf.h"
+#include "dsdef.h"
 
 #define RB_AVAILABLE_BYTES( h, t, b ) \
     ((t) >= (h)) ? ((b) - ((t) - (h))) : ((h) - (t))
@@ -84,18 +83,19 @@ RtlRingBufferWrite(
 
     RtlRingBufferGetAvailBytes( RingBuffer, &AvailToWrite, &AvailToRead );
 
-    //
-    // If there is not enough space then make room to fit in all the data.
-    //
     if (AvailToWrite <= DataSize) {
         //
-        //  TODO: make room for write -> RingBufferDelete();
+        //  Make space for the new data by advancing the head pointer.
         //
-        BytesToCopy = AvailToWrite;
+
+        RingBuffer->Head += DataSize;
+
+        if (RingBuffer->Head >= RingBuffer->End) {
+            RingBuffer->Head -= RingBuffer->Size;
+        }
     }
-    else {
-        BytesToCopy = DataSize;
-    }
+
+    BytesToCopy = DataSize;
 
     if (BytesToCopy) {
 
@@ -127,7 +127,7 @@ RtlRingBufferWrite(
             //  Advance the tail pointer.
             //
             RingBuffer->Tail += BytesToCopy;
-            if ( RingBuffer->Tail == RingBuffer->End) {
+            if (RingBuffer->Tail == RingBuffer->End) {
 
                 //
                 //  We have exactly reached the end of the buffer. The next
@@ -170,13 +170,9 @@ RtlRingBufferRead(
 
     RtlRingBufferGetAvailBytes( RingBuffer, &AvailToWrite, &AvailToRead );
 
-    if (AvailToRead == 0) {
+    if (AvailToRead == 0 || DataSize > AvailToRead) {
         KeReleaseSpinLock( &RingBuffer->Lock, OldIrql );
-        return STATUS_SUCCESS;
-    }
-
-    if (DataSize > AvailToRead ) {
-        DataSize = AvailToRead;
+        return STATUS_NO_MORE_ENTRIES;
     }
 
     *BytesCopied = DataSize;
@@ -209,7 +205,7 @@ RtlRingBufferRead(
         // Advance the head pointer.
         //
         RingBuffer->Head += DataSize;
-        if ( RingBuffer->Head == RingBuffer->End) {
+        if (RingBuffer->Head == RingBuffer->End) {
 
             //
             // We have exactly reached the end of the buffer. The next

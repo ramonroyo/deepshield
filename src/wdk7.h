@@ -26,7 +26,8 @@ typedef INT_PTR INTN, *PINTN;
 #define _Out_writes_bytes_to_opt_(s, b)
 #define _IRQL_requires_same_
 #define _IRQL_requires_max_(i)
-#define _Function_class_( c )
+#define _Function_class_(c)
+#define _Must_inspect_result_
 #define _Post_invalid_
 
 #define MdlMappingNoExecute     0x40000000

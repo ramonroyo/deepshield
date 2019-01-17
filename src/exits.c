@@ -119,67 +119,6 @@ CpuidEmulate(
     InstrRipAdvance( Registers );
 }
 
-/*
-VOID
-ResetCacheOperatingMode(
-    VOID
-    )
-{
-    CR0_REGISTER cr0_original = { 0 };
-    CR0_REGISTER cr0_new = { 0 };
-
-    cr0_original.u.raw = __readcr0();
-    cr0_new = cr0_original;
-
-    //
-    //  Set the no-fill cache mode.
-    //
-    cr0_new.u.f.cd = 1;
-    cr0_new.u.f.nw = 0;
-
-    __writecr0(cr0_new.u.raw);
-    __wbinvd();
-
-    //
-    //  Restore previous cache mode.
-    // 
-    __writecr0(cr0_original.u.raw);
-}
-
-VOID
-ResetSmepMode(
-    VOID
-    )
-{
-    CR4_REGISTER cr4_original = { 0 };
-    CR4_REGISTER cr4_new = { 0 };
-
-    cr4_original.u.raw = __readcr4();
-    cr4_new = cr4_original;
-
-    cr4_new.u.f.smep = 0;
-    __writecr4(cr4_new.u.raw);
-    __writecr4(cr4_original.u.raw);
-}
-
-VOID
-FlushCurrentTb(
-    VOID
-    )
-{
-    UINT64 cr4;
-
-    cr4 = __readcr4();
-
-    if (cr4 & 0x20080) {
-        __writecr4( cr4 ^ 0x80 );
-        __writecr4( cr4 );
-    }
-    else {
-        __writecr3( __readcr3() );
-    }
-}*/
-
 #define TSC_INS_LENGHT       (2)
 #define TSCP_INS_LENGHT      (3)
 #define LAST_BYTE_IN_PAGE    (PAGE_SIZE - 1)

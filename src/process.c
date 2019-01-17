@@ -517,12 +517,12 @@ PmGetTokenMandarotyLevel(
 }
 
 UINT32
-PmGetClientTrustLevel(
+PmGetClientTrustReason(
     VOID
     )
 {
     PDS_PROCESS_ENTRY ProcessEntry;
-    UINT32 TrustLevel = TRUST_LEVEL_NONE;
+    UINT32 TrustReason = TRUST_REASON_NONE;
     BOOLEAN IsExcluded;
 
     DsAcquireSpinLock( &gProcessTreeLock );
@@ -534,16 +534,16 @@ PmGetClientTrustLevel(
         //  TODO: check whether the process itself is excluded.
         //
         IsExcluded = PmIsThreadExcluded( &ProcessEntry->ThreadList,
-                                         KeGetCurrentThread() );
+                                         KeGetCurrentThread(),
+                                         &TrustReason );
 
         if (IsExcluded) {
-            TrustLevel = TRUST_LEVEL_MASSIVE;
+            NT_ASSERT( TrustReason != TRUST_REASON_NONE);
         }
     }
 
     DsReleaseSpinLock( &gProcessTreeLock );
-
-    return TrustLevel;
+    return TrustReason;
 }
 
 RTL_GENERIC_COMPARE_RESULTS
@@ -793,7 +793,8 @@ PmCleanupThreadExclusionList(
 NTSTATUS
 PmExcludeThread(
     _In_ PPM_EXCLUSION_TABLE List,
-    _In_ UINT64 ThreadId
+    _In_ UINT64 ThreadId,
+    _In_ UINT32 TrustReason
     )
 {
     NTSTATUS Status;
@@ -816,6 +817,7 @@ PmExcludeThread(
     }
 
     Exclusion->Thread = Thread;
+    Exclusion->TrustReason = TrustReason;
 
     DsAcquireSpinLock( &List->Lock );
     Exclusion->UniqueId = InsertHeadIdxList( &List->Table, Exclusion );
@@ -840,18 +842,22 @@ RoutineExit:
 BOOLEAN
 PmIsThreadExcluded(
     _In_ PPM_EXCLUSION_TABLE List,
-    _In_ PETHREAD Thread
+    _In_ PETHREAD Thread,
+    _Out_ PUINT32 TrustReason
     )
 {
     PPM_EXCLUSION_ENTRY CurrentEntry;
     BOOLEAN ThreadFound = FALSE;
 
+    *TrustReason = TRUST_REASON_NONE;
     DsAcquireSpinLock( &List->Lock );
 
     CurrentEntry = GetHeadNodeIdxList( &List->Table );
 
     while ( CurrentEntry ) {
         if (CurrentEntry->Thread == Thread) {
+
+            *TrustReason = CurrentEntry->TrustReason;
 
             ThreadFound = TRUE;
             break;
@@ -880,7 +886,7 @@ PmGetExemptedProcessListCallback(
 
     UNREFERENCED_PARAMETER( Flags );
 
-    if (FlagOn( ProcessEntry->TrustLevel, TRUST_LEVEL_EXEMPTED )) {
+    if (ProcessEntry->TrustReason != TRUST_REASON_NONE) {
 
         if ((ProcessCount + 1) * sizeof( UINT32 ) <= BufferSize) {
             ProcessIdList[ProcessCount ] = PtrToUlong( ProcessEntry->ProcessId );

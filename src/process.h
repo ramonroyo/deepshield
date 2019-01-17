@@ -20,11 +20,10 @@ Module Name:
 #define MAX_PROCESS_NAME        512L
 #define MAX_SID_LENGTH          192L
 
-
-#define TRUST_LEVEL_NONE           (0x00000001)
-#define TRUST_LEVEL_EXEMPTED       (0x00000002)
-#define TRUST_LEVEL_FORCEFUL       (0x00010000)
-#define TRUST_LEVEL_MASSIVE        (TRUST_LEVEL_FORCEFUL | TRUST_LEVEL_EXEMPTED)
+#define TRUST_REASON_NONE             (0x00000000)
+#define TRUST_REASON_UM_EXEMPTED      (0x00000001)
+#define TRUST_REASON_FORCEFUL         (0x00010000)
+#define TRUST_REASON_FALSE_POSITIVE   (TRUST_REASON_FORCEFUL | 0x00000002)
 
 typedef struct _PM_EXCLUSION_TABLE {
     DS_SPIN_LOCK Lock;
@@ -34,6 +33,7 @@ typedef struct _PM_EXCLUSION_TABLE {
 typedef struct _PM_EXCLUSION_ENTRY {
     PETHREAD Thread;
     UINT32 UniqueId;
+    UINT32 TrustReason;
 } PM_EXCLUSION_ENTRY, *PPM_EXCLUSION_ENTRY;
 
 typedef struct _DS_PROCESS_ENTRY {
@@ -43,7 +43,7 @@ typedef struct _DS_PROCESS_ENTRY {
     WCHAR Sid[MAX_SID_LENGTH];
     PM_EXCLUSION_TABLE ThreadList;
     UNICODE_STRING Path;
-    UINT32 TrustLevel;
+    UINT32 TrustReason;
     UINT32 Flags;
     UINT32 Hash;
 } DS_PROCESS_ENTRY, *PDS_PROCESS_ENTRY;
@@ -129,20 +129,22 @@ PmLookupProcessEntryById(
     );
 
 UINT32
-PmGetClientTrustLevel(
+PmGetClientTrustReason(
     VOID
     );
 
 NTSTATUS
 PmExcludeThread(
     _In_ PPM_EXCLUSION_TABLE List,
-    _In_ UINT64 ThreadId
+    _In_ UINT64 ThreadId,
+    _In_ UINT32 TrustReason
     );
 
 BOOLEAN
 PmIsThreadExcluded(
     _In_ PPM_EXCLUSION_TABLE List,
-    _In_ PETHREAD Thread
+    _In_ PETHREAD Thread,
+    _Out_ PUINT32 TrustReason
     );
 
 #endif

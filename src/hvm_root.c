@@ -52,23 +52,6 @@ HvmMsrHandlerRegistered(
     return FALSE;
 }
 
-UINT32
-DsGetRequestorTrustLevel(
-    VOID
-    )
-{
-    PETHREAD CurrentThread;
-    PEPROCESS CurrentProcess;
-
-    CurrentProcess = IoGetCurrentProcess();
-    CurrentThread = KeGetCurrentThread();
-
-    // SeLocateProcessImageName, PsGetProcessImageFileName
-    // PsReferenceProcessFilePointer + IoQueryFileDosDeviceName. ObQueryNameString 
-
-    return TRUST_LEVEL_MASSIVE;
-}
-
 VOID
 HvmTrimTsdForQuantum(
     BOOLEAN EnableTsd
@@ -90,7 +73,7 @@ HvmTrimTsdForQuantum(
     RtlPostMailboxTrace( &gSecureMailbox,
                          TRACE_LEVEL_INFORMATION,
                          TRACE_MSR_ROOT,
-                         "New CR4 set (Cid = %4d.%4d, Cr4 = 0x%I64X)\n",
+                         "New CR4 set (Cid = %4x.%4x, Cr4 = 0x%I64X)\n",
                          PsGetCurrentProcessId(),
                          PsGetCurrentThreadId(),
                          Cr4.AsUintN );
@@ -140,12 +123,12 @@ HvmHandleMsrWriteFsBase(
     RtlPostMailboxTrace( &gSecureMailbox,
                          TRACE_LEVEL_VERBOSE,
                          TRACE_MSR_ROOT,
-                         "Writing MSR_FS_BASE (Cid = %4d.%4d, Teb = 0x%I64X)\n",
+                         "Writing MSR_FS_BASE (Cid = %4x.%4x, Teb = 0x%I64X)\n",
                          PsGetCurrentProcessId(),
                          PsGetCurrentThreadId(),
                          Value );
 
-    EnableTsd = !FlagOn( PmGetClientTrustLevel(), TRUST_LEVEL_EXEMPTED );
+    EnableTsd = (PmGetClientTrustReason() == TRUST_REASON_NONE);
     HvmTrimTsdForQuantum( EnableTsd );
 
     return TRUE;

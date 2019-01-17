@@ -3,7 +3,6 @@
 
 #include <ntifs.h>
 #include "wdk7.h"
-#include "..\src\dsdef.h"
 
 #pragma warning(disable:4201)   // nameless struct/union
 
@@ -88,16 +87,15 @@ typedef enum _SHIELD_HASH_FUNCTION {
     HashFunctionSha256
 } SHIELD_HASH_FUNCTION, *PSHIELD_HASH_FUNCTION;
 
-typedef struct _SHIELD_CERTIFICATE_PUBLISHER {
-    WCHAR FullName[128];
-} SHIELD_CERTIFICATE_PUBLISHER, *PSHIELD_CERTIFICATE_PUBLISHER;
-
-typedef struct _SHIELD_CERTIFICATE_HASH {
+typedef struct _SHIELD_CERTIFICATE_INFORMATION {
+    WCHAR CertPublisherName[128];
     //
     //  Affects all software signed with a particular signing certificate.
+    //  The certificate hash overrides a certificate publisher.
     //
-    CHAR HashString[32];
-} SHIELD_CERTIFICATE_HASH, *PSHIELD_CERTIFICATE_HASH;
+    CHAR CertHashString[64];
+} SHIELD_CERTIFICATE_INFORMATION, *PSHIELD_CERTIFICATE_INFORMATION;
+
 
 typedef struct _SHIELD_PROCESS_RULE {
     SHIELD_RULE_TYPE Type;
@@ -116,10 +114,8 @@ typedef struct _SHIELD_PROCESS_RULE {
 
     //
     //  Binaries can be trusted / restricted by their leaf certificate too.
-    //  The certificate hash overrides a certificate publisher.
     //
-    SHIELD_CERTIFICATE_PUBLISHER CertPublisher;
-    SHIELD_CERTIFICATE_HASH CertHash;
+    SHIELD_CERTIFICATE_INFORMATION CertInfo;
 
     //
     //  Path-based rules are the last rules to be evaluated.
