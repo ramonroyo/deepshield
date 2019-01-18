@@ -14,7 +14,11 @@ Module Name:
 #include <ntifs.h>
 #include "wdk7.h"
 
-#define RTL_SKIPLIST_MAX_LEVEL 32
+//
+//  Define an appropiate max. level data structures containing up to 64K
+//  elements
+//
+#define RTL_SKIPLIST_MAX_LEVEL 16
 
 //
 //  Forwarder definitions for the function pointers.
