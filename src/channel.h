@@ -3,6 +3,7 @@
 
 #include <ntifs.h>
 #include "wdk7.h"
+#include "tsc.h"
 
 #pragma warning(disable:4201)   // nameless struct/union
 
@@ -26,7 +27,8 @@ typedef enum _DS_TERMINATE_REASON {
 } DS_TERMINATE_REASON, *PDS_TERMINATE_REASON;
 
 typedef UINT32 DS_MESSAGE_FLAGS;
-    #define DS_MESSAGE_ASYNCHRONOUS     0x00000001
+
+#define DS_MESSAGE_ASYNCHRONOUS     0x00000001
 
 typedef struct _DS_MESSAGE_HEADER {
     UINT64 UniqueId;
@@ -47,12 +49,22 @@ typedef enum _DS_NOTIFICATION_ACTION {
     MaxAction,
 } DS_NOTIFICATION_ACTION, *PDS_NOTIFICATION_ACTION;
 
+typedef struct _DS_TIME_INFORMATION {
+    TSC_ENTRY Tsc;
+    UINT8     Code[SIBLING_DISTANCE_LIMIT];
+    UINTN     CodeSize;
+    ULONG     Flags;
+} DS_TIME_INFORMATION, *PDS_TIME_INFORMATION;
+
 typedef struct _DS_NOTIFICATION_MESSAGE {
     DS_MESSAGE_HEADER;
     UINT64 ProcessId;
     UINT64 ThreadId;
     DS_NOTIFICATION_TYPE Type;
     DS_NOTIFICATION_ACTION Action;
+    union {
+        DS_TIME_INFORMATION Timming;
+    } Data;
 } DS_NOTIFICATION_MESSAGE, *PDS_NOTIFICATION_MESSAGE;
 
 typedef struct _DS_TERMINATE_MESSAGE {
@@ -70,9 +82,12 @@ typedef struct _DS_BUCKET_SERVER {
     PKEVENT PairEvent[MaxEvent];
 } DS_BUCKET_SERVER, *PDS_BUCKET_SERVER;
 
+#define SIZE_1K 1024
+#define DS_BUCKET_DATA_SIZE SIZE_1K - sizeof(HANDLE) * MaxEvent
+
 typedef struct _DS_BUCKET_CLIENT {
     HANDLE EventHandle[MaxEvent];
-    UCHAR Data[240];
+    UCHAR Data[DS_BUCKET_DATA_SIZE];
 } DS_BUCKET_CLIENT, *PDS_BUCKET_CLIENT;
 
 typedef struct _DS_CHANNEL {

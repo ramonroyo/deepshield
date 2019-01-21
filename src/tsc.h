@@ -1,8 +1,6 @@
 #ifndef __TSC_H__
 #define __TSC_H__
 
-#include "dsdef.h"
-#include "hvm.h"
 #include "context.h"
 
 //
@@ -19,6 +17,7 @@
 
 #define TSC_HASH_BITS_HIGH sizeof(UINTN) * 4
 
+#define SIBLING_DISTANCE_LIMIT     0xFF
 
 typedef struct _TSC_HIT {
     //
@@ -36,6 +35,19 @@ typedef struct _TSC_ENTRY {
     UINT64   Difference;
     UINTN    TscHash;
 } TSC_ENTRY, *PTSC_ENTRY;
+
+
+#define TD_MEMORY_REFERENCES  0x00000001
+#define TD_INSTRUCTIONS_VALID 0x00000002
+
+typedef struct _TSC_REPORT {
+    UINTN      ProcessId;
+    UINTN      ThreadId;
+    PTSC_ENTRY Tsc;
+    UINT8      Code[SIBLING_DISTANCE_LIMIT];
+    UINTN      CodeSize;
+    ULONG      Flags;
+} TSC_REPORT, *PTSC_REPORT;
 
 VOID
 VmRdtscEmulate(
