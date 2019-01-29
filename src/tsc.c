@@ -443,7 +443,7 @@ TdDisFollowForwardJump(
 ) 
 {
     struct ud_operand * Operand;
-    UINT64 Skip;
+    UINTN Skip;
 
     UNREFERENCED_PARAMETER( Address );
     UNREFERENCED_PARAMETER( Size );
@@ -452,7 +452,7 @@ TdDisFollowForwardJump(
 
     if (Operand->type == UD_OP_JIMM &&
         Operand->size > 0) {
-        Skip = (UINT64)Dis->inp_ctr + Operand->lval.uqword;;
+        Skip = Dis->inp_ctr + (UINTN)Operand->lval.uqword;;
 
         if (Skip > 0) {
             ud_input_skip( Dis, Skip );
