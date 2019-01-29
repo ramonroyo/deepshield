@@ -38,7 +38,7 @@ typedef struct _TSC_ENTRY {
 
 
 #define TD_MEMORY_REFERENCES  0x00000001
-#define TD_INSTRUCTIONS_VALID 0x00000002
+#define TD_INSTRUCTIONS_INVALID 0x00000002
 
 typedef struct _TSC_REPORT {
     UINTN      ProcessId;
@@ -63,7 +63,7 @@ VmRdtscpEmulate(
 
 // TODO: export function only for testing purposes
 // #ifdef DEBUG
-BOOLEAN TdIsTimmingCandidate(
+BOOLEAN TdIsTimingCandidate(
     _In_ PTSC_ENTRY     Sibling
 );
 

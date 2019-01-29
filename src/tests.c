@@ -363,7 +363,7 @@ TestBasicTimeStampDetectionWithSkip(
 
     for ( i = 0; i < TOTAL_TEST_HITS; i++ ) {
         if ( i > 0 && i % 30 == 0) {
-            // Simulates a timming difference affected by a flush
+            // Simulates a Timing difference affected by a flush
             Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
         } else {
             // Simulates around ~1500-2000 cycles
@@ -378,7 +378,7 @@ TestBasicTimeStampDetectionWithSkip(
 
         // this should be reached each total/30 times
         if ( i > 0 && i % 30 == 0) {
-            // Simulates a timming difference affected by a flush
+            // Simulates a Timing difference affected by a flush
             Addition = (CONSTANT_TSC * 9) + (__rdtsc() & 0xFF);
         } else {
             // Simulates around ~1500-2000 cycles
@@ -398,7 +398,7 @@ TestBasicTimeStampDetectionWithSkip(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingCandidate(Entry) ) {
+        if ( TdIsTimingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -452,7 +452,7 @@ TestRdtscInstructionBoundaries(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingCandidate(Entry) ) {
+        if ( TdIsTimingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
@@ -523,7 +523,7 @@ TestBasicTimeStampDetection(
     for ( i = 0; i < MAX_TSC_HITS; i++ ) {
         PTSC_ENTRY Entry = &TscHits[i];
 
-        if ( TdIsTimmingCandidate(Entry) ) {
+        if ( TdIsTimingCandidate(Entry) ) {
             DestroyLocalContext(Context);
             return TestSuccess;
         }
