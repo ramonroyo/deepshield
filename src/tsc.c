@@ -437,25 +437,18 @@ TdMapAddress(
 
 BOOLEAN
 TdDisFollowForwardJump(
-    ud_t * Dis,
-    _In_ PUINT8 Address,
-    _In_ UINTN  Size
+    ud_t * Dis
 ) 
 {
     struct ud_operand * Operand;
-    UINTN Skip;
-
-    UNREFERENCED_PARAMETER( Address );
-    UNREFERENCED_PARAMETER( Size );
 
     Operand = &Dis->operand[0];
 
     if (Operand->type == UD_OP_JIMM &&
         Operand->size > 0) {
-        Skip = Dis->inp_ctr + (UINTN)Operand->lval.uqword;;
 
-        if (Skip > 0) {
-            ud_input_skip( Dis, Skip );
+        if (Operand->lval.uqword > 0) {
+            ud_input_skip( Dis, (UINTN) Operand->lval.uqword );
             return TRUE;
         }
 
@@ -514,7 +507,7 @@ TdAnalyzeDissasembledInstructions(
 
 
     while (ud_disassemble( &Dis )) {
-        if (TdDisFollowForwardJump( &Dis, Address, Size )) {
+        if (TdDisFollowForwardJump( &Dis )) {
             continue;
         }
 
