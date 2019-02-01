@@ -1,6 +1,7 @@
 #include "dsdef.h"
 #include "wpp.h"
 #include "tsc.h"
+#include "channel.h"
 #include "context.h"
 #include "instr.h"
 #include "vmx.h"
@@ -8,9 +9,9 @@
 #include "smp.h"
 #include "mem.h"
 #include "x86.h"
+#include "udis86.h"
 
 
-#define SIBLING_DISTANCE_LIMIT     0xFF
 #define IS_ORPHAN_SIBLING( Sibling )    \
     (((Sibling)->After.Address == 0) || ((Sibling)->Before.Address == 0))
 
@@ -22,8 +23,7 @@
 NTSTATUS
 TdMessageNotify(
     _In_ DS_NOTIFICATION_TYPE Type,
-    _In_ UINTN ProcessId,
-    _In_ UINTN ThreadId
+    _In_ PTSC_REPORT Report
     )
 {
     DS_NOTIFICATION_MESSAGE Notification;
@@ -31,9 +31,17 @@ TdMessageNotify(
     Notification.ControlFlags = 0;
     Notification.MessageType = NotificationMessage;
 
-    Notification.ProcessId = ProcessId;
-    Notification.ThreadId = ThreadId;
-    Notification.Type = Type;
+    Notification.ProcessId = Report->ProcessId;
+    Notification.ThreadId  = Report->ThreadId;
+    Notification.Type      = Type;
+
+    RtlCopyMemory( Notification.Data.Tsc.Code,
+                   Report->Code,
+                   Report->CodeSize );
+
+    Notification.Data.Tsc.Tsc       = *Report->Tsc;
+    Notification.Data.Tsc.CodeSize  = Report->CodeSize;
+    Notification.Data.Tsc.Flags     = Report->Flags;
 
     return RtlPostMailboxNotification( &gSecureMailbox, 
                                        &Notification,
@@ -41,42 +49,40 @@ TdMessageNotify(
 }
 
 VOID
-TdTimmingFalsePositiveNotify(
-    _In_ UINTN ProcessId,
-    _In_ UINTN ThreadId
+TdTimingFalsePositiveNotify(
+    _In_ PTSC_REPORT Report
     )
 {
     NTSTATUS Status;
 
-    Status = TdMessageNotify( TimerFalsePositive, ProcessId, ThreadId );
+    Status = TdMessageNotify( TimerFalsePositive, Report );
 
     if (!NT_SUCCESS( Status ) ) {
         RtlPostMailboxTrace( &gSecureMailbox,
                              TRACE_LEVEL_WARNING,
                              TRACE_IOA_ROOT,
-                             "Unable to notify timming attack (ProcessId = %p, ThreadId = %p)\n",
-                             ProcessId, 
-                             ThreadId );
+                             "Unable to notify Timing attack (ProcessId = %p, ThreadId = %p)\n",
+                             Report->ProcessId, 
+                             Report->ThreadId );
     }
 }
 
 VOID
-TdTimmingAttackNotify(
-    _In_ UINTN ProcessId, 
-    _In_ UINTN ThreadId
+TdTimingAttackNotify(
+    _In_ PTSC_REPORT Report
 ) 
 {
     NTSTATUS Status;
 
-    Status = TdMessageNotify( TimerAbuse, ProcessId, ThreadId );
+    Status = TdMessageNotify( TimerAbuse, Report );
 
     if (!NT_SUCCESS( Status )) {
         RtlPostMailboxTrace( &gSecureMailbox,
                              TRACE_LEVEL_WARNING,
                              TRACE_IOA_ROOT,
-                             "Unable to notify timming attack (ProcessId = %p, ThreadId = %p)\n",
-                             ProcessId, 
-                             ThreadId );
+                             "Unable to notify Timing attack (ProcessId = %p, ThreadId = %p)\n",
+                             Report->ProcessId, 
+                             Report->ThreadId );
     }
 }
 
@@ -313,17 +319,17 @@ TdDiscontinueSiblingAssesment(
 }
 
 //
-// First dummy detection of a timming attack.
+// First dummy detection of a Timing attack.
 //
 BOOLEAN
-TdIsTimmingCandidate(
+TdIsTimingCandidate(
     _In_ PTSC_ENTRY Sibling
     )
 {
     BOOLEAN IsSyncThresholdOk  = FALSE; 
     BOOLEAN IsSkipsThresholdOk = FALSE; 
     BOOLEAN IsCountThresholdOk = FALSE; 
-    BOOLEAN IsTimmingCandidate = FALSE; 
+    BOOLEAN IsTimingCandidate = FALSE; 
 
     if (Sibling->Difference == 0) { return FALSE; }
 
@@ -352,19 +358,19 @@ TdIsTimmingCandidate(
     //
     IsSkipsThresholdOk = Sibling->Skips < max((Sibling->Before.Count / 20), 1);
 
-    IsTimmingCandidate = ( IsSyncThresholdOk &&
+    IsTimingCandidate = ( IsSyncThresholdOk &&
                            IsSkipsThresholdOk &&
                            IsCountThresholdOk );
 
     //
-    //  If it is not already a timming candidate then discontinue the assesment
+    //  If it is not already a Timing candidate then discontinue the assesment
     //  for the Sibling.
     //
-    if (!IsTimmingCandidate && IsCountThresholdOk) {
+    if (!IsTimingCandidate && IsCountThresholdOk) {
         TdDiscontinueSiblingAssesment( Sibling );
     }
 
-    return IsTimmingCandidate;
+    return IsTimingCandidate;
 }
 
 PTSC_ENTRY TdCreateSibling(
@@ -429,24 +435,90 @@ TdMapAddress(
     return (PUINTN)((UINTN)CodePage + BYTE_OFFSET( Address ));
 }
 
-//
-// [SG] TODO: Add x86 support (TdAreMemoryOffsetsWithin64 + TdAreMemoryReferencesWithinRange).
-//
 BOOLEAN
-TdAreMemoryReferencesWithinRange(
-    _In_ PUINT8 Address,
-    _In_ UINTN  Size
+TdDisFollowForwardJump(
+    ud_t * Dis
+) 
+{
+    struct ud_operand * Operand;
+
+    Operand = &Dis->operand[0];
+
+    if (Operand->type == UD_OP_JIMM &&
+        Operand->size > 0) {
+
+        if (Operand->lval.uqword > 0) {
+            ud_input_skip( Dis, (UINTN) Operand->lval.uqword );
+            return TRUE;
+        }
+
+    }
+    
+    return FALSE;
+}
+
+VOID
+TdDisAnalyzeMemoryReadReferences(
+    _In_ PTSC_REPORT Report,
+    ud_t * Dis
 )
 {
-    UNREFERENCED_PARAMETER( Size );
-    UNREFERENCED_PARAMETER( Address );
+    if (Dis->operand[0].type != UD_OP_MEM && 
+        (Dis->operand[1].type == UD_OP_MEM || 
+         Dis->operand[2].type == UD_OP_MEM)) {
+        SetFlag( Report->Flags, TD_MEMORY_REFERENCES);
+    }
+}
 
-    //
-    // UNIMPLEMENTED: This should be addressed using udis86 dissassembler.
-    //
+BOOLEAN
+TdDisAnalyzeInvalidInstructions(
+    _In_ PTSC_REPORT Report,
+    ud_t * Dis
+)
+{
+    if (Dis->mnemonic == UD_Iinvalid) {
+        SetFlag( Report->Flags, TD_INSTRUCTIONS_INVALID);
+        return TRUE;
+    }
 
     return FALSE;
 }
+
+VOID
+TdAnalyzeDissasembledInstructions(
+    _In_ PTSC_REPORT Report,
+    _In_ PUINT8 Address,
+    _In_ UINTN  Size
+) 
+{
+
+    ud_t Dis;
+
+    ud_init( &Dis );
+    ud_set_input_buffer( &Dis, Address, Size );
+
+#ifdef _WIN64
+    ud_set_mode( &Dis, 64 );
+#else
+    ud_set_mode( &Dis, 32 );
+#endif
+
+    ud_set_syntax( &Dis, UD_SYN_INTEL );
+
+
+    while (ud_disassemble( &Dis )) {
+        if (TdDisFollowForwardJump( &Dis )) {
+            continue;
+        }
+
+        TdDisAnalyzeMemoryReadReferences( Report, &Dis );
+
+        if (TdDisAnalyzeInvalidInstructions( Report, &Dis )) {
+            break;
+        }
+    }
+}
+
 
 
 BOOLEAN 
@@ -486,7 +558,7 @@ TdCopySiblingMemory(
 
         EndAddress = TdMapAddress( Cr3, Sibling->After.Address );
 
-        if ( NULL == EndAddress ) {
+        if (NULL == EndAddress) {
             Result = FALSE;
             goto RoutineExit;
         }
@@ -515,21 +587,29 @@ RoutineExit:
 }
 
 BOOLEAN 
-TdIsTimmingAttack(
-    _In_ PTSC_ENTRY Sibling
+TdIsTimingAttack(
+    _In_    PTSC_ENTRY Sibling,
+    _In_    PTSC_REPORT Report
     )
 {
-    UINT8 Code[ SIBLING_DISTANCE_LIMIT ] = { 0 };
+    PUINT8  Code;
+    UINTN   CodeSize;
+    
 
-    UINTN Distance;
 
-    if ( TdCopySiblingMemory( Sibling,
-                              (PUINT8) &Code,
-                              &Distance )) {
-        return TdAreMemoryReferencesWithinRange( Code, Distance + 1 );
+    if (FALSE == TdCopySiblingMemory( Sibling,
+                                      Report->Code,
+                                      &Report->CodeSize )) {
+        return FALSE;
     }
 
-    return FALSE;
+    Code     = Report->Code;
+    CodeSize = Report->CodeSize;
+
+    TdAnalyzeDissasembledInstructions( Report, Code, CodeSize );
+
+    return (!FlagOn( Report->Flags, TD_INSTRUCTIONS_INVALID )) &&
+            FlagOn( Report->Flags, TD_MEMORY_REFERENCES );
 }
 
 BOOLEAN
@@ -542,8 +622,11 @@ TdProcessTscEvent(
     UINTN ProcessId;
     UINTN ThreadId;
     UINTN TscHash;
+
     PTSC_ENTRY Sibling;
-    BOOLEAN IsTimmingAttack = FALSE;
+    BOOLEAN IsTimingAttack = FALSE;
+
+    TSC_REPORT TimingReport = { 0 };
 
     ProcessId = (UINTN) PsGetCurrentProcessId();
     ThreadId  = (UINTN) PsGetCurrentThreadId();
@@ -565,16 +648,23 @@ TdProcessTscEvent(
                                    TimeStamp );
     }
 
-    if (!TdIsTimmingCandidate( Sibling ) ) {
+    if (!TdIsTimingCandidate( Sibling ) ) {
         return FALSE;
     }
 
-    IsTimmingAttack = TdIsTimmingAttack( Sibling );
+    //
+    // Set report PID and TID along with the Tsc
+    //
+    TimingReport.Tsc = Sibling;
+    TimingReport.ProcessId = ProcessId;
+    TimingReport.ThreadId  = ThreadId;
+
+    IsTimingAttack = TdIsTimingAttack( Sibling, &TimingReport );
     
     // 
     //  This will be the trigger of a detection.
     //
-    if (IsTimmingAttack) {
+    if (IsTimingAttack) {
         //
         // [SG] TODO: Refactor to TraceRootInformation.
         //
@@ -584,7 +674,7 @@ TdProcessTscEvent(
                              "Timing Attack Found (ProcessId = %p)\n",
                              ProcessId );
 
-        TdTimmingAttackNotify( ProcessId, ThreadId );
+        TdTimingAttackNotify( &TimingReport );
 
     } else {
 
@@ -600,11 +690,12 @@ TdProcessTscEvent(
                              ProcessId,
                              ThreadId );
 
-        TdTimmingFalsePositiveNotify( ProcessId, ThreadId );
-        TdClearSibling( Sibling );
+        TdTimingFalsePositiveNotify( &TimingReport );
     }
 
-    return IsTimmingAttack;
+    TdClearSibling( Sibling );
+
+    return IsTimingAttack;
 }
 
 VOID

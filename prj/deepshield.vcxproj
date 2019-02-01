@@ -151,8 +151,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <Link>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -171,8 +171,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='msi|Win32'">
     <Link>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -190,8 +190,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Link>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -209,8 +209,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDior)\$(Platform)\$ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;$(SolutionDir)\$(Platform)\$ConfigurationName)\;%(AdditionalLibraryDirectories);</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -229,8 +229,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <Link>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -248,8 +248,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='msi|x64'">
     <Link>
-      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>wdmsec.lib;ntstrsafe.lib;libudis86.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\bin\$(Platform)\$(ConfigurationName)\;$(SolutionDir)\..\lib\$(Platform)\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\capstone\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -318,6 +318,7 @@
     <ClInclude Include="..\src\tests.h" />
     <ClInclude Include="..\src\tsc.h" />
     <ClInclude Include="..\src\ringbuf.h" />
+    <ClInclude Include="..\src\udis86.h" />
     <ClInclude Include="..\src\wdk7.h" />
     <ClInclude Include="..\src\shield.h" />
     <ClInclude Include="..\src\exits.h" />
