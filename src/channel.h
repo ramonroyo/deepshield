@@ -64,6 +64,7 @@ typedef struct _DS_NOTIFICATION_MESSAGE {
     DS_NOTIFICATION_ACTION Action;
     union {
         DS_TSC_INFORMATION Tsc;
+        UINTN Buffer;
     } Data;
 } DS_NOTIFICATION_MESSAGE, *PDS_NOTIFICATION_MESSAGE;
 
@@ -131,6 +132,8 @@ DsSendNotificationMessage(
     _In_ UINT64 ProcessId,
     _In_ UINT64 ThreadId,
     _In_ DS_NOTIFICATION_TYPE Type,
+    _In_ PVOID Data,
+    _In_ UINTN DataSize,
     _Out_ PDS_NOTIFICATION_ACTION Action
     );
 
