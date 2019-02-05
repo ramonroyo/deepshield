@@ -201,6 +201,8 @@ RtlDispatchMailboxData(
                                                 Message->ProcessId,
                                                 Message->ThreadId,
                                                 Message->Type,
+                                                (PVOID)&Message->Data.Tsc,
+                                                sizeof(DS_TSC_INFORMATION),
                                                 &Message->Action );
         }
     } else {

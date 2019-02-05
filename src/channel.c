@@ -394,6 +394,8 @@ DsSendNotificationMessage(
     _In_ UINT64 ProcessId,
     _In_ UINT64 ThreadId,
     _In_ DS_NOTIFICATION_TYPE Type,
+    _In_ PVOID Data,
+    _In_ UINTN DataSize,
     _Out_ PDS_NOTIFICATION_ACTION Action
     )
 {
@@ -443,6 +445,8 @@ DsSendNotificationMessage(
         Message->ProcessId = ProcessId;
         Message->ThreadId = ThreadId;
         Message->Type = Type;
+
+        RtlCopyMemory( &Message->Data.Buffer, Data, DataSize );
 
         NT_ASSERT( KeGetCurrentIrql() == PASSIVE_LEVEL );
 
