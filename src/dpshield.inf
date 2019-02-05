@@ -9,7 +9,7 @@ Class                  = "SecurityComponent"
 ClassGuid              = {fb2b5105-e8b9-483e-b18c-205ae7817d44}
 Provider               = %ManufacturerName%
 DriverPackageType      = KernelService
-DriverVer	       = 02/01/2019,14.59.25.604
+DriverVer	       = 02/05/2019,12.48.32.703
 CatalogFile            = dpshield.cat
 
 [DestinationDirs]
