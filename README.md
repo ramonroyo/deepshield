@@ -1,3 +1,3 @@
 ## DeepShield ##
 
-**The Hypervisor based solution against Speculative Execution Side Channels.**
+**The Hypervisor based component for detecting Side Channel Compromises (SCCs)**
